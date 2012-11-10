@@ -1,0 +1,7 @@
+<p><strong><em>fpm</em></strong> is a wonderful tool for building our own packages. It&#8217;s very simple to use. I&#8217;m a qmail user, since our <strong>deepOfix Mail Server</strong> is built on that. So in many situations i&#8217;ve to compile the qmail from the source along with custom patches. And one main thing about qmail is that it need a bunch of files in the <em>control</em> folder for its working.</p>
+
+<p>Since we are automation freaks, we even wrote a <em>puppet</em> module for qmail. But then i came to know about the <strong><em>fpm</em></strong>. Since it supports pre and post scripts, i can automate so many things not only creating the control files, but also adding necessary run scripts to run as a <em>runit</em> service.</p>
+
+<p>fpm is very simple to install:</p>
+
+<p>$ gem install fpm</p>
