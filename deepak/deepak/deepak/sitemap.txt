@@ -1,0 +1,10 @@
+
+http://deepakmdass88.github.com/archive.html
+http://deepakmdass88.github.com/atom.xml
+http://deepakmdass88.github.com/categories.html
+http://deepakmdass88.github.com/index.html
+http://deepakmdass88.github.com/pages.html
+http://deepakmdass88.github.com/sitemap.txt
+http://deepakmdass88.github.com/tags.html
+
+http://deepakmdass88.github.com/2012/11/05/vagrant---make-virtualization-easier

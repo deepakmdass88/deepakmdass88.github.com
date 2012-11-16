@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+ 
+ <title>beingasysadmin</title>
+ <link href="http://deepakmdass88.github.com/atom.xml" rel="self"/>
+ <link href="http://deepakmdass88.github.com"/>
+ <updated>2012-11-16T15:30:04+05:30</updated>
+ <id>http://deepakmdass88.github.com</id>
+ <author>
+   <name>Deepak MDas</name>
+   <email>deepak@deeproot.in</email>
+ </author>
+
+ 
+ <entry>
+   <title>Vagrant: Make Virtualization Easier</title>
+   <link href="http://deepakmdass88.github.com/virtualization/2012/11/16/vagrant-make-virtualization-easier"/>
+   <updated>2012-11-16T00:00:00+05:30</updated>
+   <id>http://deepakmdass88.github.com/virtualization/2012/11/16/vagrant-make-virtualization-easier</id>
+   <content type="html">&lt;p&gt;&lt;strong&gt;&lt;em&gt;Vagrant&lt;/em&gt;&lt;/strong&gt; is a light weight virtualization tool, build over Oracle&amp;#8217;s &lt;code&gt;VirtualBox&lt;/code&gt;. It&amp;#8217;s completely written in ruby and it&amp;#8217;s very easy to install and configure. The only dependency is &lt;code&gt;VirtualBox&lt;/code&gt;. Once VirtualBox is installed, we can either use &lt;code&gt;RubyGems&lt;/code&gt; to install &lt;code&gt;Vagrant&lt;/code&gt; or we can get the installer from &lt;a href='http://downloads.vagrantup.com/'&gt;Vagrant&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;I prefer ruby gems, So&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ gem install vagrant&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;That&amp;#8217;s it, it will install vagrant. Now we need to get the base box. Vagrant uses the base boxes to build the VM&amp;#8217;s. We can download the base boxes from &lt;a href='http://www.vagrantbox.es/'&gt;Vagrant Boxes&lt;/a&gt;. we can directly use the url to create the boxes, but it&amp;#8217;s alwasy good if we have a downloaded copy of the base boxes.&lt;/p&gt;
+
+&lt;p&gt;Basically we need to follow just 3 steps. &lt;em&gt;add&lt;/em&gt;,&lt;em&gt;initialize&lt;/em&gt;,&lt;em&gt;up&lt;/em&gt;. So once we have the base box just add the base box.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ vagrant box add new_box_name our_downloaded_basebox_file
+
+example,
+$ vagrant box add mybox precise32.box&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now just do a &lt;strong&gt;vagrant init&lt;/strong&gt; to create the &lt;code&gt;Vagrantfile&lt;/code&gt;. This is the main configuration file. If we go through the &lt;code&gt;Vagrantfile&lt;/code&gt;, we can see a bunch of options like port forward, provisioning, setting network and so on. If only one vm is required, then we just have to add the &lt;em&gt;new_box&lt;/em&gt; name which we created at the &lt;code&gt;config.vm.box=&lt;/code&gt; option int the &lt;code&gt;Vagrantfile&lt;/code&gt;. And &lt;strong&gt;vagrant up&lt;/strong&gt; will start the VM.&lt;/p&gt;
+
+&lt;p&gt;But one of the most important feature of &lt;strong&gt;&lt;em&gt;Vagrant&lt;/em&gt;&lt;/strong&gt; is it suports multiple VM&amp;#8217;s over one single box. But we have to define those VM&amp;#8217;s in the &lt;code&gt;Vagrantfile&lt;/code&gt;. Below i&amp;#8217;ve defined two VM&amp;#8217;s in my &lt;code&gt;Vagrantfile&lt;/code&gt;, also comment out &lt;strong&gt;config.vm.box=base&lt;/strong&gt;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;config.vm.define :ubuntu do |ubuntu_config|
+	 ubuntu_config.vm.box = &amp;quot;precise32&amp;quot;
+end
+config.vm.define :puppet do |puppet_config|
+	 puppet_config.vm.box = &amp;quot;precise32&amp;quot;
+end&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Where &lt;em&gt;ubuntu&lt;/em&gt; and &lt;em&gt;puppet&lt;/em&gt; are the name of the VM&amp;#8217;s. And &lt;em&gt;precise32&lt;/em&gt; is the name of the the box which i&amp;#8217;ve created. Now, &lt;strong&gt;vagrant up&lt;/strong&gt; will start all the VM&amp;#8217;s. But we can mention the name to start a specific VM. Like &lt;strong&gt;vagrant up ubuntu&lt;/strong&gt;. It will start only the &lt;strong&gt;ubuntu&lt;/strong&gt; VM.&lt;/p&gt;
+
+&lt;p&gt;Provisioning is another important feature of Vagrant. We can use &lt;strong&gt;&lt;em&gt;puppet&lt;/em&gt;&lt;/strong&gt;,&lt;strong&gt;&lt;em&gt;chef&lt;/em&gt;&lt;/strong&gt; and &lt;strong&gt;&lt;em&gt;shell&lt;/em&gt;&lt;/strong&gt; scripts to bootstrap the vm&amp;#8217;s. I saw &lt;a href='https://twitter.com/mitchellh'&gt;@mitchellh&amp;#8217;s&lt;/a&gt; talk at &lt;a href='http://www.youtube.com/watch?v=UTQQggVx4sI&amp;amp;feature=BFa&amp;amp;list=PLV86BgbREluVFB73Wwqp_tCbw5Z9TMLX1'&gt;PuppetConf 2012&lt;/a&gt;, in which he mentioned about how to create a &lt;strong&gt;Fully Automated Puppet Master&lt;/strong&gt; using the &lt;strong&gt;shell&lt;/strong&gt; provisioner. I&amp;#8217;ve tried this out using a shell script that will install puppet master and genrate the ssl certificates. It&amp;#8217;s working fine, soon i will post it here.&lt;/p&gt;</content>
+ </entry>
+ 
+ <entry>
+   <title>Fully Automated Puppet Master For Vagrant</title>
+   <link href="http://deepakmdass88.github.com/virtualization/2012/11/16/fully-automated-puppet-master-for-vagrant"/>
+   <updated>2012-11-16T00:00:00+05:30</updated>
+   <id>http://deepakmdass88.github.com/virtualization/2012/11/16/fully-automated-puppet-master-for-vagrant</id>
+   <content type="html">&lt;p&gt;In my previous blog, i expalined about how set up &lt;strong&gt;&lt;em&gt;Vagrant&lt;/em&gt;&lt;/strong&gt; with Single as well as Multiple VM&amp;#8217;s. I saw &lt;a href='https://twitter.com/mitchellh'&gt;@mitchellh&amp;#8217;s&lt;/a&gt; talk at &lt;a href='http://www.youtube.com/watch?v=UTQQggVx4sI'&gt;PuppetConf 2012&lt;/a&gt;, where he was explaining about &lt;code&gt;Automated Puppet Master&lt;/code&gt; using &lt;em&gt;shell&lt;/em&gt; provisioning. We can use the &lt;em&gt;shell&lt;/em&gt; provisioner to execute &lt;em&gt;bash&lt;/em&gt; scripts. My script will add the &lt;strong&gt;&lt;em&gt;puppetlabs&lt;/em&gt;&lt;/strong&gt; &lt;em&gt;apt&lt;/em&gt; repository and it will install the &lt;em&gt;puppet&lt;/em&gt; packages. Since i&amp;#8217;m not running puppet master in daemon mode, i will be installing &lt;code&gt;puppet&lt;/code&gt; and &lt;code&gt;puppet-common&lt;/code&gt;, and i will be using &lt;strong&gt;&lt;em&gt;puppet master&lt;/em&gt;&lt;/strong&gt; option for starting the &lt;strong&gt;puppet&lt;/strong&gt; master.And it will also clear all host certificates and it will generate new one&amp;#8217;s.&lt;/p&gt;
+
+&lt;p&gt;So firt we need to add the the provisioning option in the &lt;code&gt;Vagrantfile&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;config.vm.define :ubuntu do |ubuntu_config|
+	  ubuntu_config.vm.box = &amp;quot;precise32&amp;quot;
+config.vm.provision :shell, :path =&amp;gt; &amp;quot;bootstrap.sh&amp;quot;
+end&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Where &lt;code&gt;bootstrap.sh&lt;/code&gt; is the bashscript. Below is the content of the script.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;#! /bin/bash
+
+hname=`hostname`
+domain=&amp;quot;put_ur_domain&amp;quot;
+fqdn=`echo $hname.$domain`
+domainname $domain
+repo=&amp;quot;deb http://apt.puppetlabs.com precise main&amp;quot;
+stat=`grep puppetlabs /etc/apt/sources.list &amp;gt; /dev/null ; echo $?`
+if [ $stat -eq 0 ]
+then
+echo &amp;quot;Repo is already added&amp;quot;
+else
+echo &amp;quot;not added --- adding&amp;quot;
+echo $repo &amp;gt;&amp;gt; /etc/apt/sources.list
+apt-key adv --keyserver keyserver.ubuntu.com --recv 4BD6EC30
+apt-get update
+echo Y | apt-get install puppet puppet-common
+fi
+puppet cert clean --all
+puppet cert generate $fqdn&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;If we don&amp;#8217;t want to regenarate the certificates everytime when the VM starts, then we can put a simple &lt;strong&gt;if&lt;/strong&gt;, os that if will check whether the certificate already exists, if yes it will skip certificate generation else it will generate a new certificate for the master.&lt;/p&gt;
+
+&lt;p&gt;Since i dont&amp;#8217;t run puppet in daemon mode during testing, i will be using the below command for starting the master&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ puppet master --verbose --debug --no-daemonize&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;or else we can install puppet master package itself and we can enable the puppet master to start in daemon mode itself.&lt;/p&gt;</content>
+ </entry>
+ 
+ <entry>
+   <title>FPM - A must have Packaging Tool</title>
+   <link href="http://deepakmdass88.github.com/ubuntu/debian/2012/11/08/fpm---a-must-have-packaging-tool"/>
+   <updated>2012-11-08T00:00:00+05:30</updated>
+   <id>http://deepakmdass88.github.com/ubuntu/debian/2012/11/08/fpm---a-must-have-packaging-tool</id>
+   <content type="html">&lt;p&gt;&lt;strong&gt;&lt;em&gt;fpm&lt;/em&gt;&lt;/strong&gt; is a wonderful tool for building our own packages. It&amp;#8217;s very simple to use. I&amp;#8217;m a qmail user, since our &lt;a href='http://www.deeproot.in/deepofix'&gt;deepOfix Mail Server&lt;/a&gt; is built on that. So in many situations i&amp;#8217;ve to compile the qmail from the source along with custom patches. And one main thing about qmail is that it need a bunch of files in the &lt;em&gt;control&lt;/em&gt; folder for its working.&lt;/p&gt;
+
+&lt;p&gt;Since we are automation freaks, we even wrote a &lt;em&gt;puppet&lt;/em&gt; module for qmail. But then i came to know about the &lt;strong&gt;&lt;em&gt;fpm&lt;/em&gt;&lt;/strong&gt;. Since it supports pre and post scripts, i can automate so many things not only creating the control files, but also adding necessary run scripts to run as a &lt;em&gt;runit&lt;/em&gt; service.&lt;/p&gt;
+
+&lt;p&gt;fpm is very simple to install:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;  $ gem install fpm&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;code&gt;fpm --help&lt;/code&gt; will give us a good description about the options.&lt;/p&gt;
+
+&lt;p&gt;So in my case, i&amp;#8217;ve already compiled my patched Qmail into &lt;code&gt;/var/qmail&lt;/code&gt; folder. I&amp;#8217;ve a few dependencies &lt;strong&gt;(libssl-dev,openssl,zlib1g-dev,libldap2-dev)&lt;/strong&gt; and also &lt;strong&gt;runit&lt;/strong&gt;, because i will be using the post script option to start runit services automatically.&lt;/p&gt;
+
+&lt;p&gt;My prescript will just add the necessary Qmail users.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt; addgroup --system nofiles
+ addgroup --system qmail
+
+ adduser --system --home /var/qmail/alias/ --shell /bin/false --no-create-home --ingroup nofiles alias
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup nofiles qmaild
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup nofiles qmaill
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup nofiles qmailp
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup qmail qmailq
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup qmail qmailr
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup qmail qmails&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;My post-script will just populate qmail control files like &lt;code&gt;defaultdomain&lt;/code&gt;,&lt;code&gt;locals&lt;/code&gt;,&lt;code&gt;rcpthost&lt;/code&gt; and also create a runit service for &lt;strong&gt;&lt;em&gt;qmail-send&lt;/em&gt;&lt;/strong&gt; and &lt;strong&gt;&lt;em&gt;qmail-smtpd&lt;/em&gt;&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Now we just need to build the debian package.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;$ fpm -s dir -t deb --before-install preinst.sh --after-install postinst.sh -d &amp;quot;runit (&amp;gt;= 2.0)&amp;quot;,&amp;quot;openssl (&amp;gt;= 1.0)&amp;quot;,&amp;quot;libssl-dev (&amp;gt;= 1.0)&amp;quot;,&amp;quot;libldap2-dev (&amp;gt;= 2.4)&amp;quot;,&amp;quot;zlib1g-dev (&amp;gt;= 1.2)&amp;quot; -n qmail /var/qmail/&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;where &lt;code&gt;-s&lt;/code&gt; is for &lt;em&gt;source&lt;/em&gt;, &lt;code&gt;-t&lt;/code&gt; for &lt;em&gt;package type&lt;/em&gt;,&lt;code&gt;-d&lt;/code&gt; for dependencies and &lt;code&gt;-n&lt;/code&gt; for name of the package. There are som many other options also which includes desription etc. But for the time being i&amp;#8217;m using very basic options for testing. The above command will build a debian package for me. That&amp;#8217;s it pretty simple.&lt;/p&gt;</content>
+ </entry>
+ 
+ 
+</feed>
