@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Packaging Tool | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/packaging-tool/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2012-11-29T22:56:59+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[FPM - A must have Packaging Tool]]></title>
+    <link href="http://beingasysadmin.com/blog/2012/11/08/fpm---a-must-have-packaging-tool/"/>
+    <updated>2012-11-08T14:48:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2012/11/08/fpm---a-must-have-packaging-tool</id>
+    <content type="html"><![CDATA[<p><strong><em>fpm</em></strong> is a wonderful tool for building our own packages. It's very simple to use. I'm a qmail user, since our <a href="http://www.deeproot.in/deepofix">deepOfix Mail Server</a> is built on that. So in many situations i've to compile the qmail from the source along with custom patches. And one main thing about qmail is that it need a bunch of files in the <em>control</em> folder for its working.</p>
+
+<p>Since we are automation freaks, we even wrote a <em>puppet</em> module for qmail. But then i came to know about the <strong><em>fpm</em></strong>. Since it supports pre and post scripts, i can automate so many things not only creating the control files, but also adding necessary run scripts to run as a <em>runit</em> service.</p>
+
+<p>fpm is very simple to install:</p>
+
+<pre><code>  $ gem install fpm
+</code></pre>
+
+<p><code>fpm --help</code> will give us a good description about the options.</p>
+
+<p>So in my case, i've already compiled my patched Qmail into <code>/var/qmail</code> folder. I've a few dependencies <strong>(libssl-dev,openssl,zlib1g-dev,libldap2-dev)</strong> and also <strong>runit</strong>, because i will be using the post script option to start runit services automatically.</p>
+
+<p>My prescript will just add the necessary Qmail users.</p>
+
+<pre><code> addgroup --system nofiles
+ addgroup --system qmail
+
+ adduser --system --home /var/qmail/alias/ --shell /bin/false --no-create-home --ingroup nofiles alias
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup nofiles qmaild
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup nofiles qmaill
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup nofiles qmailp
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup qmail qmailq
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup qmail qmailr
+ adduser --system --home /var/qmail/ --shell /bin/false --no-create-home --ingroup qmail qmails
+</code></pre>
+
+<p>My post-script will just populate qmail control files like <code>defaultdomain</code>,<code>locals</code>,<code>rcpthost</code> and also create a runit service for <strong><em>qmail-send</em></strong> and <strong><em>qmail-smtpd</em></strong></p>
+
+<p>Now we just need to build the debian package.</p>
+
+<pre><code>$ fpm -s dir -t deb --before-install preinst.sh --after-install postinst.sh -d "runit (&gt;= 2.0)","openssl (&gt;= 1.0)","libssl-dev (&gt;= 1.0)","libldap2-dev (&gt;= 2.4)","zlib1g-dev (&gt;= 1.2)" -n qmail /var/qmail/
+</code></pre>
+
+<p>where <code>-s</code> is for <em>source</em>, <code>-t</code> for <em>package type</em>,<code>-d</code> for dependencies and <code>-n</code> for name of the package. There are som many other options also which includes desription etc. But for the time being i'm using very basic options for testing. The above command will build a debian package for me. That's it pretty simple.</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Hiera | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/hiera/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2012-11-29T22:56:59+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Hiera-Http And Riak]]></title>
+    <link href="http://beingasysadmin.com/blog/2012/11/24/hiear-http-and-riak-vagrant/"/>
+    <updated>2012-11-24T23:48:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2012/11/24/hiear-http-and-riak-vagrant</id>
+    <content type="html"><![CDATA[<p>For the past few days, i was playing with <code>hiera-puppet</code>. I strongly wanted to use <code>hiera</code> in my puppet modules. Yesterday i was going through <a href="http://www.craigdunn.org">craigdunn's</a> blog, there i saw his new blog post about the <code>hiera-http</code>,a Hiera back end to connect to any HTTP RESTful API and return data based on a lookup. <code>hiera-http</code> is available as a rubygem or from <a href="http://github.com/crayfishx/hiera-http">craigdunn's</a> Github page. In his blog he has clearly explained how he uses <code>hiera-http</code> to query data from <code>couchdb</code>. Since i'm a fan of Riak, i wanted to try the same from Riak.</p>
+
+<p>I used the <a href="https://github.com/basho/riak-ruby-client">riak-ruby-client</a> to pass my json data to Riak. Below is a simple ruby script which i used,</p>
+
+<pre><code>    #! /usr/local/bin/ruby
+    require 'rubygems'
+    require 'riak'
+
+    client = Riak::Client.new(:host =&gt; '192.168.1.120', :http_port =&gt; 8098)
+    bucket = client.bucket("hiera_bucket")
+    deb = Riak::RObject.new(bucket, "Debian")
+    deb.content_type = "application/json"
+    deb.data = { "db_name" =&gt; "testdb", "db_pass" =&gt; "P@ssw0rd" }
+    deb.store
+</code></pre>
+
+<p>where <strong><em>hiera_bucket</em></strong> is the name of the Bucket and <strong><em>Debian</em></strong> is the key.</p>
+
+<p>Now we need to create a <code>hiera.yaml</code>,</p>
+
+<pre><code>    :backends:
+      - http
+
+    :http:
+      :host: 192.168.1.120
+      :port: 8098
+      :output: json
+      :failure: graceful
+      :paths: /riak/hiera_bucket/Debian
+</code></pre>
+
+<p>We can test the working using hiera cli <code>hiera -c hiera.yaml db_name</code></p>
+
+<p>As per the <code>hiera-http</code> dcumentation, we can use the facter variables, so  the path can be <code>:paths: /riak/hiera_bucket/%{operatingsystem}</code>. For those who wants a gui for Riak, i prefer <a href="https://github.com/basho/rekon.git">rekon</a>. It's very simple to install and configure, also we can edit our values directly using this.</p>
+]]></content>
+  </entry>
+  
+</feed>

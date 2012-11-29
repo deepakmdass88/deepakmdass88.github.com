@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: MCollective | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/mcollective/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2012-11-29T22:56:59+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Using Mongo Discovery Method in MCollective]]></title>
+    <link href="http://beingasysadmin.com/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/"/>
+    <updated>2012-11-29T21:48:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2012/11/29/using-mongo-discovery-method-in-mcollective</id>
+    <content type="html"><![CDATA[<p>I've been playing around with  <strong><em>MCollective</em></strong> for the past few months. But this time i wanted to try out the <code>Mongo</code> discovery method. The response time was quite faster for the <code>Mongo</code> discovery method. So i really wanted to try it out. Setting out MCollective Server/Client is prettyl simple. You can go through  my previous <a href="http://beingasysadmin.wordpress.com/2012/09/10/setting-up-mcollective-with-activemq-in-ubuntu-12-04/">blog</a>. Now we need to install the <strong>Meta</strong> registration plugin on all the MCollective Servers. Just Download and Copy <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/registration/meta.rb">meta.rb</a> in the MCollective registration plugin folder. In my case, i've Debian based machine's, so the location is, <code>/usr/share/mcollective/plugins/mcollective/registration/</code>. This will make the metadata available to other nodes.</p>
+
+<p>Now add the below three lines into the <code>server.cfg</code> of all the MCollective server's.</p>
+
+<pre><code>registration = Meta
+registerinterval = 300
+factsource = facter
+</code></pre>
+
+<p>Now install the <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/agent/registration-mongodb/agent/registration.rb">mongodb registration agent</a> on one of the nodes, which will be our slave node.. Do not install this on all the nodes. There is a small <a href="http://projects.puppetlabs.com/issues/16447">bug</a> in this agent. So follow the steps mentioned <a href="http://projects.puppetlabs.com/issues/16447">here</a> and modify the <code>registration.rb</code> file. Now install mongoDB server on the slave node. Also add the below lines to the <strong><em>server.cfg</em></strong> in the slave machine.</p>
+
+<pre><code>plugin.registration.mongohost = localhost
+plugin.registration.mongodb = puppet
+plugin.registration.collection = nodes
+</code></pre>
+
+<p>Now restart the mcollective service. If we increase the log level to <strong>debug</strong>, then we can see the below lines in the <code>mcollective.log</code>. This indicates that the plugin is getting activated and it is receiving request from the machines, whose fqdn is shown in the below line.</p>
+
+<pre><code>D, [2012-11-29T15:51:34.391762 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host vagrant-debian-squeeze.vagrantup.com with id 50b650d4454bc346e4000002 in 0.0027310848236084s
+D, [2012-11-29T15:50:05.810180 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host ubuntults.vargrantup.com with id 50b650c0454bc346e4000001 in 0.00200200080871582s
+</code></pre>
+
+<p>Initially, i used the default <code>registration.rb</code> file which i downloaded from the github. But it was giving me an error <code>handlemsg Got stats without a FQDN in facts</code>. So don't forget to modify the <code>registration.rb</code></p>
+
+<p>Now go connect to mongoDB and verify that the nodes are getting registered in it.</p>
+
+<pre><code>$ mongo
+ MongoDB shell version: 2.0.4
+ connecting to: test
+ &gt; use puppet
+ switched to db puppet
+ &gt; db.nodes.find().count()
+ 2
+</code></pre>
+
+<p>So, now both my master and slave have been registered into the mongoDB. Now in order to use the <strong><em>Mongo Discovery Method</em></strong>, we need to install the <a href="https://github.com/puppetlabs/mcollective-plugins/tree/261ac8ef8433df98f3a9179778182807b916bc46/agent/registration-mongodb/discovery">mongodb discovery plugin</a> and also we need to enable the <strong><em>direct addressing mode</em></strong>. so we need to add <code>direct_addressing = 1</code> in the <code>server.cfg</code> file.</p>
+
+<p>Now we can use the <strong>--dm</strong> option to specify the discovery method.</p>
+
+<pre><code>$ mco rpc rpcutil ping --dm=mongo -v
+  Discovering hosts using the mongo method .... 2
+
+  * [ ========================================================&gt; ] 2 / 2
+
+
+  vagrant-debian-squeeze                  : OK
+    {:pong=&gt;1354187911}
+
+  ubuntults                               : OK
+        {:pong=&gt;1354187880}
+
+
+
+  ---- rpcutil#ping call stats ----
+            Nodes: 2 / 2
+      Pass / Fail: 2 / 0
+      Start Time: Thu Nov 29 16:48:00 +0530 2012
+  Discovery Time: 68.48ms
+      Agent Time: 108.35ms
+      Total Time: 176.83ms
+
+$ mco rpc rpcutil ping --dm=mc -v
+  Discovering hosts using the mc method for 2 second(s) .... 2
+
+  * [ ========================================================&gt; ] 2 / 2
+
+
+  vagrant-debian-squeeze                  : OK
+        {:pong=&gt;1354188083}
+
+  ubuntults                               : OK
+        {:pong=&gt;1354188053}
+
+
+
+  ---- rpcutil#ping call stats ----
+            Nodes: 2 / 2
+      Pass / Fail: 2 / 0
+      Start Time: Thu Nov 29 16:50:52 +0530 2012
+  Discovery Time: 2004.24ms
+      Agent Time: 104.28ms
+      Total Time: 2108.51ms
+</code></pre>
+
+<p>From the above commands, we can see the difference in the <strong><em>Discovery Time</em></strong>.</p>
+
+<p>Now for those who want <strong><em>GUI</em></strong>, <a href="http://www.devco.net/">R.I.Pienaar</a> has develeoped a web gui called <a href="https://github.com/ripienaar/mco_rpc_web.git">Mco-Rpc-Web</a>. He has uploaded a few <a href="http://www.screenr.com/user/ripienaar">screencasts</a>, which will give us a short demo on all of these.</p>
+]]></content>
+  </entry>
+  
+</feed>

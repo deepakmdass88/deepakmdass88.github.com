@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Using Riak With Logstash - Welcome to My World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="For the last few days i was playing around with Riak, a distributed database. It&#8217;s very simple to configure and use and offcourse it supports &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My World" />
+  <meta name="og:title" content="Using Riak With Logstash" />
+  <meta name="og:description" content="For the last few days i was playing around with Riak, a distributed database. It&#8217;s very simple to configure and use and offcourse it supports &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash/">
+  
+  <meta name="subject" content="Riak"/>
+  <meta name="category" content="Riak"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Using Riak With Logstash</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-11-25T20:34:00+05:30" pubdate data-updated="true">Nov 25<span>th</span>, 2012</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/riak/'>Riak</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>For the last few days i was playing around with <code>Riak</code>, a distributed database. It&#8217;s very simple to configure and use and offcourse it supports MapReduce. I wanted to try out the <strong><em>map reduce</em></strong>, and since <strong><em>Logstash</em></strong> has a plugin to write data into riak, i decided to use it with logstash on an Ubuntu 12.04 machine.</p>
+
+<p>Installing <code>Riak</code> is very simple, it has only one dependency.</p>
+
+<pre><code>$ apt-get install libssl0.9.8
+</code></pre>
+
+<p>Once the dependencies are being installed, we have to download and install the deb package of Riak from its website. The below link is for 32bit OS.</p>
+
+<pre><code>$ wget http://downloads.basho.com.s3-website-us-east-1.amazonaws.com/riak/CURRENT/ubuntu/lucid/riak_1.2.1-1_i386.deb
+
+$ dpkg -i  riak_1.2.1-1_i386.deb
+</code></pre>
+
+<p>Once Riak is installed, go to <code>/etc/riak</code>, where the config files are available. We can change the name of the riak node by editing the <code>vm.args</code> file. By default Riak will listen to <strong><em>127.0.0.1</em></strong>, but we can change this by editing <code>app.config</code> file.  In order to use enable https enable, we need to uncomment the https section in Riak core config. We also have to mention the path of the server key and certificate. Riak comes with a build in Admin console, which currently has very minimal functions. It shows the status of the riak nodes as well as the members in the riak ring. To enable this, open the <code>app.config</code>  go to <strong><em>riak_control_config</em></strong> and change the <strong><em>enabled,false</em></strong>to <strong><em>enabled,true</em></strong>. The user name and password can be mentioned in the userlist option.</p>
+
+<p>If we have multiple machine we can create a riak cluster using riak-admin tool. Currently i&#8217;ve only one machine with Riak installed.</p>
+
+<p>In Riak, data&#8217;s are stored in <code>Buckets</code>. A <code>Bucket</code> is a container and keyspace for data stored in Riak, with a set of common properties for its contents (the number of replicas, or n_val, for instance). Buckets are accessed at the top of the URL hierarchy under <strong><em>riak</em></strong>, e.g. <code>/riak/bucket</code>.</p>
+
+<p>Now we have Riak machine, listening on port port <strong>8098</strong>. Now we need to configure <code>Logstash</code> to send the data to the <strong><em>riak</em></strong>. This is very simple because logstash has an output plugin which can directly write to riak.In the output section of logstash config file, add the riak output plugin.  It should be like this,</p>
+
+<pre><code>riak {
+
+  bucket =&gt; bucketname
+
+  type =&gt; typename
+
+  nodes =&gt; ["riakserverip","8098","riakserverip","8098"]
+
+    }
+</code></pre>
+
+<p>In the nodes section we have to mention the riak node ip&#8217;s. Since i&#8217;ve only one riak node, i&#8217;m mentioning the same ip twice.That&#8217;s it, now we need to start logstash, then logstash will start writing data into the bucket which we mentioned in the conf file.There is one good GUI for Riak called <a href="https://github.com/basho/rekon">rekon</a>. Just get the source code from <em>github</em> and edit the <strong><em>install.sh</em></strong>and change the ip mentioned in to the ip which riak listens to and execute it. Now we can access the GUI using the below url.</p>
+
+<pre><code>http://riakserverip:8098/riak/rekon/go
+</code></pre>
+
+<p>Now testing the <strong><em>Map Reduce Function</em></strong></p>
+
+<p>This is one of the main features of Riak. For example i&#8217;m going to write a <em>map reduce function</em> that will display all the keys in my bucket that has the keyword <strong><em>mylinux</em></strong>, which is the hostname of my machine. This function will return the <em>key</em> as well as the <em>number of occurrences</em>. Below is a simple <em>MapReduce</em> function.</p>
+
+<pre><code>"inputs":"mybucket",
+"query":[{"map":{"language":"javascript",
+"source":"function(riakObject) {
+var m = riakObject.values[0].data.match(\"mylinux\");
+return [[riakObject.key, (m ? m.length : 0 )]];
+}"
+</code></pre>
+
+<p>To execute the map reduce function, execute the following command,</p>
+
+<pre><code>curl -X POST http://192.168.1.173:8098/mapred -H 'Content-Type: application/json' -d '{
+"inputs":"mybucket",
+"query":[{"map":{"language":"javascript",
+"source":"function(riakObject) {
+var m = riakObject.values[0].data.match(\"mylinux\");
+return [[riakObject.key, (m ? m.length : 0 )]];
+}"}}]}'
+</code></pre>
+
+<p>The above command will return all the keys which has the keyword <strong>mylinux</strong> along with number of occurrences.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-11-25T20:34:00+05:30" pubdate data-updated="true">Nov 25<span>th</span>, 2012</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/riak/'>Riak</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2012/11/24/hiear-http-and-riak-vagrant/" title="Previous Post: Hiera-Http And Riak">&laquo; Hiera-Http And Riak</a>
+    
+    
+      <a class="pull-right" href="/blog/2012/11/26/vagrant-make-virtualization-easier/" title="Next Post: Vagrant: Make Virtualization Easier">Vagrant: Make Virtualization Easier &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/">Using Mongo Discovery Method in MCollective</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2012/11/26/vagrant-make-virtualization-easier/">Vagrant: Make Virtualization Easier</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2012/11/25/using-riak-with-logstash/">Using Riak With Logstash</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2012/11/24/hiear-http-and-riak-vagrant/">Hiera-Http And Riak</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2012/11/08/fpm---a-must-have-packaging-tool/">FPM - A must have Packaging Tool</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://stackoverflow.com/users/1500225/" rel="tooltip" title="Stack Overflow"><img class="social_icon" title="Stack Overflow" alt="stack overflow icon" src="/images/glyphicons_400_stack_overflow.png"></a>
+    <a href="http://www.linkedin.com/in/adrianartiles" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/108988221942502838420?rel=author" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://www.quora.com/Adrian-Artiles" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My World</a>
+  - Copyright &copy; 2012 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

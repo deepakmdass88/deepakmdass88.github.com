@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: virtualization | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/virtualization/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2012-11-29T22:56:59+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Vagrant: Make Virtualization Easier]]></title>
+    <link href="http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier/"/>
+    <updated>2012-11-26T18:21:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier</id>
+    <content type="html"><![CDATA[<p><strong><em>Vagrant</em></strong> is a light weight virtualization tool, build over Oracle's <code>VirtualBox</code>. It's completely written in ruby and it's very easy to install and configure. The only dependency is <code>VirtualBox</code>. Once VirtualBox is installed, we can either use <code>RubyGems</code> to install <code>Vagrant</code> or we can get the installer from <a href="http://downloads.vagrantup.com/">Vagrant</a>.</p>
+
+<p>I prefer ruby gems, So</p>
+
+<pre><code>$ gem install vagrant
+</code></pre>
+
+<p>That's it, it will install vagrant. Now we need to get the base box. Vagrant uses the base boxes to build the VM's. We can download the base boxes from <a href="http://www.vagrantbox.es/">Vagrant Boxes</a>. we can directly use the url to create the boxes, but it's alwasy good if we have a downloaded copy of the base boxes.</p>
+
+<p>Basically we need to follow just 3 steps. <em>add</em>,<em>initialize</em>,<em>up</em>. So once we have the base box just add the base box.</p>
+
+<pre><code>$ vagrant box add new_box_name our_downloaded_basebox_file
+
+example,
+$ vagrant box add mybox precise32.box
+</code></pre>
+
+<p>Now just do a <strong>vagrant init</strong> to create the <code>Vagrantfile</code>. This is the main configuration file. If we go through the <code>Vagrantfile</code>, we can see a bunch of options like port forward, provisioning, setting network and so on. If only one vm is required, then we just have to add the <em>new_box</em> name which we created at the <code>config.vm.box=</code> option int the <code>Vagrantfile</code>. And <strong>vagrant up</strong> will start the VM.</p>
+
+<p>But one of the most important feature of <strong><em>Vagrant</em></strong> is it suports multiple VM's over one single box. But we have to define those VM's in the <code>Vagrantfile</code>. Below i've defined two VM's in my <code>Vagrantfile</code>, also comment out <strong>config.vm.box=base</strong></p>
+
+<pre><code>config.vm.define :ubuntu do |ubuntu_config|
+     ubuntu_config.vm.box = "precise32"
+end
+config.vm.define :puppet do |puppet_config|
+     puppet_config.vm.box = "precise32"
+end
+</code></pre>
+
+<p>Where <em>ubuntu</em> and <em>puppet</em> are the name of the VM's. And <em>precise32</em> is the name of the the box which i've created. Now, <strong>vagrant up</strong> will start all the VM's. But we can mention the name to start a specific VM. Like <strong>vagrant up ubuntu</strong>. It will start only the <strong>ubuntu</strong> VM.</p>
+
+<p>Provisioning is another important feature of Vagrant. We can use <strong><em>puppet</em></strong>,<strong><em>chef</em></strong> and <strong><em>shell</em></strong> scripts to bootstrap the vm's. I saw <a href="https://twitter.com/mitchellh">@mitchellh's</a> talk at <a href="http://www.youtube.com/watch?v=UTQQggVx4sI&amp;feature=BFa&amp;list=PLV86BgbREluVFB73Wwqp_tCbw5Z9TMLX1">PuppetConf 2012</a>, in which he mentioned about how to create a <strong>Fully Automated Puppet Master</strong> using the <strong>shell</strong> provisioner. I've tried this out using a shell script that will install puppet master and genrate the ssl certificates. It's working fine, soon i will post it here.</p>
+]]></content>
+  </entry>
+  
+</feed>

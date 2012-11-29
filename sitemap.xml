@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2012/11/08/fpm---a-must-have-packaging-tool/</loc>
+        <lastmod>2012-11-29T22:17:55+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2012/11/24/hiear-http-and-riak-vagrant/</loc>
+        <lastmod>2012-11-29T22:17:31+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash/</loc>
+        <lastmod>2012-11-29T22:56:43+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier/</loc>
+        <lastmod>2012-11-29T22:19:01+05:30</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/
+        </loc>
+        <lastmod>2012-11-29T21:50:32+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/archives/</loc>
+        <lastmod>2012-11-29T22:56:43+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/</loc>
+        <lastmod>2012-11-29T22:56:43+05:30</lastmod>
+    </url>
+</urlset>

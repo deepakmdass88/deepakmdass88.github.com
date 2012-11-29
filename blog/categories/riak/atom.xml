@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Riak | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/riak/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2012-11-29T22:56:59+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Using Riak With Logstash]]></title>
+    <link href="http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash/"/>
+    <updated>2012-11-25T20:34:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash</id>
+    <content type="html"><![CDATA[<p>For the last few days i was playing around with <code>Riak</code>, a distributed database. It's very simple to configure and use and offcourse it supports MapReduce. I wanted to try out the <strong><em>map reduce</em></strong>, and since <strong><em>Logstash</em></strong> has a plugin to write data into riak, i decided to use it with logstash on an Ubuntu 12.04 machine.</p>
+
+<p>Installing <code>Riak</code> is very simple, it has only one dependency.</p>
+
+<pre><code>$ apt-get install libssl0.9.8
+</code></pre>
+
+<p>Once the dependencies are being installed, we have to download and install the deb package of Riak from its website. The below link is for 32bit OS.</p>
+
+<pre><code>$ wget http://downloads.basho.com.s3-website-us-east-1.amazonaws.com/riak/CURRENT/ubuntu/lucid/riak_1.2.1-1_i386.deb
+
+$ dpkg -i  riak_1.2.1-1_i386.deb
+</code></pre>
+
+<p>Once Riak is installed, go to <code>/etc/riak</code>, where the config files are available. We can change the name of the riak node by editing the <code>vm.args</code> file. By default Riak will listen to <strong><em>127.0.0.1</em></strong>, but we can change this by editing <code>app.config</code> file.  In order to use enable https enable, we need to uncomment the https section in Riak core config. We also have to mention the path of the server key and certificate. Riak comes with a build in Admin console, which currently has very minimal functions. It shows the status of the riak nodes as well as the members in the riak ring. To enable this, open the <code>app.config</code>  go to <strong><em>riak_control_config</em></strong> and change the <strong><em>enabled,false</em></strong>to <strong><em>enabled,true</em></strong>. The user name and password can be mentioned in the userlist option.</p>
+
+<p>If we have multiple machine we can create a riak cluster using riak-admin tool. Currently i've only one machine with Riak installed.</p>
+
+<p>In Riak, data's are stored in <code>Buckets</code>. A <code>Bucket</code> is a container and keyspace for data stored in Riak, with a set of common properties for its contents (the number of replicas, or n_val, for instance). Buckets are accessed at the top of the URL hierarchy under <strong><em>riak</em></strong>, e.g. <code>/riak/bucket</code>.</p>
+
+<p>Now we have Riak machine, listening on port port <strong>8098</strong>. Now we need to configure <code>Logstash</code> to send the data to the <strong><em>riak</em></strong>. This is very simple because logstash has an output plugin which can directly write to riak.In the output section of logstash config file, add the riak output plugin.  It should be like this,</p>
+
+<pre><code>riak {
+
+  bucket =&gt; bucketname
+
+  type =&gt; typename
+
+  nodes =&gt; ["riakserverip","8098","riakserverip","8098"]
+
+    }
+</code></pre>
+
+<p>In the nodes section we have to mention the riak node ip's. Since i've only one riak node, i'm mentioning the same ip twice.That's it, now we need to start logstash, then logstash will start writing data into the bucket which we mentioned in the conf file.There is one good GUI for Riak called <a href="https://github.com/basho/rekon">rekon</a>. Just get the source code from <em>github</em> and edit the <strong><em>install.sh</em></strong>and change the ip mentioned in to the ip which riak listens to and execute it. Now we can access the GUI using the below url.</p>
+
+<pre><code>http://riakserverip:8098/riak/rekon/go
+</code></pre>
+
+<p>Now testing the <strong><em>Map Reduce Function</em></strong></p>
+
+<p>This is one of the main features of Riak. For example i'm going to write a <em>map reduce function</em> that will display all the keys in my bucket that has the keyword <strong><em>mylinux</em></strong>, which is the hostname of my machine. This function will return the <em>key</em> as well as the <em>number of occurrences</em>. Below is a simple <em>MapReduce</em> function.</p>
+
+<pre><code>"inputs":"mybucket",
+"query":[{"map":{"language":"javascript",
+"source":"function(riakObject) {
+var m = riakObject.values[0].data.match(\"mylinux\");
+return [[riakObject.key, (m ? m.length : 0 )]];
+}"
+</code></pre>
+
+<p>To execute the map reduce function, execute the following command,</p>
+
+<pre><code>curl -X POST http://192.168.1.173:8098/mapred -H 'Content-Type: application/json' -d '{
+"inputs":"mybucket",
+"query":[{"map":{"language":"javascript",
+"source":"function(riakObject) {
+var m = riakObject.values[0].data.match(\"mylinux\");
+return [[riakObject.key, (m ? m.length : 0 )]];
+}"}}]}'
+</code></pre>
+
+<p>The above command will return all the keys which has the keyword <strong>mylinux</strong> along with number of occurrences.</p>
+]]></content>
+  </entry>
+  
+</feed>
