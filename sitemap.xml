@@ -23,11 +23,17 @@
         <lastmod>2012-11-29T21:50:32+05:30</lastmod>
     </url>
     <url>
+        <loc>
+            http://beingasysadmin.com/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/
+        </loc>
+        <lastmod>2013-01-20T20:47:44+05:30</lastmod>
+    </url>
+    <url>
         <loc>http://beingasysadmin.com/blog/archives/</loc>
-        <lastmod>2012-11-29T22:56:43+05:30</lastmod>
+        <lastmod>2013-01-20T20:47:44+05:30</lastmod>
     </url>
     <url>
         <loc>http://beingasysadmin.com/</loc>
-        <lastmod>2012-11-29T22:56:43+05:30</lastmod>
+        <lastmod>2013-01-20T20:47:44+05:30</lastmod>
     </url>
 </urlset>

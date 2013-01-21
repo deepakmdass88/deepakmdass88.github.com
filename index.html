@@ -65,24 +65,21 @@
     <p>A Random Sys Admin by Trade, Hacker by Choice, Loves Linux, Puppet, Ruby, Monitoring, and a lot.</p>
   </div>
   <div class="span6">
-    <h2>recent public projects</h2>
+    <h2>open source projects</h2>
     <dl class="dl-horizontal">
-      <dt><a href="http://numbernote.com">NumberNote</a><a href="https://github.com/sevenadrian/numbernote" rel="tooltip" title="open sourced at Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a></dt>
-      <dd>The best free phone number reverse lookup site, for mobile too</dd>
-      <dt><a href="http://decide.herokuapp.com">The Decider</a><a href="https://github.com/sevenadrian/TheDecider" rel="tooltip" title="open sourced at Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a></dt>
-      <dd>A simple web app that randomly makes a decision for you and your collaborators</dd>
-      <dt><a href="http://siliconvalleybln.org">SiliconValleyBLN</a></dt>
-      <dd>Web development for a non-profit that helps those with disabilities</dd>
+      <dt><a href="https://github.com/deepakmdass88/sinatra-ldap-webgui.git">LDAPUserMgr</a><a href="https://github.com/deepakmdass88/sinatra-ldap-webgui.git" rel="tooltip" title="open sourced at Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a></dt>
+      <dd>A Sinatra app for User&#8217;s To Manage their LDAP Attributes</dd>
+      <dt><a href="https://github.com/deepakmdass88/ruby-virtmgr.git">Ruby-Virtmgr</a><a href="https://github.com/deepakmdass88/ruby-virtmgr.git" rel="tooltip" title="open sourced at Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a></dt>
+      <dd>A simple CLI Ruby app for Managing KVM based VM&#8217;s</dd>
     </dl>
   </div>
   <div class="span2">
     <h2>found on</h2>
     <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
-    <a href="http://stackoverflow.com/users/1500225/" rel="tooltip" title="Stack Overflow"><img class="social_icon" title="Stack Overflow" alt="stack overflow icon" src="/images/glyphicons_400_stack_overflow.png"></a>
-    <a href="http://www.linkedin.com/in/adrianartiles" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
     <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
-    <a href="https://plus.google.com/108988221942502838420?rel=author" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
-    <a href="http://www.quora.com/Adrian-Artiles" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
     <h2>contact at</h2>
     <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
   </div>
@@ -93,6 +90,93 @@
   <div class="container">
     <div class="row">
     
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster With Qmail and Dovecot Proxy</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-20T16:50:00+05:30" pubdate data-updated="true">Jan 20<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/cluster/'>Cluster</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/qmail/'>Qmail</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>This New year started with a new requirement, one of our client wanted a Mail cluster with 3 nodes, one node in US, a VPS, and the rest two in INDIA. Their primary server is one of the server in india. They have 3 category of USERS, all abroad user&#8217;s Mailboxes will be hosted in the VPS. For the rest, one set will be in one server and the rest in other. They want all the users to access directly the primary server not their respective server&#8217;s. I guess their Admins dont want to work much. Anyways, We decided to go ahead with it.</p>
+
+<p>Since we are Qmail lover&#8217;s, we decided to ue the Qmail clustering by using DJB&#8217;s <strong><em>qmqpd</em></strong> protocol. In the LDAP, each user will have an attribute called &#8221;<code>mailHost</code>&#8221;, whose value will be the FQDN of the server where their mailboxes are hosted. so the <strong><em>qmqpd</em></strong> will use this, <code>mailHost</code> attribute and transfers the mails between nodes to user&#8217;s corresponding  mailboxes. We use&#8217;s Qmail with LDAP patch. In all the 3 nodes, LDAP will be synchronising all the time.Once we have the normal qmail setup running, in order to make cluster we need mainly 3 things.</p>
+
+<p>1) We need to setup the <strong><em>qmqpd</em></strong> service in all the nodes.</p>
+
+<p>2) We need to enable LDAP cluster. This can be done by creating a file <code>ldapcluster</code> in &#8221;<strong><em>/var/qmail/control</em></strong>&#8221; folder. If the content of the file is &#8221;<strong><em>1</em></strong>&#8221;, then it means cluster is active, &#8221;<strong><em>0</em></strong>&#8221; cluster is deactive.</p>
+
+<p>3) We need a dns server that can resolve all the 3 mailhost&#8217;s FQDN&#8217;s. We usually run DJB&#8217;s <code>Tinydns</code> in all our Mail server&#8217;s.</p>
+
+<p>Once all the above 3 steps are done, we have a working Qmail Cluster. Mails will be delivered to each user according to the <code>mailHost</code> attribute mentioned in the LDAP.</p>
+
+<p>Next Major thing is IMAP/POP3 services. Since all user&#8217;s will be be using the primary server as their incoming server in their MUA like outook,thunderbird, and even webmail user&#8217;s will also access the primary server, we decided to use the Dovecot&#8217;s Proxy feature, which can proxy the request&#8217;s based on the &#8221;<code>mailHost</code>&#8221; attribute. When ever a user&#8217;s login request comes, Dovecot will check for the user&#8217;s &#8221;<code>mailHost</code>&#8221; attribute from the LDAP. The dovecot will then proxy pass the request to the corresponding server.</p>
+
+<p>Enabling Proxy in Dovecot is very simple. We need to add the <code>host</code> as well as the <code>proxy</code> variable in the dovecot-ldap userdb and passdb config file. Below is the content of our <code>dovecot-ldap.conf</code>.</p>
+
+<pre><code>hosts = localhost
+dn =  uid=dummyuser,ou=People,dc=example,dc=com
+dnpass = dummy_password
+sasl_bind = no
+auth_bind = yes
+ldap_version = 3
+base = dc=example,dc=com
+auth_bind = yes
+pass_attrs = uid=user,`mailHost`=host,qmailUID=proxy_maybe
+pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
+user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=dirsize:storage,`mailHost`=host,qmailUID=proxy_maybe
+</code></pre>
+
+<p>This proxy is working perfectly in dovecot2.0 onwards. But in dovecot1.2, the proxy fails, when the <code>mailHost</code> attributes has a FQDN value. But if we mention ip instead of the FQDN, proxy seems to we working. But some times <strong><em>qmqpd</em></strong> will not work properly. That is because the dovecot is expecting values as ip, but we are supplying a FQDN. But in dovecot2.0 onwards, they have added a dnslookup function. But there is <a href="http://www.mail-archive.com/dovecot@dovecot.org/msg26781.html">patch</a>. We haven&#8217;t tested this patch, as we are using dovecot2.0</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
     
     
       <article class="span4">
@@ -648,6 +732,10 @@ posted in
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster with Qmail and Dovecot Proxy</a>
+        </li>
+      
+        <li>
           <a href="/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/">Using Mongo Discovery Method in MCollective</a>
         </li>
       
@@ -661,10 +749,6 @@ posted in
       
         <li>
           <a href="/blog/2012/11/24/hiear-http-and-riak-vagrant/">Hiera-Http And Riak</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2012/11/08/fpm---a-must-have-packaging-tool/">FPM - A must have Packaging Tool</a>
         </li>
       
     </ul>
@@ -685,11 +769,10 @@ posted in
   <div class="span2">
     <h2>found on</h2>
     <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
-    <a href="http://stackoverflow.com/users/1500225/" rel="tooltip" title="Stack Overflow"><img class="social_icon" title="Stack Overflow" alt="stack overflow icon" src="/images/glyphicons_400_stack_overflow.png"></a>
-    <a href="http://www.linkedin.com/in/adrianartiles" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
     <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
-    <a href="https://plus.google.com/108988221942502838420?rel=author" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
-    <a href="http://www.quora.com/Adrian-Artiles" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
     <h2>contact at</h2>
     <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
   </div>
@@ -701,7 +784,7 @@ posted in
   <div class="container">
     <p class="pull-left">
   <a href="/">Welcome to My World</a>
-  - Copyright &copy; 2012 - Deepak M Das
+  - Copyright &copy; 2013 - Deepak M Das
 </p>
 <p class="pull-right">
   Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.

@@ -10,7 +10,7 @@ $(function(){
   }
 
   $(".tweet").tweet({
-    username: 'adrianartiles',
+    username: 'deepakmdass88',
     join_text: "auto",
     avatar_size: 32,
     count: 3,
@@ -24,7 +24,7 @@ $(function(){
   });
 
   $(".instagram").instagram({
-    userId: 145937522,
+    userId: 267929117,
     //hash: 'love',
     clientId: '1234',
     accessToken: '5678',
@@ -42,7 +42,7 @@ $(function(){
     if (button.text() != 'Loading…') {
       button.text('Loading…');
       insta_container.instagram({
-          userId: 145937522,
+          userId: 267929117,
           clientId: '1234',
           accessToken: '5678',
           next_url : insta_next_url,

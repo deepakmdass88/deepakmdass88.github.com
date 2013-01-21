@@ -201,8 +201,8 @@
       o.avatar_size = s.avatar_size;
       o.avatar_url = extract_avatar_url(o.retweet ? item.retweeted_status : item, (document.location.protocol === 'https:'));
       o.avatar_screen_name = o.retweet ? o.retweeted_screen_name : o.screen_name;
-      o.avatar_profile_url = o.twitter_base+o.avatar_screen_name;
-
+//o.avatar_profile_url = o.twitter_base+o.avatar_screen_name;
+	o.avatarPprofile_url = "http://twitter.com/deepakmdass88"
       // Default spans, and pre-formatted blocks for common layouts
       o.user = t('<a class="tweet_user" href="{user_url}">{screen_name}</a>', o);
       o.join = s.join_text ? t('<span class="tweet_join">{join_text}</span>', o) : '';
