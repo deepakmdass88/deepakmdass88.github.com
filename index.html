@@ -97,6 +97,107 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/01/21/building-custom-vagrant-boxes/">Building Custom Vagrant Boxes</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-21T16:52:00+05:30" pubdate data-updated="true">Jan 21<span>st</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Vagrant</code> has become a common tool used by most of the sys admins who play around with computers. It has made virtualization so easy. Seriously it&#8217;s a must have tool. <strong><em>Vagrant</em></strong> supports <strong>Puppet/Chef</strong> provisioning, which makes it even more powerfull. We just need the base boxes to play around with Vagrant. In this blog i will be explaing about creating custom Vagrant Boxes. I work for <a href="http://www.deeproot.in">DeepRootLinux</a>, developers of the deepOfix Mail Server, a Debian based GNU/Linux distribution. I will be using our distribution for creating base box. It will help us to deploy deepOfix VM in a faster way and we it helps us to test our custom puppet modules into our operating system.</p>
+
+<p>SO first we need to create a base VM in the Virtualbox. Ensure that the network controller is set to <strong><em>&#8220;NAT&#8221;</em></strong>. For port forwarding to work properly, NAT must be used. There a few point to remember, As per the Vagrant&#8217;s Documentation, Vagrant makes some assumptions,</p>
+
+<ul>
+<li>The root password is &#8221;<strong><em>Vagrant</em></strong>&#8221;</li>
+<li>One user account &#8221;<strong><em>vagrant</em></strong>&#8221; with password &#8221;<strong><em>vagrant</em></strong>&#8221;.</li>
+<li>Domain is &#8221;<strong><em>vagrantup.com</em></strong>&#8221;</li>
+<li>Hostname is  &#8221;<strong><em>vagrant-[os-name]</em></strong>&#8221;, e.g. vagrant-debian-lenny</li>
+</ul>
+
+
+<p>If any different values are being used, it has to be specified in the <code>Vagrantfile</code>. I&#8217;ve used custom domain name and hostname and i did not mentioned it in my Vagrant file. But it did not created any problem. Anyways Vagrant is using key-based authentication for SSH. So once we SSH into the system, we will login in to the system as the <strong><em>Main user</em></strong>, in our case &#8221;<em>vagrant</em>&#8221; user. So we should make this &#8221;<em>vagrant</em>&#8221; user as a member of the &#8221;<strong><em>sudo (super user doers)</em></strong>&#8221; group, so that we can use &#8220;sudo su&#8221; to switch to the root user.</p>
+
+<p>Normally, using sudo will always prompt for the user password, we can remove this by modifying the <code>/etc/sudoers</code> file. We just need to add one line into the file &#8221;<strong><em>%sudo ALL=NOPASSWD: ALL</em></strong>&#8221;. This will prevent password prompt for the user&#8217;s who are the member&#8217;s of the sudo group. Once the file is edited, we need to do &#8221;<strong><em>/etc/init.d/sudo restart</em></strong>&#8221; to reflect the changes.We can verify that sudo works without a password, but logging into the sudo user account, then sudo which sudo. We should get output similar to &#8220;/usr/bin/sudo&#8221;.</p>
+
+<p>Now we need to setup <em>Virtualbox Guest Additions</em>. So, first we need to build the necessary packages.</p>
+
+<pre><code>apt-get install linux-headers-$(uname -r) build-essential    # for root user
+
+sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo user's
+</code></pre>
+
+<p> We need to insert the guest additions image by using the GUI and clicking on &#8221;<strong><em>Devices</em></strong>&#8221; followed by &#8221;<strong><em>Install Guest Additions</em></strong>&#8221;. And we need to mount the CDROM.</p>
+
+<pre><code>mount /dev/hd0 /media/cdrom     # where /dev/hd0 is the CDROM block device in deepOfix
+</code></pre>
+
+<p>And finally, run the shell <em>script</em> which matches our system.</p>
+
+<pre><code>sh /media/cdrom/VBoxLinuxAdditions.run
+</code></pre>
+
+<p>Since Vagrant only supports <em>key-based authentication for SSH</em>, we must setup the SSH user to use key-based authentication. We need to copy a public key into &#8221;<strong><em>~/.ssh/authorized_keys</em></strong>&#8221; of the &#8221;<em>vagrant</em>&#8221; user. Vagrant provides an &#8221;<em>insecure</em>&#8221; pair of public and private keys which are available <a href="https://github.com/mitchellh/vagrant/tree/master/keys/">here</a>. Once the public key is copied, we can shut down our VM. And we can start building our base box.</p>
+
+<pre><code>vagrant package --base &lt;box_name&gt;
+</code></pre>
+
+<p>If there is any custom option to be set like, using a specific port port forwarding, or a specific SSH keys, we can create a <code>Vagrantfile</code> with all custom options and we can use it during the packaging.</p>
+
+<pre><code>vagrant package --base &lt;bxo_name&gt; --vagrantfile Vagrantfile
+</code></pre>
+
+<p>If everything goes fine, it will generate a base box file. We can use this base box file anywhere with the vagrant.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster With Qmail and Dovecot Proxy</a></h1>
     
     
@@ -359,7 +460,7 @@ $ mco rpc rpcutil ping --dm=mc -v
 posted in
 <span class="categories">
   
-    <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
+    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
   
 </span>
 
@@ -732,6 +833,10 @@ posted in
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/01/21/building-custom-vagrant-boxes/">Building Custom Vagrant Boxes</a>
+        </li>
+      
+        <li>
           <a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster with Qmail and Dovecot Proxy</a>
         </li>
       
@@ -745,10 +850,6 @@ posted in
       
         <li>
           <a href="/blog/2012/11/25/using-riak-with-logstash/">Using Riak With Logstash</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2012/11/24/hiear-http-and-riak-vagrant/">Hiera-Http And Riak</a>
         </li>
       
     </ul>
