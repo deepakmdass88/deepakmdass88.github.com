@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Qmail | Welcome to My World]]></title>
+  <title><![CDATA[Category: QMAIL | Welcome to My World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/qmail/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-01-31T13:11:21+05:30</updated>
+  <updated>2013-05-02T00:16:31+05:30</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -14,40 +14,74 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Mail Cluster with Qmail and Dovecot Proxy]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/"/>
-    <updated>2013-01-20T16:50:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy</id>
-    <content type="html"><![CDATA[<p>This New year started with a new requirement, one of our client wanted a Mail cluster with 3 nodes, one node in US, a VPS, and the rest two in INDIA. Their primary server is one of the server in india. They have 3 category of USERS, all abroad user's Mailboxes will be hosted in the VPS. For the rest, one set will be in one server and the rest in other. They want all the users to access directly the primary server not their respective server's. I guess their Admins dont want to work much. Anyways, We decided to go ahead with it.</p>
+    <title type="html"><![CDATA[DKIM Signing in QMAIL]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail/"/>
+    <updated>2013-04-30T11:19:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail</id>
+    <content type="html"><![CDATA[<p><em>DKIM</em> and <em>SPF</em> are becoming most commonly adopted methods for email validation. Even if we want to use the DMARC (<em>Domain-based Message Authentication, Reporting &amp; Conformance</em>), we need to configure  SPF and DKIM first. DMARC acts as a layer above the SPF and DKIM. DMARC allows the receiever's mail server to check if the Email is aligned properly as per the DMARC policy, and it queries the sender's DNS server for the DMARC action, ie, whether to reject or quarantine if alignment fails. The action will be mentioned in the TXT record on the Sender's DNS server. There is a good collection of DMARC training videos available in <a href="http://www.maawg.org/activities/training/dmarc-video-1">MAAWG site</a>. We will get a clear idea on how DMARC works from those videos.</p>
 
-<p>Since we are Qmail lover's, we decided to ue the Qmail clustering by using DJB's <strong><em>qmqpd</em></strong> protocol. In the LDAP, each user will have an attribute called "<code>mailHost</code>", whose value will be the FQDN of the server where their mailboxes are hosted. so the <strong><em>qmqpd</em></strong> will use this, <code>mailHost</code> attribute and transfers the mails between nodes to user's corresponding  mailboxes. We use's Qmail with LDAP patch. In all the 3 nodes, LDAP will be synchronising all the time.Once we have the normal qmail setup running, in order to make cluster we need mainly 3 things.</p>
+<p>In this post, i will explain on how to make Qmail to do DKIM sign on the outgoing mails. There is a <a href="http://www.brandonturner.net/blog/2009/03/dkim-and-domainkeys-for-qmail/">qmail-patch</a> method available, but since i'm using qmail-1.0.3 with custom patch, i was not able to use the DKIM patch along with my custom patch. So the next method is to use a wrapper around "qmail-remote", since qmail-remote is responsible for delivering remote mails, a wrapper around it will help us to sign the email and then start the remote delivery. There are a few wrappers mentioned in this <a href="http://www.memoryhole.net/qmail/#dkim">site</a>. I'm going to use this <a href="http://www.memoryhole.net/qmail/qmail-remote.sh">qmail-remote</a> wrapper.</p>
 
-<p>1) We need to setup the <strong><em>qmqpd</em></strong> service in all the nodes.</p>
+<h4>Initial Settings</h4>
 
-<p>2) We need to enable LDAP cluster. This can be done by creating a file <code>ldapcluster</code> in "<strong><em>/var/qmail/control</em></strong>" folder. If the content of the file is "<strong><em>1</em></strong>", then it means cluster is active, "<strong><em>0</em></strong>" cluster is deactive.</p>
+<p>First move the current "<em>qmail-remote</em>" binary to "<em>qmail-remote.orig</em>". Now download the wrapper and move it to the <code>/var/qmail/bin/</code> file.</p>
 
-<p>3) We need a dns server that can resolve all the 3 mailhost's FQDN's. We usually run DJB's <code>Tinydns</code> in all our Mail server's.</p>
+<pre><code>$ mv /var/qmail/bin/qmail-remote /var/qmail/bin/qmail-remote.orig
 
-<p>Once all the above 3 steps are done, we have a working Qmail Cluster. Mails will be delivered to each user according to the <code>mailHost</code> attribute mentioned in the LDAP.</p>
+$ wget -O /var/qmail/bin/qmail-remote "http://www.memoryhole.net/qmail/qmail-remote.sh"
 
-<p>Next Major thing is IMAP/POP3 services. Since all user's will be be using the primary server as their incoming server in their MUA like outook,thunderbird, and even webmail user's will also access the primary server, we decided to use the Dovecot's Proxy feature, which can proxy the request's based on the "<code>mailHost</code>" attribute. When ever a user's login request comes, Dovecot will check for the user's "<code>mailHost</code>" attribute from the LDAP. The dovecot will then proxy pass the request to the corresponding server.</p>
-
-<p>Enabling Proxy in Dovecot is very simple. We need to add the <code>host</code> as well as the <code>proxy</code> variable in the dovecot-ldap userdb and passdb config file. Below is the content of our <code>dovecot-ldap.conf</code>.</p>
-
-<pre><code>hosts = localhost
-dn =  uid=dummyuser,ou=People,dc=example,dc=com
-dnpass = dummy_password
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = dc=example,dc=com
-auth_bind = yes
-pass_attrs = uid=user,`mailHost`=host,qmailUID=proxy_maybe
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=dirsize:storage,`mailHost`=host,qmailUID=proxy_maybe
+$ chmod 755 /var/qmail/bin/qmail-remote
 </code></pre>
 
-<p>This proxy is working perfectly in dovecot2.0 onwards. But in dovecot1.2, the proxy fails, when the <code>mailHost</code> attributes has a FQDN value. But if we mention ip instead of the FQDN, proxy seems to we working. But some times <strong><em>qmqpd</em></strong> will not work properly. That is because the dovecot is expecting values as ip, but we are supplying a FQDN. But in dovecot2.0 onwards, they have added a dnslookup function. But there is <a href="http://www.mail-archive.com/dovecot@dovecot.org/msg26781.html">patch</a>. We haven't tested this patch, as we are using dovecot2.0</p>
+<p>This wrapper depends on two programs, 1) <strong><em>dktest</em></strong>, which comes with the <a href="http://domainkeys.sourceforge.net/">libdomainkeys</a>,  2)  <a href="http://www.memoryhole.net/qmail/dkimsign.pl">dkimsign.pl</a>, which is perl script for signing the emails. Both these files, must be available at the path mentioned in the "qmail-remote" wrapper file.</p>
+
+<p>Go through the "<em>dkimsign.pl</em>" script and install the Perl modules mentioned in it using cpan. There is no official debian package for libdomainkeys, so we need to compile it from the source.</p>
+
+<h4>setting up dktest</h4>
+
+<p>Download the latest source code from the sourceforge <a href="http://sourceforge.net/projects/domainkeys/">link</a>.</p>
+
+<pre><code>$ tar -xzf libdomainkeys-0.69.tar.gz
+
+$ cd libdomainkeys-0.69
+</code></pre>
+
+<p>Edit the Makefile and add "<em>-lresolv</em>" to the end of the "<em>LIBS</em>" line and run <code>make</code></p>
+
+<pre><code>$ install -m 644 libdomainkeys.a /usr/local/lib
+
+$ install -m 644 domainkeys.h dktrace.h /usr/local/include
+
+$ install -m 755 dknewkey /usr/bin
+
+$ install -m 755 dktest /usr/local/bin
+</code></pre>
+
+<h4>Generate Domain keys for the domains</h4>
+
+<p>Before we can sign an email, we must create at least one <em>public/private key pair</em>. I'm going to create a key pair for the domain "example.com".</p>
+
+<pre><code>$ mkdir -p /etc/domainkeys/example.com
+
+$ cd /etc/domainkeys/example.com
+
+$ dknewkey default 1024 &gt; default.pub
+
+$ chown -R root:root /etc/domainkeys
+
+$ chmod 640 /etc/domainkeys/example.com/default
+
+$ chown root:qmail /etc/domainkeys/example.com/default
+</code></pre>
+
+<p>It is very important that the default file be readable only by root and the group which qmailr (the qmail-remote user) belongs to. Now add a <em>TXT</em> entry to the DNS for "<em>default._domainkey.example.com</em>" containing the quoted part in the <code>/etc/domainkeys/example.com/default.pub</code></p>
+
+<p>Once everything is added, restart the "qmail-send" and send a test mail to any non local domain. IF things goes fine, we can see a line like the below in "qmail-send" log.</p>
+
+<pre><code>$ @40000000517f518b1e1eb75c delivery 1: success: ktest_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/in_dkimsignpl_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/r74.125.25.27_accepted_message./Remote_host_said:_250_2.0.0_OK_1367298812_ps11si19566038pab.170_-_gsmtp/
+</code></pre>
+
+<p>Once the DKIM is working properly, add the SPF entries in our DNS, and we are ready to try out DMARC. DMARC is already in use by mail giants like Google,Yahoo,Paypal,Linkedin etc.</p>
 ]]></content>
   </entry>
   

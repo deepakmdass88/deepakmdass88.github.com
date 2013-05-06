@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Debian | Welcome to My World]]></title>
+  <title><![CDATA[Category: debian | Welcome to My World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/debian/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-01-31T13:11:21+05:30</updated>
+  <updated>2013-05-02T00:16:31+05:30</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -14,195 +14,201 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Building Mailserver with Postfix]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/01/26/building-mailserver-with-postfix/"/>
-    <updated>2013-01-26T14:28:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/01/26/building-mailserver-with-postfix</id>
-    <content type="html"><![CDATA[<p>It's been a week since i started playing around with <code>Postfix</code>. Though we are qmail lovers, a few days back one of my friend asked me to help him to build a Mail server. But he wanted to use Postfix as the MTA. I decided to integrate <em>LDAP</em>  also, so that he can have a centralized user management. So in this blog i will be explaining on how to set up postfix to use LDAP for user lookup as well as using <strong><em>Dovecot SASL</em></strong> for SMTP auth and <strong><em>Dovecot's lda</em></strong> for delivering the mails to the user's Mailboxes. I'm using Debian 6.4 as the base os. I've also installed <em>SLAPD</em>, and i've a few test user's in it. My LDAP setup has two OU's, People and Groups respectively.</p>
+    <title type="html"><![CDATA[Virtualization using Linux Containers]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers/"/>
+    <updated>2013-03-19T23:18:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers</id>
+    <content type="html"><![CDATA[<p><strong>LXC</strong> or <strong>Linux Continers</strong> is is an operating system-level virtualization, using which we can run multiple isolated Linux systems on a single host.  LXC relies on the <a href="http://en.wikipedia.org/wiki/Cgroups">cgroups</a> functionality of the Linux Kernels. <em>Cgroups (control groups)</em> is a Linux kernel feature to limit, account and isolate resource usage (CPU, memory, disk I/O, etc.) of process groups. LXC does not provide a virtual machine, but rather provides a virtual environment that has its own process and network space. It is similar to a chroot, but offers much more isolation.</p>
 
-<p>First we will setup <em>Dovecot</em>. The Debian Squeeze repository has Dovecot 1.2, so i will be installing those.</p>
+<p>First, let's install the necessary packages.</p>
 
-<pre><code>$ apt-get install dovecot-common dovecot-pop3d dovecot-imapd
+<pre><code>$ apt-get install lxc btrutils
 </code></pre>
 
-<p>Once dovecot is installed, we need to enable dovecot's LDA and the dovecot's SASL auth. Modify the dovecot.conf file as below. Since i'm using a virtual user <strong><em>vmail</em></strong>, i need to define the <em>mail_uid and mail_gid</em> as the vmail's corresponding uid and gid. Also <em>login_user</em> must be <strong><em>postfix</em></strong></p>
+<p>By default in Ubuntu, when we install the lxc package, it will create a default bridge network called "lxcbr0". If we don't want to use this bridge network, we can disbale it by editing the <code>/etc/default/lxc</code> file. We can also create bridge networks using the <strong><em>"btrcl"</em></strong> or we can directly define the bridge networks in the interfaces file. There are a few templates, which gts shipped with the lxc package, which will be present in the <code>/usr/share/lxc/template</code>. I'm going to use the default template to create the containers. We can also use OPENVZ templates to create containers.</p>
 
-<p>In the <em>lda</em> section,</p>
+<p>I'm going to keep my keep all my container's files in a default path say "/lxc"</p>
 
-<pre><code>protocol lda {
- postmaster_address = postmaster@&lt;domain_name&gt;
- mail_plugin_dir = /usr/lib/dovecot/modules/lda
- deliver_log_format = msgid=%m: %$
- sendmail_path = /usr/sbin/sendmail
- rejection_subject = Rejected: %s
- auth_socket_path = /var/run/dovecot/auth-master
- log_path = /var/log/dovecot-deliver.log
- info_log_path = /var/log/dovecot-deliver.log
-}
+<pre><code>$ mkdir /lxc
 </code></pre>
 
-<p>In the <em>auth</em> section,</p>
+<p>Now we can create the first debian container.</p>
 
-<pre><code>auth default {
- mechanisms = plain
+<pre><code>$ mkdir /lxc/vm0    # where vm0 is the name of my conatiner.
 
-  passdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  userdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  socket listen {
-         master {  
-    path = /var/run/dovecot/auth-master
-        mode = 0666
-        # Default user/group is the one who started dovecot-auth (root)
-        user = vmail
-        group = vmail   
-        }
-
-     client {
-        path = /var/spool/postfix/private/auth
-        mode = 0660
-        user = postfix
-        group = postfix
-        }
+$ /usr/share/lxc/templates/lxc-debian -p /lxc/vm0
 </code></pre>
 
-<p>Below is the content of my <em>dovecot-ldap.conf</em></p>
+<p>Now this will install and build the necessary files for the container. If we go inside the vm0 folder, we can see two things, one is the config file, and second is the root folder of the container. This root folder will be the virtual environment for our container. Now we can edit the config file, to mention the default Network options.</p>
 
-<pre><code>hosts = localhost
-dn =  &lt;ldap_bind_dn&gt;
-dnpass = &lt;ldap_bind_pwd&gt;
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = &lt;ldap_base_dn&gt;
-auth_bind = yes
-pass_attrs = uid=user
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,mailQuotaSize=quota=dirsize:storage
-user_filter = (&amp;(objectClass=posixAccount)(|(mail=%u)(mailAlternateAddress=%u)(uid=%u)))
+<pre><code>lxc.network.ipv4 = 192.168.0.123/24 # IP address should end with CIDR
+lxc.network.hwaddr = 4a:59:43:49:79:bf # MAC address
+lxc.network.link = br0 # name of the bridge interface
+lxc.network.type = veth 
+lxc.network.veth.pair = veth_vm0
 </code></pre>
 
-<p>So now Dovecot is ready, we need to go ahead with Postfix installation. We need to install the below packages.</p>
+<p>Now we need to add the ip to the lxc's interface file alos, for that we need to edit the <code>/lxc/vm0/rootfs/etc/network/interfaces</code> file and set the ip address in it for the interface <em>eth0</em>
+We can create a bridge interface and we can bind it with the physical interface of the host, so that the lxc will be in the same network as that of the host. If there is a virtual network already existing, for example, when we install libvirt, it will create a bridge interface called "virbr0", or in Ubuntu the lxc package installation wil create a bridge interface called 'lxcbr0', we can alos use those with lxc. Or we can define a bridge interface in the "interfaces" file. Below is a configuration of creating a bridge interface.</p>
 
-<pre><code>$ apt-get install postfix postfix-ldap
+<pre><code>    auto eth0
+    iface eth0 inet manual
+
+# Bridge setup
+    iface br0 inet static
+        bridge_ports eth0 
+        address 192.168.0.2
+        broadcast 192.168.0.255
+        netmask 255.255.255.0
+        gateway 192.168.0.1
 </code></pre>
 
-<p>Once the packages are installed, we need to configure the main config file of postfix ie, <strong>main.cf</strong>. Below is the my configuration,</p>
+<p>If a separate network has to be given for the lxc's, then we can to go for NATing. The below configuration on the interfaces file is for the NAT enabled.</p>
 
-<pre><code>myhostname = vagratn-postifx-box
-smtpd_banner = &lt;smtp_banner&gt;
-biff = no
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
-smtpd_tls_key_file=/etc/ssl/private/server.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
-mydestination = localhost
-relayhost =
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-home_mailbox = Maildir/
-virtual_mailbox_maps = ldap:/etc/postfix/ldap_virtual_users.cf          #This ldap lookup will return user's MAilbox as the result from LDAPv
-virtual_alias_maps = ldap:/etc/postfix/ldap_virtual_mailalt.cf      #This ldap lookup will return uid from LDAP
-$alias_maps = hash:/etc/aliases,ldap:/etc/postfix/ldap_virtual_mailalt.cf
-local_recipient_maps = $alias_maps
-smtpd_sender_login_maps = ldap:/etc/postfix/ldap_senders.cf     #This ldap lookup will return uid attribute from LDAP
-smtpd_sasl_type = dovecot
-smtpd_sasl_path = private/auth
-smtpd_sasl_auth_enable = yes
-mailbox_transport = dovecot
-dovecot_destination_recipient_limit = 1
-virtual_mailbox_domains = &lt;add virtual domains here&gt;
-virtual_transport = dovecot
+<pre><code>auto br0
+iface br0 inet static
+address 172.16.0.1
+netmask 255.255.255.0
+bridge_stp off
+bridge_maxwait 5
+pre-up  /usr/sbin/brctl addbr br0
+post-up /usr/sbin/brctl setfd br0 0
+post-up /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+post-up echo 1 &gt; /proc/sys/net/ipv4/ip_forward
 </code></pre>
 
-<p>We can also mention the SMTP sender and recipient restrictions in the above file,</p>
+<p>Once we are ready with the configurations, we can start our container using the below command.</p>
 
-<pre><code>smtpd_client_restrictions=
-        permit_mynetworks,
-
-smtpd_recipient_restrictions=
-        permit_mynetworks,
-        permit_sasl_authenticated,
-        reject_unverified_recipient,
-        reject_invalid_hostname,
-        reject_non_fqdn_hostname,
-        reject_non_fqdn_sender,
-        reject_non_fqdn_recipient,
-        reject_unknown_sender_domain,
-        reject_unknown_recipient_domain,
-        reject_unauth_pipelining,
-        permit_auth_destination,
-        reject_unauth_destination,
-
-smtpd_sender_restrictions=
-        reject_unknown_sender_domain,
-        reject_unlisted_sender,
-        reject_authenticated_sender_login_mismatch,
+<pre><code>$ lxc-start -n vm0 -f /lxc/vm0/config
 </code></pre>
 
-<p>Below are the contents of the various LDAP lookup file's contents. We can verify this lookup's using postmap command. "<strong><em>postmap -q <query> ldap:/<lookupfile></em></strong>"</p>
+<p>In the NAT scenario, the lxc machines are under the "172.16" network, while the host lies in "192.168.0" network. There are some good projects which works around with lxc, <a href="https://github.com/chrisroberts/vagabond">vagabond</a> is an example for that.Vagabond is a tool integrated with Chef to build local nodes easily and most importantly, quickly. Vagabond is built for Chef.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Using Foreman with Puppet and Libvirt]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt/"/>
+    <updated>2013-03-07T09:39:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt</id>
+    <content type="html"><![CDATA[<p><em>TheForeman</em> is one of the best provisioning tools available. It's purely open-sourced. And it natively supports <strong><em>puppet</em></strong> for provisioning the nodes. Foreman can talk to <strong>libvirt</strong> also, which makes us easy to create a VM and provision it on the way. In this blog i will be explaining on how to install Foreman from the source, how to integrate it with puppet to receive the logs and facts and make Foreman to use Libvirt for building VM's.</p>
 
-<pre><code>########ldap_virtual_mailalt.cf########
-
-    server_host = ldap://localhost
-    version = 3
-    search_base = &lt;ldap_base_dn&gt;
-    bind_dn = &lt;ldap_bind_dn&gt;
-    bind_pw = &lt;ldap_bind_password&gt;
-    bind = yes
-    debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid 
-
-
-########ldap_virtual_users.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid
-    result_format = %s/Maildir/
+<h3>Setting up Foreman</h3>
 
 
-########ldap_senders.cf########
+<p>First will install the basic depenencies. Since i'm using the git repository of Foreman for installation, git package has to be installed. Moreover we also need a database for Foreman. I'm going to use Mysql for that.</p>
 
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-        query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))            
-    result_attribute = uid
+<pre><code>$ apt-get install git mysql-server ruby-mysql libmysql-ruby1.9.1 libmysqlclient-dev libvirt-dev 
 </code></pre>
 
-<p>Now we need to allow dovecot for delivery, so we need to add the following entry to <strong>master.cf</strong></p>
+<p>Now clone the repository from github. The newer build's works with <em>Puppet 3.0</em>.</p>
 
-<pre><code>dovecot   unix  -       n       n       -       -       pipe
-    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${recipient}
+<pre><code>$ git clone https://github.com/theforeman/foreman.git -b develop
 </code></pre>
 
-<p>I'm using recipient email id completely as the delivery option, because, in the multi domain setup, ifthere exist two different user's with same name say "abc", LDAP dn is always unique, so we cannot have same user name for two different user's, in such cases, we uses the full email id as the username for the second user, so in such scenario, we cannot use the user parameter as delivery option, because the it dovecot will remove the @domain part and takes the rest as the user, so if we use full email id, it will not deliver to the actual user.</p>
+<p>Ensure that "<strong><em>ruby</em></strong> and <strong><em>bundler</em></strong>" is installed in the machine.</p>
 
-<p>This setup has worked perfectly with Debian Squeeze and as well as Debian Vagrant Boxes. I'm writing a puppet module which will automate LDAP,Postfix and Dovecot installation and configuration and will have a ready to use mail server. Soon i will upload it into my <a href="http://github.com/deepakmdass88">github</a> account.</p>
+<pre><code>$ bundle install --without postgresql sqlite
+</code></pre>
+
+<p>Now we can start configuring Foreman. Copy the sample config files.</p>
+
+<pre><code>$ cp config/settings.yaml.example config/settings.yaml
+$ cp config/database.yml.example config/database.yml
+</code></pre>
+
+<p>Now create a database for FOreman and add the database details in the <code>database.yml</code>. Now add the puppet master details in the <code>settings.yaml</code>. Since i'm going to use the Foreman in production mode, i've commented out the Development and test environment setting in <code>database.yml</code>. Once the config files are set, we can now go ahead with db migration.</p>
+
+<pre><code>$ RAILS_ENV=production bundle exec rake db:migrate
+</code></pre>
+
+<p>Now we can check whether the server is fine or not by using the following command. The below command will start the Foreman with the builtin web server, and we can access the webui from <code>http://foreman_ip:3000</code> in the browser. By default there is no authentication set for the WebUI. But LDAP Authentication can be set for the WebUI. Details are availabe in the foreman's <a href="http://theforeman.org/manuals/1.1/index.html#4.1WebInterface">documentation</a>.</p>
+
+<pre><code>$ RAILS_ENV=production rails server
+</code></pre>
+
+<p>Once the Foreman server is working fine, we can configure puppet to send its logs and facts to foreman. In the puppet clients, add <code>report = true</code> in the puppet.conf file. Now in the puppet master, we need to do a few stuffs.</p>
+
+<p>Copy this foreman <a href="https://raw.github.com/theforeman/puppet-foreman/master/templates/foreman-report.rb.erb">report</a> file to puppet's report library.</p>
+
+<p>In my case it is <code>/usr/lib/ruby/vendor_ruby/puppet/reports/</code> and rename it to foreman.rb. Now add <code>reports=log, foreman</code> in the <strong><em>puppet.conf</em></strong> file. Also add the foreman url in the foreman.rb file.</p>
+
+<pre><code>foreman_url='http://foreman:3000    # or use ip instead of foreman, if DNS/Host entry is not there for Foreman
+</code></pre>
+
+<p>Now for sending facts to puppet, we can put a cron job to execute the below command</p>
+
+<pre><code>$ rake puppet:import:hosts_and_facts RAILS_ENV=production
+</code></pre>
+
+<p>Now once the puppet clients starts running, they will send the logs to Foreman, and can be viewed in the WebUI.</p>
+
+<h3>Foreman and Libvirt</h3>
+
+
+<p>Now in the same machine i've installed libvirt and libvirt-ruby. Now create a user "foreman" and generate ssh-key for the user. Now copy the public key to the "authorized_keys" file of the root user. This is actually needed if your libvirt host is different.</p>
+
+<p>Now go to the Foreman WebUI, Go to  <strong><em>More</em></strong> -----> <strong><em>provisioning</em></strong> -----> <strong><em>Compute Resources</em></strong>. Now click on "New Compute Resource", Add a name for the Resource, Select the provider as <em>Libvirt</em>, and URL is <code>qemu:///system</code>, since libvirt and foreman resides on the same system. We can also test the connection to libvirt. IF the parameters we entered are fine, Foreman can talk to libvirt directly.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Using SNMP with Icinga]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/02/26/using-snmp-with-icinga/"/>
+    <updated>2013-02-26T21:55:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/02/26/using-snmp-with-icinga</id>
+    <content type="html"><![CDATA[<p>In my previous i explained how to set up the Icinga monitoring system on Debian based machine. In this i will be explaining on how to use SNMP with icinga. Using SNMP we can get various info from a remote machine which can be used to icinga.</p>
+
+<p>On the remote server we need to install the snmp server. In ordr to check whether the snmp is working fine, we can install the snmp client also on the same machine.</p>
+
+<pre><code>apt-get install snmp snmp-server
+</code></pre>
+
+<p>From Debian Wheezy onwards, the <strong><em>snmp-mibs</em></strong> package has been removed from the debian repositories. But we can download the debian file from the squeeze repo. Since it has only a few depenencies and they can be installed from the debian repositories, we can manually install the mibs package. But in Ubuntu mibs package is still available in their repositories.</p>
+
+<p>Once the package is installed we can run the <strong><em>download-mibs</em></strong> to install all the necessary mibs. Now once the snmpd package is installed, we need to comment the MIBS option in the <code>/etc/snmp/snmp.conf</code>. And define the basic settings like, location, contact etc in the <code>snmpd.conf</code> file. We can define the ip to which snmp should listen either in the snmpd.conf file or in the <code>/etc/default/snmp</code> file as an extra option. Once the settings are modified, we can start the snmpd service.</p>
+
+<p> So now the service will listening on the port <em>631</em> on the ip which we defined, by default <strong>127.0.0.1</strong>. We can also enable authentication for snmp service, so that the snmp clients which passes the authentication will be able to get the result from the snmp service.</p>
+
+<p>Once the snmp service has started on the remote server, we can test the snmp onnectivity from our icinga server using the nagios' <code>check_snmp plugin</code>. Once we are able to get results from the snmp service, we can deploy tese snmp services into our icinga host configurations to get the results from the remote server's using the <strong><em>check_snmp command</em></strong>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Monitoring server's using Icinga]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga/"/>
+    <updated>2013-02-25T21:44:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga</id>
+    <content type="html"><![CDATA[<p>Last week we had severe outage in our US vps. The <em>load</em> was getting too high in the server, since it's a hosting server, and so many of our clients are hosting their DNS, website and mail server in it. So i decided to implement a monitoring system. And i decided it to extend it to all of our client server's so that we can have a fully fledged monitoring system in our company. I'm a great fan of Sensu and i play with it regularly, but this time i decided to setup <a href="http://icinga.org">Icinga</a> monitoring system, which can be used any System admin very easily. In this post i will be explaining on how to setup the <strong><em>icinga</em></strong> with it's newest web interface called icinga-web. This setup works perfectly in <em>Debian</em> based OS. In my next post, i will be explaining on how to setup <em>SNMP</em> to work with icinga.</p>
+
+<p>By default Ubuntu and Debian repositories has icinga packages.</p>
+
+<pre><code>$ apt-get install icinga icinga-cgi icinga-common icinga-core icinga-idoutils icinga-web icinga-web-pnp mysql-server
+</code></pre>
+
+<p>Once the installation is completed, by default icinga has already created a config file for the local host, which can be found in <code>/etc/icinga/objects/</code>. Now we can access the default icinga web interface with <code>http://yoursystemip/icinga</code>. The default user will be <strong><em>icingaadmin</em></strong> and password will be the default password which we have setup during the installation. Now we can create the config files for other hosts and we should restart the icinga service. This will add the host's to our default web interface. All the check commands are defined in the <code>/etc/nagios-plugins/config/</code> folder.</p>
+
+<p>Now we need to set a contact so that icinga can send alerts to the specified email id. In the <code>/etc/icinga/objects/</code> there is a file called <strong><em>contacts_icinga.cfg</em></strong>, where we have to define the contact info.</p>
+
+<pre><code>define contact{
+    contact_name                    your_contact_name
+    alias                           alias
+    service_notification_period     24x7
+    host_notification_period        24x7
+    service_notification_options    w,u,c,r
+    host_notification_options       d,r
+    service_notification_commands   notify-service-by-email
+    host_notification_commands      notify-host-by-email
+    email                           your_contact_email_id
+    }
+</code></pre>
+
+<p> The <strong><em>notify-service-by-email</em></strong> and <strong><em>notify-host-by-email</em></strong> commands are defined in the <code>/etc/icinga/commands.cfg</code> file. We can make changes to the format of the email alert by modifying this file. the "icinga-web" package will setup the basic config for the new icinga-web interface. Before starting the new interface we need to check a few settings for the new interface. First is the Database for the new interface. Ensure that the DB icinga-web and a user called icinga-web is created in the mysql. Now we need ensure that the database settings are correctly mentioned in the icinga-web settings. The settings are available in <code>/etc/icinga-web/conf.d/</code>. Now ensure that the database,user, and password are correctly mentioned in the <code>databases.xml</code> file. Now we need to ensure that the broker modules are enabled in the icinga.cfg file. comment out the below line in the icinga.cfg file to enable the idmod to enable the idomod broker module.</p>
+
+<pre><code>broker_module=/usr/lib/icinga/idomod.so config_file=/etc/icinga/idomod.cfg
+</code></pre>
+
+<p>Also increase the log level to debug in both icinga as well as idomod, which helps to identify error if any. Now restart the icing and idomod services. Now go to the new interface by going to the following url, <code>http://ip/icinga-web</code>. the default user name is "root" and the passwod will be the one which we have given during installation</p>
 ]]></content>
   </entry>
   

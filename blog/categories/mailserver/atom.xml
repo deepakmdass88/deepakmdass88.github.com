@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Mailserver | Welcome to My World]]></title>
+  <title><![CDATA[Category: MAilServer | Welcome to My World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/mailserver/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-01-31T13:11:21+05:30</updated>
+  <updated>2013-05-02T00:16:31+05:30</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -14,195 +14,74 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Building Mailserver with Postfix]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/01/26/building-mailserver-with-postfix/"/>
-    <updated>2013-01-26T14:28:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/01/26/building-mailserver-with-postfix</id>
-    <content type="html"><![CDATA[<p>It's been a week since i started playing around with <code>Postfix</code>. Though we are qmail lovers, a few days back one of my friend asked me to help him to build a Mail server. But he wanted to use Postfix as the MTA. I decided to integrate <em>LDAP</em>  also, so that he can have a centralized user management. So in this blog i will be explaining on how to set up postfix to use LDAP for user lookup as well as using <strong><em>Dovecot SASL</em></strong> for SMTP auth and <strong><em>Dovecot's lda</em></strong> for delivering the mails to the user's Mailboxes. I'm using Debian 6.4 as the base os. I've also installed <em>SLAPD</em>, and i've a few test user's in it. My LDAP setup has two OU's, People and Groups respectively.</p>
+    <title type="html"><![CDATA[DKIM Signing in QMAIL]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail/"/>
+    <updated>2013-04-30T11:19:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail</id>
+    <content type="html"><![CDATA[<p><em>DKIM</em> and <em>SPF</em> are becoming most commonly adopted methods for email validation. Even if we want to use the DMARC (<em>Domain-based Message Authentication, Reporting &amp; Conformance</em>), we need to configure  SPF and DKIM first. DMARC acts as a layer above the SPF and DKIM. DMARC allows the receiever's mail server to check if the Email is aligned properly as per the DMARC policy, and it queries the sender's DNS server for the DMARC action, ie, whether to reject or quarantine if alignment fails. The action will be mentioned in the TXT record on the Sender's DNS server. There is a good collection of DMARC training videos available in <a href="http://www.maawg.org/activities/training/dmarc-video-1">MAAWG site</a>. We will get a clear idea on how DMARC works from those videos.</p>
 
-<p>First we will setup <em>Dovecot</em>. The Debian Squeeze repository has Dovecot 1.2, so i will be installing those.</p>
+<p>In this post, i will explain on how to make Qmail to do DKIM sign on the outgoing mails. There is a <a href="http://www.brandonturner.net/blog/2009/03/dkim-and-domainkeys-for-qmail/">qmail-patch</a> method available, but since i'm using qmail-1.0.3 with custom patch, i was not able to use the DKIM patch along with my custom patch. So the next method is to use a wrapper around "qmail-remote", since qmail-remote is responsible for delivering remote mails, a wrapper around it will help us to sign the email and then start the remote delivery. There are a few wrappers mentioned in this <a href="http://www.memoryhole.net/qmail/#dkim">site</a>. I'm going to use this <a href="http://www.memoryhole.net/qmail/qmail-remote.sh">qmail-remote</a> wrapper.</p>
 
-<pre><code>$ apt-get install dovecot-common dovecot-pop3d dovecot-imapd
+<h4>Initial Settings</h4>
+
+<p>First move the current "<em>qmail-remote</em>" binary to "<em>qmail-remote.orig</em>". Now download the wrapper and move it to the <code>/var/qmail/bin/</code> file.</p>
+
+<pre><code>$ mv /var/qmail/bin/qmail-remote /var/qmail/bin/qmail-remote.orig
+
+$ wget -O /var/qmail/bin/qmail-remote "http://www.memoryhole.net/qmail/qmail-remote.sh"
+
+$ chmod 755 /var/qmail/bin/qmail-remote
 </code></pre>
 
-<p>Once dovecot is installed, we need to enable dovecot's LDA and the dovecot's SASL auth. Modify the dovecot.conf file as below. Since i'm using a virtual user <strong><em>vmail</em></strong>, i need to define the <em>mail_uid and mail_gid</em> as the vmail's corresponding uid and gid. Also <em>login_user</em> must be <strong><em>postfix</em></strong></p>
+<p>This wrapper depends on two programs, 1) <strong><em>dktest</em></strong>, which comes with the <a href="http://domainkeys.sourceforge.net/">libdomainkeys</a>,  2)  <a href="http://www.memoryhole.net/qmail/dkimsign.pl">dkimsign.pl</a>, which is perl script for signing the emails. Both these files, must be available at the path mentioned in the "qmail-remote" wrapper file.</p>
 
-<p>In the <em>lda</em> section,</p>
+<p>Go through the "<em>dkimsign.pl</em>" script and install the Perl modules mentioned in it using cpan. There is no official debian package for libdomainkeys, so we need to compile it from the source.</p>
 
-<pre><code>protocol lda {
- postmaster_address = postmaster@&lt;domain_name&gt;
- mail_plugin_dir = /usr/lib/dovecot/modules/lda
- deliver_log_format = msgid=%m: %$
- sendmail_path = /usr/sbin/sendmail
- rejection_subject = Rejected: %s
- auth_socket_path = /var/run/dovecot/auth-master
- log_path = /var/log/dovecot-deliver.log
- info_log_path = /var/log/dovecot-deliver.log
-}
+<h4>setting up dktest</h4>
+
+<p>Download the latest source code from the sourceforge <a href="http://sourceforge.net/projects/domainkeys/">link</a>.</p>
+
+<pre><code>$ tar -xzf libdomainkeys-0.69.tar.gz
+
+$ cd libdomainkeys-0.69
 </code></pre>
 
-<p>In the <em>auth</em> section,</p>
+<p>Edit the Makefile and add "<em>-lresolv</em>" to the end of the "<em>LIBS</em>" line and run <code>make</code></p>
 
-<pre><code>auth default {
- mechanisms = plain
+<pre><code>$ install -m 644 libdomainkeys.a /usr/local/lib
 
-  passdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
+$ install -m 644 domainkeys.h dktrace.h /usr/local/include
 
-  userdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
+$ install -m 755 dknewkey /usr/bin
 
-  socket listen {
-         master {  
-    path = /var/run/dovecot/auth-master
-        mode = 0666
-        # Default user/group is the one who started dovecot-auth (root)
-        user = vmail
-        group = vmail   
-        }
-
-     client {
-        path = /var/spool/postfix/private/auth
-        mode = 0660
-        user = postfix
-        group = postfix
-        }
+$ install -m 755 dktest /usr/local/bin
 </code></pre>
 
-<p>Below is the content of my <em>dovecot-ldap.conf</em></p>
+<h4>Generate Domain keys for the domains</h4>
 
-<pre><code>hosts = localhost
-dn =  &lt;ldap_bind_dn&gt;
-dnpass = &lt;ldap_bind_pwd&gt;
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = &lt;ldap_base_dn&gt;
-auth_bind = yes
-pass_attrs = uid=user
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,mailQuotaSize=quota=dirsize:storage
-user_filter = (&amp;(objectClass=posixAccount)(|(mail=%u)(mailAlternateAddress=%u)(uid=%u)))
+<p>Before we can sign an email, we must create at least one <em>public/private key pair</em>. I'm going to create a key pair for the domain "example.com".</p>
+
+<pre><code>$ mkdir -p /etc/domainkeys/example.com
+
+$ cd /etc/domainkeys/example.com
+
+$ dknewkey default 1024 &gt; default.pub
+
+$ chown -R root:root /etc/domainkeys
+
+$ chmod 640 /etc/domainkeys/example.com/default
+
+$ chown root:qmail /etc/domainkeys/example.com/default
 </code></pre>
 
-<p>So now Dovecot is ready, we need to go ahead with Postfix installation. We need to install the below packages.</p>
+<p>It is very important that the default file be readable only by root and the group which qmailr (the qmail-remote user) belongs to. Now add a <em>TXT</em> entry to the DNS for "<em>default._domainkey.example.com</em>" containing the quoted part in the <code>/etc/domainkeys/example.com/default.pub</code></p>
 
-<pre><code>$ apt-get install postfix postfix-ldap
+<p>Once everything is added, restart the "qmail-send" and send a test mail to any non local domain. IF things goes fine, we can see a line like the below in "qmail-send" log.</p>
+
+<pre><code>$ @40000000517f518b1e1eb75c delivery 1: success: ktest_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/in_dkimsignpl_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/r74.125.25.27_accepted_message./Remote_host_said:_250_2.0.0_OK_1367298812_ps11si19566038pab.170_-_gsmtp/
 </code></pre>
 
-<p>Once the packages are installed, we need to configure the main config file of postfix ie, <strong>main.cf</strong>. Below is the my configuration,</p>
-
-<pre><code>myhostname = vagratn-postifx-box
-smtpd_banner = &lt;smtp_banner&gt;
-biff = no
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
-smtpd_tls_key_file=/etc/ssl/private/server.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
-mydestination = localhost
-relayhost =
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-home_mailbox = Maildir/
-virtual_mailbox_maps = ldap:/etc/postfix/ldap_virtual_users.cf          #This ldap lookup will return user's MAilbox as the result from LDAPv
-virtual_alias_maps = ldap:/etc/postfix/ldap_virtual_mailalt.cf      #This ldap lookup will return uid from LDAP
-$alias_maps = hash:/etc/aliases,ldap:/etc/postfix/ldap_virtual_mailalt.cf
-local_recipient_maps = $alias_maps
-smtpd_sender_login_maps = ldap:/etc/postfix/ldap_senders.cf     #This ldap lookup will return uid attribute from LDAP
-smtpd_sasl_type = dovecot
-smtpd_sasl_path = private/auth
-smtpd_sasl_auth_enable = yes
-mailbox_transport = dovecot
-dovecot_destination_recipient_limit = 1
-virtual_mailbox_domains = &lt;add virtual domains here&gt;
-virtual_transport = dovecot
-</code></pre>
-
-<p>We can also mention the SMTP sender and recipient restrictions in the above file,</p>
-
-<pre><code>smtpd_client_restrictions=
-        permit_mynetworks,
-
-smtpd_recipient_restrictions=
-        permit_mynetworks,
-        permit_sasl_authenticated,
-        reject_unverified_recipient,
-        reject_invalid_hostname,
-        reject_non_fqdn_hostname,
-        reject_non_fqdn_sender,
-        reject_non_fqdn_recipient,
-        reject_unknown_sender_domain,
-        reject_unknown_recipient_domain,
-        reject_unauth_pipelining,
-        permit_auth_destination,
-        reject_unauth_destination,
-
-smtpd_sender_restrictions=
-        reject_unknown_sender_domain,
-        reject_unlisted_sender,
-        reject_authenticated_sender_login_mismatch,
-</code></pre>
-
-<p>Below are the contents of the various LDAP lookup file's contents. We can verify this lookup's using postmap command. "<strong><em>postmap -q <query> ldap:/<lookupfile></em></strong>"</p>
-
-<pre><code>########ldap_virtual_mailalt.cf########
-
-    server_host = ldap://localhost
-    version = 3
-    search_base = &lt;ldap_base_dn&gt;
-    bind_dn = &lt;ldap_bind_dn&gt;
-    bind_pw = &lt;ldap_bind_password&gt;
-    bind = yes
-    debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid 
-
-
-########ldap_virtual_users.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid
-    result_format = %s/Maildir/
-
-
-########ldap_senders.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-        query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))            
-    result_attribute = uid
-</code></pre>
-
-<p>Now we need to allow dovecot for delivery, so we need to add the following entry to <strong>master.cf</strong></p>
-
-<pre><code>dovecot   unix  -       n       n       -       -       pipe
-    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${recipient}
-</code></pre>
-
-<p>I'm using recipient email id completely as the delivery option, because, in the multi domain setup, ifthere exist two different user's with same name say "abc", LDAP dn is always unique, so we cannot have same user name for two different user's, in such cases, we uses the full email id as the username for the second user, so in such scenario, we cannot use the user parameter as delivery option, because the it dovecot will remove the @domain part and takes the rest as the user, so if we use full email id, it will not deliver to the actual user.</p>
-
-<p>This setup has worked perfectly with Debian Squeeze and as well as Debian Vagrant Boxes. I'm writing a puppet module which will automate LDAP,Postfix and Dovecot installation and configuration and will have a ready to use mail server. Soon i will upload it into my <a href="http://github.com/deepakmdass88">github</a> account.</p>
+<p>Once the DKIM is working properly, add the SPF entries in our DNS, and we are ready to try out DMARC. DMARC is already in use by mail giants like Google,Yahoo,Paypal,Linkedin etc.</p>
 ]]></content>
   </entry>
   
