@@ -1,0 +1,342 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Plugging QPSMTPD Service with QMAIL - Welcome to My World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="QPSMTPD is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small extension plugins &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My World" />
+  <meta name="og:title" content="Plugging QPSMTPD Service with QMAIL" />
+  <meta name="og:description" content="QPSMTPD is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small extension plugins &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">
+  
+  <meta name="subject" content="DebianMailserverQPSMTPDQmail"/>
+  <meta name="category" content="DebianMailserverQPSMTPDQmail"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Plugging QPSMTPD Service With QMAIL</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-01T15:26:00+05:30" pubdate data-updated="true">May 1<span>st</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>Mailserver</a>, <a class='category' href='/blog/categories/qpsmtpd/'>QPSMTPD</a>, <a class='category' href='/blog/categories/qmail/'>Qmail</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>QPSMTPD</em> is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small <em>extension plugins</em> using the easy to use object oriented plugin API. Basically I uses Qmail Based mail server&#8217;s with a custom <em>qmailqueue</em>. We uses the <em>tcpsvd (TCP/IP Service Daemon)</em> for the smtp service and the mails are passed to a custom <em>qmailqueue</em> which is basically a perl script with custom filters for filtering out the mails. <em>QPSMTPD</em> has a verity of custom plugins which includes <em>SPF</em> check, <em>DKIM</em> check and even for <em>DMARC</em> also. If you are a Perl guy, then you can build custom plugins. The main reason why i got attracted to QPSMTPD was because of its plugin nature.</p>
+
+<p>In this blog i will explain on how to setup <em>QPSMTPD</em> along with <em>QMAIL MTA</em>. As i mentioned earlier, i&#8217;m using a custom qmailqueue, where i have some custom filtering which varies from client to client. So i will be using QPSMTPD to do initail filtering like checking <em>DNSBL/RBL</em>, <em>SPF</em> check, <em>DKIM</em>, <em>DMARC</em> etc. A breif info about various qpsmtpd plugins are available <a href="http://wiki.qpsmtpd.org/plugins">here</a></p>
+
+<p>Ths qpsmtpd source is available in <a href="https://github.com/smtpd/qpsmtpd/">Github</a>. The soucre comes with default run scripts which can be used with <em>runit/daemontools</em>. Clone the qpsmtpd source and install the dependency Perl modules.</p>
+
+<pre><code>$ git clone https://github.com/smtpd/qpsmtpd/
+
+$ cpan -i Net::DNS
+
+$ cpan -i MIME::Base64
+
+$ cpan -i Mail::Header
+</code></pre>
+
+<p>Now create a user for the qpsmtp service, say &#8221;<em>smtp</em>&#8221; with home folder as the location of the qpsmtpd folder and chown the qpsmtpd folder using the smptp user. Add sticky bit to the qpsmtpd folder by running <code>chmod o+t qpsmtpd</code>, in order to make supervise start the log process. By deafult inside the source folder there will be a sample config folder called <em>&#8220;config.sample&#8221;</em>. Copy the entire folder and create a new config folder.</p>
+
+<pre><code>$ cp config.sample config
+</code></pre>
+
+<p>In the config folder, edit the &#8221;<em>IP</em>&#8221; in order to mention which ip the qpsmtpd daemon should bind. Putting &#8220;0&#8221; will bind to all the interfaces. Now if we go through the qpsmtpd&#8217;s <code>run</code> script in the source folder, it depends on two binaries <em>softlimit</em> and <em>tcpserver</em>. The <em>softlimit</em> binary comes with the <em>daemontools</em> debian package and the <em>tcpserver</em> binary comes with the <em>ucspi-tcp</em> debian package. so let&#8217;s install those two packages.</p>
+
+<pre><code>$ apt-get install ucspi-tcp daemontools runit
+</code></pre>
+
+<p>Now start the qpsmtpd server. I&#8217;m using runit for service supervision.</p>
+
+<pre><code>$ update-service --add /usr/local/src/qpsmtpd qpsmtpd
+</code></pre>
+
+<p>The above command will add the service. We can check the service status using <code>sv s qpsmtpd</code> command. This will show us whether the serivce is running or not. Now go inside the &#8220;config&#8221; folder and open the &#8220;plugin&#8221; file. This is where we enable the plugins, by addin the plugin names with corresponding options. By default the &#8221;<em>rcpt_ok</em>&#8221; plugin must be enabled. This plugin handles the <em>qmail&#8217;s rcpthosts feature</em>. It accepts the emails for the domains mentioned in the &#8221;<em>rcpthosts</em>&#8221; file present in the config folder. If this is not enabled it will not accept any mails. So the best way to understand how each plugin works is comment out all the plugins except &#8220;rcpt_ok&#8221; and then add the plugins one by one. The plugins are available in the &#8220;plugin&#8221; folder in the qpsmtpd source folder. All the basic info about the plugins are mentioned in the plugin files itself.</p>
+
+<p>Now most commonly used plugins are <em>auth</em> for SMTP AUTH, <em>DNSBL/RBL</em>, <em>spamassassin</em>, etc. We can enable these plugins by adding the names in the <code>config/plugin</code> files. For example, since i&#8217;m using a custom qmailqueue, once the qpsmtpd has accepted the mail, it has to be queued to my custom QMAILQUEUE. So i need to enable the &#8220;queue plugin&#8221;. I can enable the plugin by adding the below line to the plugin file inside the config folder.</p>
+
+<pre><code>queue/qmail-queue /var/qmail/bin/qmail-scanner-queue
+</code></pre>
+
+<p>If you are using any other MTA, you can provide the corresponding MTA&#8217;s queue. For example for postfix &#8221;<em>postfix-queue</em>&#8221;, and for exim use &#8221;<em>exim-bsmtp</em>&#8221;, or if you want to use QPSMTPD as a relaying server, you can use &#8221;<em>smtp-forward</em>&#8221; plugin for relaying mails to another SMTP server. So once the mail has been accepted by qpsmtpd, it will queue the mail to my custom qmail queue, and then it will start the mail delivery. Similarly i use ldap backend for smtp authentication. So i need to enable &#8221;<em>auth/auth_ldap_bind</em>&#8221; plugin for this. Like that we can add other plugins too. By default <em>DMARC</em> plugin is not added, but we can get it from <a href="https://github.com/qpsmtpd-dev/qpsmtpd-dev/tree/master/plugins">here</a>.</p>
+
+<p>Use tools like swaks for sending test mails, because plugins like check_basicheaders will not accept mails without proper headers, so using telnet to send mails wont work some times. Swaks is a good tool for sending test mail. We can increase the loglevel, by editing <code>config/loglevel</code> file. It&#8217;s better to increase the log level to debug so that we will get more details of errors. Some plugins needs certain Perl modules, if it&#8217;s missing the error will popup in the qpsmtpd logs, so use cpan and install those perl modules.</p>
+
+<p>By default the run script uses tcpserver to start the service. There many other ways of deployments like <strong><em>forkserver</em></strong>,<strong><em>pre-fork daemon</em></strong>,<strong><em>Apache::Qpsmtpd</em></strong> etc. To use the default <em>TLS</em> plugin, we need to use the &#8221;<em>forkserver model</em>&#8221;. The forke server model script is availbale in the same run script, but it is commented by default. The default spool directory will be a &#8221;<em>tmp</em>&#8221; folder inside the QPUSER&#8217;s ie, the user &#8220;smtp&#8221; home folder. In my case i&#8217;m using a separate folder for spool, <code>/var/spool/qpsmtp</code>, for such cases, edit <code>lib/Qpsmtpd.pm</code> and go to &#8221;<em>spool_dir</em>&#8221; subroutine and add &#8221;<strong><em>$Spool_dir = &#8220;/var/spool/qpsmtpd/&#8221;;&#8221;</em></strong>. Now create the spool directory with owner as &#8221;<em>smtp</em>&#8221; user and folder permission &#8221;<em>0700</em>&#8221; and then restart the qpsmtpd service.</p>
+
+<p>Now to enable TLS, enable the <em>tls</em> plugin in the <code>config/plugin</code> file like this &#8221;<strong>tls cert_path priv_key_path ca_path</strong>&#8221;. If there is no TLS certificate available ,then we can generate using a perl script &#8221;<em>tls_cert</em>&#8221;, which is available at the <em>plugins</em> folder. Now we need to edit the <code>config/tls_before_auth</code> file and put the value <em>&#8220;0&#8221;</em>, otherwise AUTH will not be offered unless TLS/SSL are in place. Now we can try  sending a test mail using swaks with TLS enabled. Below is my swaks output.</p>
+
+<pre><code>=== Trying 192.168.42.189:587...
+=== Connected to 192.168.42.189.
+&lt;-  220 beingasysadmin.com ESMTP  send us your mail, but not your spam.
+ -&gt; EHLO deeptest.beingasysadmin.com
+&lt;-  250-beingasysadmin.com Hi deeptest [192.168.42.184]
+&lt;-  250-PIPELINING
+&lt;-  250-8BITMIME
+&lt;-  250-SIZE 5242880
+&lt;-  250-STARTTLS
+&lt;-  250 AUTH PLAIN LOGIN CRAM-MD5
+ -&gt; STARTTLS
+&lt;-  220 Go ahead with TLS
+=== TLS started w/ cipher xxxxxx-xxx-xxxxxx
+=== TLS peer subject DN="/C=XY/ST=unknown/L=unknown/O=QSMTPD/OU=Server/CN=debwheez.beingasysadmin.com/emailAddress=postmaster@debwheez.beingasysadmin.com"
+ ~&gt; EHLO deeptest.beingasysadmin.com
+&lt;~  250-beingasysadmin.com Hi deeptest [192.168.42.184]
+&lt;~  250-PIPELINING
+&lt;~  250-8BITMIME
+&lt;~  250-SIZE 5242880
+&lt;~  250 AUTH PLAIN LOGIN CRAM-MD5
+ ~&gt; AUTH PLAIN AGRlZXBhawBteWRlZXByb290
+&lt;~  235 PLAIN authentication successful for deepak - authldap/plain
+ ~&gt; MAIL FROM:&lt;deepak@beingasysadmin.com&gt;
+&lt;~  250 &lt;deepak@beingasysadmin.com&gt;, sender OK - how exciting to get mail from you!
+ ~&gt; RCPT TO:&lt;deepakmdass88@gmail.com&gt;
+&lt;~  250 &lt;deepakmdass88@gmail.com&gt;, recipient ok
+ ~&gt; DATA
+&lt;~  354 go ahead
+ ~&gt; Date: Wed, 01 May 2013 23:19:54 +0530
+ ~&gt; To: deepakmdass88@gmail.com
+ ~&gt; From: deepak@beingasysadmin.com
+ ~&gt; Subject: testing TLS + Auth in qpsmtpd
+ ~&gt; X-Mailer: swaks v20120320.0 jetmore.org/john/code/swaks/
+ ~&gt;
+ ~&gt; This is a test mailing
+ ~&gt;
+ ~&gt; .
+&lt;~  250 Queued! 1367430597 qp 9222 &lt;&gt;
+ ~&gt; QUIT
+&lt;~  221 beingasysadmin.com closing connection. Have a wonderful day.
+=== Connection closed with remote host. 
+</code></pre>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-01T15:26:00+05:30" pubdate data-updated="true">May 1<span>st</span>, 2013</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>Mailserver</a>, <a class='category' href='/blog/categories/qpsmtpd/'>QPSMTPD</a>, <a class='category' href='/blog/categories/qmail/'>Qmail</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2013/04/30/dkim-signing-in-qmail/" title="Previous Post: DKIM Signing in QMAIL">&laquo; DKIM Signing in QMAIL</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/30/dkim-signing-in-qmail/">DKIM Signing in QMAIL</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - A GUI for Sensu API</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting up Check's and Handler's</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My World</a>
+  - Copyright &copy; 2013 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

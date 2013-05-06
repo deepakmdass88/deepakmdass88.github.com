@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Libvirt | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/libvirt/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[WebVirtManager and Libvirt-KVM]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/07/webvirtmanager-and-libvirt-kvm/"/>
+    <updated>2013-04-07T13:49:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/07/webvirtmanager-and-libvirt-kvm</id>
+    <content type="html"><![CDATA[<p>It's been almost two years since i've started using <em>KVM</em> and <em>Libvirt</em> for creating Virtual machines. All our production server's are VM's, so far KVM has never let us down. The <code>Virt Manager</code> is a wonderful tool taht can installed in most of the linux distributions. But when i switched to ma new MacAir, i could not find a similar tool, so i decided to use a web based tool, so that it can be used from anywhere irrespective of devices. I came across this <a href="https://www.webvirtmgr.net/">WebVirtManager</a>, a python and django based web app, which is very active in development, so i decided to give it a try. In my libvirt setup, i'm using LVM as my storage pooli for my VM's, so the main thing which i wanted to check was, whether the <code>WebVirtManager</code> is able to create LVM's, so that it can be used as the <strong><em>HDD image</em></strong> for my new VM's from the WebInterface.</p>
+
+<p>First, we need to install the basic dependency packages.</p>
+
+<pre><code>$ apt-get install git python-django virtinst apache2 libapache2-mod-python libapache2-mod-wsgi
+</code></pre>
+
+<p>Now go to <code>libvirtd.conf</code>, and ensure that <em>"listen_tcp"</em> is enabled. Also go to <strong><em>"/etc/default/libvirt"</em></strong> and add the <strong><em>"-l"</em></strong> to the <strong><em>"libvirtd_opts"</em></strong>, so that libvirt will listen on tcp. The default port is "16509".</p>
+
+<p>Now we can clone the repository from the Github.</p>
+
+<pre><code>$ git clone git://github.com/retspen/webvirtmgr.git
+$ cd webvirtmgr
+$ ./manage.py syncdb
+</code></pre>
+
+<p>While running the sync, it will ask to create a super user, so create the user, this user can be used to login to the <code>WebVirtManager</code> GUI. Now We can create a <em>virtualhost</em> in apache, and we can start the server. The Apache configurations are available in the Readme. I've added the below WSGI settings in my default apache sites.</p>
+
+<pre><code>WSGIScriptAlias / /var/www/webvirtmgr/wsgi/django.wsgi
+Alias /static /var/www/webvirtmgr/ virtmgr/static/
+&lt;Directory /var/www/webvirtmgr/wsgi&gt;
+ Order allow,deny
+Allow from all
+&lt;/Directory&gt;
+</code></pre>
+
+<p>Ensure that the directory is <strong><em>writable by apache user</em></strong>. But for testing, we can start the server from command line using the below command.</p>
+
+<pre><code>$ ./manage.py runserver x.x.x.x:8000 (x.x.x.x - your IP address server)
+</code></pre>
+
+<p>So this command will start the <code>WebvirtManager</code>, which is listening at port "8000". So from the Browser, we can access the url. The default usernmae and password is the one which we created during the syndb.  Now before adding the connection, we need to create a user which can access the libvirt. For that we are going to use <em>"saslpasswd2"</em>. Ensure that the package <em>sasl2-bin</em> is installed in the machine.</p>
+
+<pre><code>$ saslpasswd2 -a libvirt testuser     # replace testuser is the user name.
+</code></pre>
+
+<p>To list all the user's, we can use the <code>sasldblistusers2</code> command.</p>
+
+<pre><code>$ sasldblistusers2 -f /etc/libvirt/passwd.db
+$ testuser@cloud: userPassword        # Note that the actual user name is testuser@cloud, where cloud is the hostname of my server. This full user name has to be used for adding connections.
+</code></pre>
+
+<p>Now login to the <code>WebvirManager</code>, and click on <strong><em>"Add Connection"</em></strong>. Fill in the connection name, ip of the server, the user which we created using <em>saslpasswd2</em>, ie <strong><em>testuser@cloud</em></strong> and the password for that user.If everything goes fine, we can see the host connected. Now click on the "Overview", to see the settings of the host.</p>
+
+<p>Now i need to check the storage pool part. Since the storage pool is already active and running, it will get displayed at the storage pool option. If a new pool has to created, click at the <em>"add pool"</em> option, and select the "lvm" option, define the <strong><em>VolumeGroup</em></strong> name and the <strong><em>physical volumes</em></strong>.</p>
+
+<p>I tried creating a new VM from the interface, while creating, i selected my VolumeGroup as the storage, and it sucessfully created an LVM with the specified size, and i able to continue my installtion using the vnc option avalable at the WebVirtManager.</p>
+]]></content>
+  </entry>
+  
+</feed>

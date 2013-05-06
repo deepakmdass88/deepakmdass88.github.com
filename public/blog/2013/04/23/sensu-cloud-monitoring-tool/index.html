@@ -1,0 +1,455 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Sensu - Cloud Monitoring Tool - Welcome to My World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My World" />
+  <meta name="og:title" content="Sensu - Cloud Monitoring Tool" />
+  <meta name="og:description" content="Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">
+  
+  <meta name="subject" content="DebianMonitoringSensu"/>
+  <meta name="category" content="DebianMonitoringSensu"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Sensu - Cloud Monitoring Tool</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-23T22:20:00+05:30" pubdate data-updated="true">Apr 23<span>rd</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data&#8217;s.</p>
+
+<p> Sensu has <strong>3</strong> operation Mode.</p>
+
+<p> 1) <strong>Request-Reply Mode</strong>, where the server will send a check request to the clients through the RabbitMQ and the clients will reply back the results.</p>
+
+<p> 2) <strong>Standalone Mode</strong>, where the server will not send any check request, instead the client itself will run the checks according to interval mentioned, and sends the results to the sensu master through the Result queue in RabbitMQ.</p>
+
+<p> 3) <strong>Push Mode</strong>, where the client will send out results to a specific handler.</p>
+
+<p>So now we can start installing the dependencies for sensu, ie, RabbitMQ and Redis.</p>
+
+<h3>Setting up RabbitMQ</h3>
+
+<p>Let&#8217;s add the <strong>RabbitMQ</strong> official APT repo.</p>
+
+<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;/etc/apt/sources.list.d/rabbitmq.list
+
+$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+
+$ apt-key add ~/rabbitmq-signing-key-public.asc &amp;&amp; apt-get update
+</code></pre>
+
+<p>Now we can install RabbitMQ</p>
+
+<pre><code>$ apt-get install rabbitmq-server erlang-nox
+</code></pre>
+
+<p>Now we need to generate SSL certificates for RabbitMQ and the sensu clients. We can use RabbitMQ with out ssl also, but it will more secure with SSL, <a href="http://github.com/joemiller">@joemiller</a> has wrote a script to generate the SSL certificates. It&#8217;s avaliable in his GitHub <a href="http://github.com/joemiller/joemiller.me-intro-to-sensu.git">repo</a>. Clone the repo and modify the &#8220;openssl.cnf&#8221; according to our need and then we can go ahead with generating the certificates.</p>
+
+<pre><code>$ git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
+
+$ cd joemiller.me-intro-to-sensu/
+
+$ ./ssl_certs.sh clean &amp;&amp; /ssl_certs.sh generate
+</code></pre>
+
+<p>Now copy the server key and cert files to the RabbitMQ folder in &#8220;/etc/rabbitmq/&#8221;</p>
+
+<pre><code>$ mkdir /etc/rabbitmq/ssl
+
+$ cp server_key.pem /etc/rabbitmq/ssl/
+
+$ cp server_cert.pem /etc/rabbitmq/ssl/
+
+$ cp testca/cacert.pem /etc/rabbitmq/ssl/
+</code></pre>
+
+<p>Now create the RabbitMQ config file, &#8220;/etc/rabbitmq/rabbitmq.config&#8221;, and add the following lines in it.</p>
+
+<pre><code>[
+  {rabbit, [
+      {ssl_listeners, [5671]},
+      {ssl_options, [{cacertfile,"/etc/rabbitmq/ssl/cacert.pem"},
+               {certfile,"/etc/rabbitmq/ssl/server_cert.pem"},
+               {keyfile,"/etc/rabbitmq/ssl/server_key.pem"},
+               {verify,verify_peer},
+               {fail_if_no_peer_cert,true}]}
+    ]}
+].
+</code></pre>
+
+<p>Once the config file is created, restart the RabbitmQ server. Now RabbitMQ has a cool management console, we can enable this by running &#8221;<strong><em>rabbitmq-plugins enable rabbitmq_management</em></strong>&#8221; in console. Once the Management console is enabled, we can access it RabbitMQ Web UI: <strong>Username is &#8220;guest&#8221;, password is &#8220;guest&#8221; - http://SENSU-SERVER:55672</strong>. Protocol amqp should be bound to port 5672 and amqp/ssl on port 5671.</p>
+
+<p>Now let&#8217;s create a vhost and user for Sensu in RabbitMQ.</p>
+
+<pre><code> $ rabbitmqctl add_vhost /sensu
+
+ $ rabbitmqctl add_user sensu mypass
+
+ $ rabbitmqctl set_permissions -p /sensu sensu ".*" ".*" ".*"
+</code></pre>
+
+<h3>Setting up Redis Server</h3>
+
+<p>Now we can set up Redis server. This will used by Sensu for stroring data&#8217;s. Ubuntu&#8217;s Apt repo ships with latest Redis server, so we can directly install it.</p>
+
+<pre><code>$ apt-get install redis-server
+</code></pre>
+
+<h3>Installing Sensu Server</h3>
+
+<p>Sensu has a public repository which can be used to install the necessary sensu packages. First we need to add the repository public key.</p>
+
+<pre><code>$ wget -q http://repos.sensuapp.org/apt/pubkey.gpg -O- | sudo apt-key add -
+</code></pre>
+
+<p>Now add the repo sources in APT</p>
+
+<pre><code>$ echo " deb     http://repos.sensuapp.org/apt sensu main" &gt;&gt; /etc/apt/sources.list &amp;&amp; apt-get update
+
+$ apt-get install sensu
+</code></pre>
+
+<p>Enable the sensu services to start automatically during system startup.</p>
+
+<pre><code>$ update-rc.d sensu-server defaults
+
+$ update-rc.d sensu-api defaults
+
+$ update-rc.d sensu-client defaults
+
+$ update-rc.d sensu-dashboard defaults
+</code></pre>
+
+<p>Copy the client ssl cert and key to <strong>/etc/sensu</strong> folder, say to a subfolder ssl.</p>
+
+<pre><code>$ cp client_key.pem client_cert.pem  /etc/sensu/ssl/
+</code></pre>
+
+<p>Now we need setup the sensu master, create a file &#8221;<strong>/etc/sensu/config.json</strong>&#8221; and add the below lines.</p>
+
+<pre><code>         {
+        "rabbitmq": {
+          "ssl": {
+            "private_key_file": "/etc/sensu/ssl/client_key.pem",
+            "cert_chain_file": "/etc/sensu/ssl/client_cert.pem"
+          },
+          "port": 5671,
+          "host": "localhost",
+          "user": "sensu",
+          "password": "mypass",
+          "vhost": "/sensu"
+        },
+        "redis": {
+          "host": "localhost",
+          "port": 6379
+        },
+        "api": {
+          "host": "localhost",
+          "port": 4567
+        },
+        "dashboard": {
+          "host": "localhost",
+          "port": 8080,
+          "user": "admin",
+          "password": "sensu@123"
+        },
+        "handlers": {
+          "default": {
+            "type": "pipe",
+            "command": "true"
+          }
+        }
+      }
+</code></pre>
+
+<p>By default sensu package comes with all sensu-server,sensu-client,sensu-api and sensu-dashboard., If we dont want to use the current machine as a client, we can stop the sensu-client from running, and do not create the client config. But for testing purpose, i&#8217;m going to add the current machine as client also. Create a file &#8221;<strong>/etc/sensu/conf.d/client.json</strong>&#8221; and add the client configuration in JSON format.</p>
+
+<pre><code>        {
+          "client": {
+          "name": "sensu.test.com",
+          "address": "192.168.1.108",
+          "subscriptions": [ "vmmaster" ]
+         }
+       }
+</code></pre>
+
+<p>Now restart the sensu-client to affect the changes. The logs are recorded at &#8221;<strong>/var/log/sensu/sensu-client.log</strong>&#8221; file. We can access the sensu-dashboard from &#8220;http://SENSU SERVER:8080&#8221;, with the username and password mentioned in the config.json file.</p>
+
+<h3>Setting up a Separate Sensu-Client Node</h3>
+
+<p>If we want to setup sensu-client on a separate node, just dd the Sensu apt repo, and install the sensu package. After that just enable only the sensu-client service and remove all other sesnu-services. Then create a config.json file and add only the rabbitmq server details in it. Now generate a separate SSL certificate for the new client and use that in the config file.</p>
+
+<pre><code>       {
+      "rabbitmq": {
+        "ssl": {
+          "private_key_file": "/etc/sensu/ssl/client1_key.pem",
+          "cert_chain_file": "/etc/sensu/ssl/client1_cert.pem"
+        },
+        "port": 5671,
+        "host": "192.168.1.108",
+        "user": "sensu",
+        "password": "mypass",
+        "vhost": "/sensu"
+      }
+    }
+</code></pre>
+
+<p>Now create the  &#8220;client.json&#8221; in the &#8220;/etc/sensu/conf.d/&#8221; folder.</p>
+
+<pre><code>        {
+              "client": {
+              "name": "client1.test.com",
+              "address": "192.168.1.212",
+              "subscriptions": [ "vmmaster" ]
+             }
+           }
+</code></pre>
+
+<p>Restart the the sensu-clinet, and check the &#8220;/var/log/sensu/sensu-client.log&#8221;, if things goes fine, we can see client connecting to the RabbitMQ server also we can see the config is getting applied.</p>
+
+<pre><code>{"timestamp":"2013-04-23T22:53:27.870728+0530","level":"warn","message":"config file applied changes","config_file":"/etc/sensu/conf.d/client.json","changes":{"client":[null,{"name":"client1.test.        com","address":"192.168.1.212","subscriptions":["vmmaster"]}]}}
+{"timestamp":"2013-04-23T22:53:27.879671+0530","level":"info","message":"loaded extension","type":"mutator","name":"only_check_output","description":"returns check output"}
+{"timestamp":"2013-04-23T22:53:27.883504+0530","level":"info","message":"loaded extension","type":"handler","name":"debug","description":"outputs json event data"}
+</code></pre>
+
+<p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check&#8217;s. One of the best thing of sensu, all the config&#8217;s are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check&#8217;s and how to add these check&#8217;s to various clients, and how to add handler&#8217;s like Email alerts, Sending Metrics to graphite.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-23T22:20:00+05:30" pubdate data-updated="true">Apr 23<span>rd</span>, 2013</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/" title="Previous Post: HARAKA - A NodeJS based SMTP server">&laquo; HARAKA - A NodeJS based SMTP server</a>
+    
+    
+      <a class="pull-right" href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/" title="Next Post: Sensu - Setting up Check's and Handler's">Sensu - Setting up Check's and Handler's &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/30/dkim-signing-in-qmail/">DKIM Signing in QMAIL</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - A GUI for Sensu API</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting up Check's and Handler's</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My World</a>
+  - Copyright &copy; 2013 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

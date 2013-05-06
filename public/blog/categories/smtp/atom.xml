@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: SMTP | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/smtp/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[HARAKA - A NodeJS based SMTP server]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/"/>
+    <updated>2013-04-14T22:51:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/14/haraka-a-nodejs-based-smtp-server</id>
+    <content type="html"><![CDATA[<p>Today i came across a very interesting project in GITHUB. <a href="https://github.com/baudehlo/Haraka.git">HARAKA</a> is an SMTP server written completely in <em>NodeJS</em>. Like the qpsmtpd, apart from the core SMTP features we can improve the functionality using small plugins. There are very good pluginsi for HARAKA, basically in javascripts. Like Postfix,Qmail, we can easily implements all sorts of checks and features with the help of these plugins.</p>
+
+<p>Setting up <code>HARAKA</code> is very simple. In my setup, i will be using HARAKA as my primary smtp server, where i will implement all my filterings and then i will relay to a qmail server for local delivery. There is plugin written by <a href="https://github.com/madeingnecca/haraka-plugins.git">@madeingnecca</a> in github, for directly delivering the mails to user's INBOX (mail box should be in <em>MAILDIR</em> format). In the real server's we use LDAP backend for storing all the USER databases. So before putting HARAKA into production, i need a to rebuild the auth plugin so that HARAKA can talk to LDAP for user authentication in SMTP.</p>
+
+<p>So first we need to install <strong>NodeJS</strong> and <strong>NPM (Node Package Manager)</strong>. There are several ways for installing NodeJS. We can compile it from the source, or we can use <strong><em>NVM (Node Version Manager)</em></strong>, or we can install the packages from APT in Debian machines. But i prefer source code, because official APT repo has older versions of NodeJS, which will create compatibility issue. Current version is <em>"v0.10.4"</em>. Building NodeJS from source is pretty simple.</p>
+
+<p>Just Download the latest source code from <strong>"http://nodejs.org/download/"</strong></p>
+
+<pre><code>$ wget http://nodejs.org/dist/v0.10.4/node-v0.10.4.tar.gz
+
+$ tar xvzf node-v0.10.4.tar.gz &amp;&amp; cd node-v0.10.4
+
+$  ./compile 
+
+$ make &amp;&amp; make install
+</code></pre>
+
+<p>Once NodeJS is installed, we can go ahead with <code>HARAKA</code>.</p>
+
+<pre><code>$ git clone https://github.com/baudehlo/Haraka.git
+</code></pre>
+
+<p>Now go inside to the <em>Haraka</em> folder and run the below command. All the dependency packages are mentioned in the <strong>package.json</strong> file.</p>
+
+<pre><code>$ npm install
+</code></pre>
+
+<p>The above command will install all the necessary modules mentioned in the package.json file and will setup HARAKA. Now we can setup a separate service folder for HARAKA.</p>
+
+<pre><code>$ haraka -i /etc/heraka     
+</code></pre>
+
+<p> The above  command will create the heraka folder in <strong>/etc/</strong> and it will create  creates config and plugin directories in there, and automatically sets the host name used by Haraka to the output of the hostname command. Now we need to setup up the <em>port number</em> and <em>ip</em> which HARAKA SMTP service should listen. Go to config folder in the newly created haraka service folder and open the <strong>"smtp.ini"</strong> file, and mention the port number and ip.</p>
+
+<p>Now before starting the smtp service, first let's disable all the plugins, so that we can go in steps. In the config folder, open the <em>"plugin"</em> file, and comment out all the plugins, because by default haraka will not create any plugin scripts, so most of them mentioned in that will not work. So we will start using the plugins, once we have copied the corresponding plugin's js files to the plugin directory inside our service directory.</p>
+
+<p>Let's try running the <code>HARAKA</code> foreground and see if it starts and listens on the port we mentioned.</p>
+
+<pre><code>$ haraka -c /etc/haraka
+</code></pre>
+
+<p>Once <code>HARAKA</code> SMTP service starts, we can see the line "<strong>[NOTICE] [-] [core] Listening on :::25</strong>" in the STDOUT, which means HARAKA is listening on port 25. We can just Telnet to port 25 and see if we are getting SMTP banner.</p>
+
+<p>Now we can try out a plugin. Heraka has a <em>spamassassin</em> plugin. So will try it out. So first install spamassassin and start the spam filtering.</p>
+
+<pre><code>$ apt-get install spamassassin spamc
+</code></pre>
+
+<p>Now from the plugin folder inside the git source folder of HARAKA, copy the <strong>spamassassin.js</strong> and copy it to the plugin folder of our service directory. By default plugin folder is not created inside the service directory, so create it. Now we need to enable the service. Inside the config folder of our service directory, create a config file <strong>"spamassassin.ini"</strong>, and inside the file fill in the necessary details like, <strong>"reject_thresold", "subject_prefix", "spamd_socket"</strong>. Now before starting the plugin, we need to add it in the plugin, inside the config folder. Once spamassassin plugin is added, we can start the HARAKA smtp service. If the plugin is added properly, then we can see the below lines in the stdout,</p>
+
+<pre><code>[INFO] [-] [core] Loading plugin: spamassassin
+[DEBUG] [-] [core] registered hook data_post to spamassassin.hook_data_post
+</code></pre>
+
+<p>Now using swaks, we can send a test mail see, if spam assassin is putting scores for the emails. Like this we can enable all other plugins, based on our needs.</p>
+
+<p>Since i'm going to relay the mails, i need to make HARAKA to accept mails for all my domains. For that i need to define all my domains on HARAKA. In the config folder, open the file <strong>"host_list"</strong>, and add all the domains for which HARAKA should accept mails. There also a regular expression option available for, which can be done in <strong>"host_list_regex"</strong> file.</p>
+
+<p>Now we need to add, smtp relay, for that edit the <em>"smtp_forward.ini"</em> file and mention the relay host ip, port number and auth details(if required). Now we can restart the <code>HARAKA</code> service and we can check SMTP relay by sending test mails using swaks.</p>
+
+<p>I haven't tried the Auth plugin yet, but soon i will be trying it. If possible, i will try to use LDAP backend for authentication, so that HARAKA can be used a full fledged SMTP service. More developments are happening in this, hope it wil become a good competitor . . .</p>
+]]></content>
+  </entry>
+  
+</feed>

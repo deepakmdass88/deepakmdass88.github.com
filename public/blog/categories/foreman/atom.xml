@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Foreman | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/foreman/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Using Foreman with Puppet and Libvirt]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt/"/>
+    <updated>2013-03-07T09:39:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt</id>
+    <content type="html"><![CDATA[<p><em>TheForeman</em> is one of the best provisioning tools available. It's purely open-sourced. And it natively supports <strong><em>puppet</em></strong> for provisioning the nodes. Foreman can talk to <strong>libvirt</strong> also, which makes us easy to create a VM and provision it on the way. In this blog i will be explaining on how to install Foreman from the source, how to integrate it with puppet to receive the logs and facts and make Foreman to use Libvirt for building VM's.</p>
+
+<h3>Setting up Foreman</h3>
+
+
+<p>First will install the basic depenencies. Since i'm using the git repository of Foreman for installation, git package has to be installed. Moreover we also need a database for Foreman. I'm going to use Mysql for that.</p>
+
+<pre><code>$ apt-get install git mysql-server ruby-mysql libmysql-ruby1.9.1 libmysqlclient-dev libvirt-dev 
+</code></pre>
+
+<p>Now clone the repository from github. The newer build's works with <em>Puppet 3.0</em>.</p>
+
+<pre><code>$ git clone https://github.com/theforeman/foreman.git -b develop
+</code></pre>
+
+<p>Ensure that "<strong><em>ruby</em></strong> and <strong><em>bundler</em></strong>" is installed in the machine.</p>
+
+<pre><code>$ bundle install --without postgresql sqlite
+</code></pre>
+
+<p>Now we can start configuring Foreman. Copy the sample config files.</p>
+
+<pre><code>$ cp config/settings.yaml.example config/settings.yaml
+$ cp config/database.yml.example config/database.yml
+</code></pre>
+
+<p>Now create a database for FOreman and add the database details in the <code>database.yml</code>. Now add the puppet master details in the <code>settings.yaml</code>. Since i'm going to use the Foreman in production mode, i've commented out the Development and test environment setting in <code>database.yml</code>. Once the config files are set, we can now go ahead with db migration.</p>
+
+<pre><code>$ RAILS_ENV=production bundle exec rake db:migrate
+</code></pre>
+
+<p>Now we can check whether the server is fine or not by using the following command. The below command will start the Foreman with the builtin web server, and we can access the webui from <code>http://foreman_ip:3000</code> in the browser. By default there is no authentication set for the WebUI. But LDAP Authentication can be set for the WebUI. Details are availabe in the foreman's <a href="http://theforeman.org/manuals/1.1/index.html#4.1WebInterface">documentation</a>.</p>
+
+<pre><code>$ RAILS_ENV=production rails server
+</code></pre>
+
+<p>Once the Foreman server is working fine, we can configure puppet to send its logs and facts to foreman. In the puppet clients, add <code>report = true</code> in the puppet.conf file. Now in the puppet master, we need to do a few stuffs.</p>
+
+<p>Copy this foreman <a href="https://raw.github.com/theforeman/puppet-foreman/master/templates/foreman-report.rb.erb">report</a> file to puppet's report library.</p>
+
+<p>In my case it is <code>/usr/lib/ruby/vendor_ruby/puppet/reports/</code> and rename it to foreman.rb. Now add <code>reports=log, foreman</code> in the <strong><em>puppet.conf</em></strong> file. Also add the foreman url in the foreman.rb file.</p>
+
+<pre><code>foreman_url='http://foreman:3000    # or use ip instead of foreman, if DNS/Host entry is not there for Foreman
+</code></pre>
+
+<p>Now for sending facts to puppet, we can put a cron job to execute the below command</p>
+
+<pre><code>$ rake puppet:import:hosts_and_facts RAILS_ENV=production
+</code></pre>
+
+<p>Now once the puppet clients starts running, they will send the logs to Foreman, and can be viewed in the WebUI.</p>
+
+<h3>Foreman and Libvirt</h3>
+
+
+<p>Now in the same machine i've installed libvirt and libvirt-ruby. Now create a user "foreman" and generate ssh-key for the user. Now copy the public key to the "authorized_keys" file of the root user. This is actually needed if your libvirt host is different.</p>
+
+<p>Now go to the Foreman WebUI, Go to  <strong><em>More</em></strong> -----> <strong><em>provisioning</em></strong> -----> <strong><em>Compute Resources</em></strong>. Now click on "New Compute Resource", Add a name for the Resource, Select the provider as <em>Libvirt</em>, and URL is <code>qemu:///system</code>, since libvirt and foreman resides on the same system. We can also test the connection to libvirt. IF the parameters we entered are fine, Foreman can talk to libvirt directly.</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Monitoring | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/monitoring/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Sensu Admin - A GUI for Sensu API]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/"/>
+    <updated>2013-04-28T18:50:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api</id>
+    <content type="html"><![CDATA[<p>In my previous post's, i've explained on How to setup Sensu server and setting up check's and handler's. The default dashboard is very simple with limited options, but for those who wants a full fledged dashboard, there is a Rails project in Github <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. So let's try setting it up.</p>
+
+<p>First clone the repository from Github.</p>
+
+<pre><code>$ git clone https://github.com/sensu/sensu-admin.git
+</code></pre>
+
+<p>Now go to sensu-admin folder, and run <code>bundle install</code> to install all the dependency gems. Now go inside the "<em>config</em>" folder, edit the "<em>database.yml</em>" and fill in the database details. I'm going to use mysql, below is my database config.</p>
+
+<pre><code>development:
+   adapter: mysql2
+   database: sensudb
+   username: sensu
+   password: secreto
+   host: localhost
+production:
+   adapter: mysql2
+   database: sensudb
+   username: sensu
+   password: secreto
+   host: localhost
+</code></pre>
+
+<p>Now run <code>rake db:migrate</code> and then  <code>rake db:seed</code>. The seed file creates auser account named "<strong><em>admin@example.com</em></strong>" with password "<strong><em>secret</em></strong>".</p>
+
+<p>We can start the Rails app by running "rails s", this will start the app using the thin webserver at port <em>3000</em>. Access the dashboard using the url "<strong><em>http://server_ip:3000</em></strong>" Login to the dashboard with the admin@example.com and go to the "*Account" tab and modify the default user name and password. Now we go through tabs and check if it displays the checks, clients, events etc properly. This is a <a href="/images/SensuAdmin.png">screenshot</a> of the SensuAdmin dashboard.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Sensu - Setting up Check's and Handler's]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/25/sensu-setting-up-checks-and-handlers/"/>
+    <updated>2013-04-25T12:26:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/25/sensu-setting-up-checks-and-handlers</id>
+    <content type="html"><![CDATA[<p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i've explained on how to setup Sensu Server and Client. Now i'm going to explain how to setup Check's and Handler's in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
+
+<h4>Setting up Check's</h4>
+
+<p>On the Sensu <em>Client Node</em>,</p>
+
+<p>First clone the plugins repository on the client node. Now install the "<strong>sensu-plugin</strong>" gem on the client node. And then copy the required plugins to <code>/etc/sensu/plugins/</code> folder.</p>
+
+<p>On the Sensu <em>Server</em>,</p>
+
+<p>We need to define the check first. Create a json config file for the check in <code>/etc/sensu/conf.d</code>. Following is a sample check config,</p>
+
+<pre><code>     {
+    "checks": {
+         "snmp_check": {
+         "handlers": ["default"],
+         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
+         "interval": 30,
+         "subscribers": [ "snmp" ]
+          }
+      }
+   }
+</code></pre>
+
+<p>The above check will be applied to all clients subscribed to "<em>snmp</em>" exchange. Based on the interval, Server will publish this check request, which will reach all the clients subscribed to the "<em>snmp</em>" exchange using an arbitrary queue. The client will run the command mentioned in the command part, and then it will publish the result back to th server through <em>Result queue</em>. The <a href="https://github.com/deepakmdass88/my-sensu-plugins.git">check_snmp</a> is a small plugin written by me. If we check the sensu-server log, we can see the result coming from the client machine. Below one is a similar log output in my sensu-server log.</p>
+
+<pre><code>{"timestamp":1366968018},"check":{"handlers":["default","mailer"],"command":"/etc/sensu/plugins/check-snmp.rb -w 1 -c 3","interval":100,"subscribers":["snmp"],"name":"snmp_check","issued":1366968407,"executed":1366968028,"output":"CheckSNMP WARNING: Warning state detected\n","status":1,"duration":0.526,"history":["0","0","1"]},"occurrences":1,"action":"create"},"handler":{"type":"pipe","command":"true","name":"default"}}
+</code></pre>
+
+<p>The above log line shows us what are handler's enabled for this check, what is the executed command, subcribers, name of the check, timestamp at the time when the command was issued, timestamp of the time when the server has received the result, Output of the check command etc. If there is any while executing th check command, we can see the errors popping in the log's soon after this line in the server log.</p>
+
+<h4>Setting up Handler's</h4>
+
+<p>Sensu has got a very good collection Handler's, available at the sensu-community-plugin repo in github. For example there is a hanlder called "<em>show</em>", available at the debug section in Handler's, which will display a more debug report about the Event as well as the Sensu server's settings. This is the <a href="/images/show-handler.png">output</a> which i got after applying "<em>show</em>" handler in my serverlog. But it's not possible to go check the log's continously, so there another plugin called "mailer", which can send email alerts like how nagios does.</p>
+
+<p>So first get the "mailer" plugin files from the sensu-community-plugin repo in github.</p>
+
+<pre><code>wget -O /etc/sensu/handlers/mailer.rb https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.rb
+wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.json
+</code></pre>
+
+<p>Now edit the mailer.json, and change the settings to fit to our environment. We need to define a new pipe handler for this new handler. So create a file <code>/etc/sensu/conf.d/handler_mailer.json</code>, and add the below lines to it.</p>
+
+<pre><code>        {
+    "handlers": {
+        "mailer": {
+        "type": "pipe",
+        "command": "/etc/sensu/handlers/mailer.rb"
+        }
+          }
+      }
+</code></pre>
+
+<p>Now go to the one of the check config files, where we want to apply this new "mailer" handler.</p>
+
+<pre><code>           {
+    "checks": {
+         "snmp_check": {
+         "handlers": ["default", "mailer"],         
+         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
+         "interval": 30,
+         "subscribers": [ "snmp" ]
+          }
+      }
+   }
+</code></pre>
+
+<p>Now restart the sensu-server to make the new changes to come into effect. If everything goes fine, when the sensu detects a state change it will execute this mailer handler, we can also see the below lines in server log.</p>
+
+<pre><code>"action":"create"},"handler":{"type":"pipe","command":"/etc/sensu/handlers/mailer.rb","name":"mailer"
+</code></pre>
+
+<p>Sensu is executing the mailer script, and if there is any problem, we will see the corresponding error following the above line, or we will receive the email alert to email id mentioned in the "mailer.json" file. But in my case, i was getting an error, when the sensu invoked the "mailer" handler.</p>
+
+<pre><code>{"timestamp":"2013-04-25T15:03:32.002132+0530","level":"info","message":"/etc/sensu/handlers/mailer.rb:28:in `handle': undefined method `[]' for nil:NilClass (NoMethodError)"}
+{"timestamp":"2013-04-25T15:03:32.002308+0530","level":"info","message":"\tfrom /var/lib/gems/1.9.1/gems/sensu-plugin-0.1.7/lib/sensu-handler.rb:41:in `block in &lt;class:Handler&gt;'"}
+</code></pre>
+
+<p>After playing for some time, i came to know that, it was not parsing the options from the mailer.json file, so i manually added the smtp and email settings directly in <em>mailer.rb</em> file. Then it started working fine. I'm writing a small script which will be using the basic 'net/smtp' library to send out mails. There are many other cool Handler's like sending matrices to Graphite, Logstash, Graylog, sending notifcations to irc,xmpp,campfire etc. Compare to traditional monitoring tools, Sensu is an Amazing tool, we can use any check script's, whether it's ruby or perl or bash, doesn't matter. The one common thing which i heard about other people, was the lack of proper dashboard like the traditional monitoring tools. Though Sensu dashboard is a simple one, i'm sure it will improve a lot in future.</p>
+
+<p>Since I'm a CLI Junky, I dont care much about the dashboard thing, apart from that i have many good and interesting stuffs to hang around with Sensu. Cheers to <a href="https://twitter.com/portertech">portertech</a> and <a href="http://www.sonian.com/cloud-monitoring-sensu/">sonian</a> for open sourcing such an amazing tool.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Sensu - Cloud Monitoring Tool]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/"/>
+    <updated>2013-04-23T22:20:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool</id>
+    <content type="html"><![CDATA[<p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data's.</p>
+
+<p> Sensu has <strong>3</strong> operation Mode.</p>
+
+<p> 1) <strong>Request-Reply Mode</strong>, where the server will send a check request to the clients through the RabbitMQ and the clients will reply back the results.</p>
+
+<p> 2) <strong>Standalone Mode</strong>, where the server will not send any check request, instead the client itself will run the checks according to interval mentioned, and sends the results to the sensu master through the Result queue in RabbitMQ.</p>
+
+<p> 3) <strong>Push Mode</strong>, where the client will send out results to a specific handler.</p>
+
+<p>So now we can start installing the dependencies for sensu, ie, RabbitMQ and Redis.</p>
+
+<h3>Setting up RabbitMQ</h3>
+
+<p>Let's add the <strong>RabbitMQ</strong> official APT repo.</p>
+
+<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;/etc/apt/sources.list.d/rabbitmq.list
+
+$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+
+$ apt-key add ~/rabbitmq-signing-key-public.asc &amp;&amp; apt-get update
+</code></pre>
+
+<p>Now we can install RabbitMQ</p>
+
+<pre><code>$ apt-get install rabbitmq-server erlang-nox
+</code></pre>
+
+<p>Now we need to generate SSL certificates for RabbitMQ and the sensu clients. We can use RabbitMQ with out ssl also, but it will more secure with SSL, <a href="http://github.com/joemiller">@joemiller</a> has wrote a script to generate the SSL certificates. It's avaliable in his GitHub <a href="http://github.com/joemiller/joemiller.me-intro-to-sensu.git">repo</a>. Clone the repo and modify the "openssl.cnf" according to our need and then we can go ahead with generating the certificates.</p>
+
+<pre><code>$ git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
+
+$ cd joemiller.me-intro-to-sensu/
+
+$ ./ssl_certs.sh clean &amp;&amp; /ssl_certs.sh generate
+</code></pre>
+
+<p>Now copy the server key and cert files to the RabbitMQ folder in "/etc/rabbitmq/"</p>
+
+<pre><code>$ mkdir /etc/rabbitmq/ssl
+
+$ cp server_key.pem /etc/rabbitmq/ssl/
+
+$ cp server_cert.pem /etc/rabbitmq/ssl/
+
+$ cp testca/cacert.pem /etc/rabbitmq/ssl/
+</code></pre>
+
+<p>Now create the RabbitMQ config file, "/etc/rabbitmq/rabbitmq.config", and add the following lines in it.</p>
+
+<pre><code>[
+  {rabbit, [
+      {ssl_listeners, [5671]},
+      {ssl_options, [{cacertfile,"/etc/rabbitmq/ssl/cacert.pem"},
+               {certfile,"/etc/rabbitmq/ssl/server_cert.pem"},
+               {keyfile,"/etc/rabbitmq/ssl/server_key.pem"},
+               {verify,verify_peer},
+               {fail_if_no_peer_cert,true}]}
+    ]}
+].
+</code></pre>
+
+<p>Once the config file is created, restart the RabbitmQ server. Now RabbitMQ has a cool management console, we can enable this by running "<strong><em>rabbitmq-plugins enable rabbitmq_management</em></strong>" in console. Once the Management console is enabled, we can access it RabbitMQ Web UI: <strong>Username is "guest", password is "guest" - http://SENSU-SERVER:55672</strong>. Protocol amqp should be bound to port 5672 and amqp/ssl on port 5671.</p>
+
+<p>Now let's create a vhost and user for Sensu in RabbitMQ.</p>
+
+<pre><code> $ rabbitmqctl add_vhost /sensu
+
+ $ rabbitmqctl add_user sensu mypass
+
+ $ rabbitmqctl set_permissions -p /sensu sensu ".*" ".*" ".*"
+</code></pre>
+
+<h3>Setting up Redis Server</h3>
+
+<p>Now we can set up Redis server. This will used by Sensu for stroring data's. Ubuntu's Apt repo ships with latest Redis server, so we can directly install it.</p>
+
+<pre><code>$ apt-get install redis-server
+</code></pre>
+
+<h3>Installing Sensu Server</h3>
+
+<p>Sensu has a public repository which can be used to install the necessary sensu packages. First we need to add the repository public key.</p>
+
+<pre><code>$ wget -q http://repos.sensuapp.org/apt/pubkey.gpg -O- | sudo apt-key add -
+</code></pre>
+
+<p>Now add the repo sources in APT</p>
+
+<pre><code>$ echo " deb     http://repos.sensuapp.org/apt sensu main" &gt;&gt; /etc/apt/sources.list &amp;&amp; apt-get update
+
+$ apt-get install sensu
+</code></pre>
+
+<p>Enable the sensu services to start automatically during system startup.</p>
+
+<pre><code>$ update-rc.d sensu-server defaults
+
+$ update-rc.d sensu-api defaults
+
+$ update-rc.d sensu-client defaults
+
+$ update-rc.d sensu-dashboard defaults
+</code></pre>
+
+<p>Copy the client ssl cert and key to <strong>/etc/sensu</strong> folder, say to a subfolder ssl.</p>
+
+<pre><code>$ cp client_key.pem client_cert.pem  /etc/sensu/ssl/
+</code></pre>
+
+<p>Now we need setup the sensu master, create a file "<strong>/etc/sensu/config.json</strong>" and add the below lines.</p>
+
+<pre><code>         {
+        "rabbitmq": {
+          "ssl": {
+            "private_key_file": "/etc/sensu/ssl/client_key.pem",
+            "cert_chain_file": "/etc/sensu/ssl/client_cert.pem"
+          },
+          "port": 5671,
+          "host": "localhost",
+          "user": "sensu",
+          "password": "mypass",
+          "vhost": "/sensu"
+        },
+        "redis": {
+          "host": "localhost",
+          "port": 6379
+        },
+        "api": {
+          "host": "localhost",
+          "port": 4567
+        },
+        "dashboard": {
+          "host": "localhost",
+          "port": 8080,
+          "user": "admin",
+          "password": "sensu@123"
+        },
+        "handlers": {
+          "default": {
+            "type": "pipe",
+            "command": "true"
+          }
+        }
+      }
+</code></pre>
+
+<p>By default sensu package comes with all sensu-server,sensu-client,sensu-api and sensu-dashboard., If we dont want to use the current machine as a client, we can stop the sensu-client from running, and do not create the client config. But for testing purpose, i'm going to add the current machine as client also. Create a file "<strong>/etc/sensu/conf.d/client.json</strong>" and add the client configuration in JSON format.</p>
+
+<pre><code>        {
+          "client": {
+          "name": "sensu.test.com",
+          "address": "192.168.1.108",
+          "subscriptions": [ "vmmaster" ]
+         }
+       }
+</code></pre>
+
+<p>Now restart the sensu-client to affect the changes. The logs are recorded at "<strong>/var/log/sensu/sensu-client.log</strong>" file. We can access the sensu-dashboard from "http://SENSU SERVER:8080", with the username and password mentioned in the config.json file.</p>
+
+<h3>Setting up a Separate Sensu-Client Node</h3>
+
+<p>If we want to setup sensu-client on a separate node, just dd the Sensu apt repo, and install the sensu package. After that just enable only the sensu-client service and remove all other sesnu-services. Then create a config.json file and add only the rabbitmq server details in it. Now generate a separate SSL certificate for the new client and use that in the config file.</p>
+
+<pre><code>       {
+      "rabbitmq": {
+        "ssl": {
+          "private_key_file": "/etc/sensu/ssl/client1_key.pem",
+          "cert_chain_file": "/etc/sensu/ssl/client1_cert.pem"
+        },
+        "port": 5671,
+        "host": "192.168.1.108",
+        "user": "sensu",
+        "password": "mypass",
+        "vhost": "/sensu"
+      }
+    }
+</code></pre>
+
+<p>Now create the  "client.json" in the "/etc/sensu/conf.d/" folder.</p>
+
+<pre><code>        {
+              "client": {
+              "name": "client1.test.com",
+              "address": "192.168.1.212",
+              "subscriptions": [ "vmmaster" ]
+             }
+           }
+</code></pre>
+
+<p>Restart the the sensu-clinet, and check the "/var/log/sensu/sensu-client.log", if things goes fine, we can see client connecting to the RabbitMQ server also we can see the config is getting applied.</p>
+
+<pre><code>{"timestamp":"2013-04-23T22:53:27.870728+0530","level":"warn","message":"config file applied changes","config_file":"/etc/sensu/conf.d/client.json","changes":{"client":[null,{"name":"client1.test.        com","address":"192.168.1.212","subscriptions":["vmmaster"]}]}}
+{"timestamp":"2013-04-23T22:53:27.879671+0530","level":"info","message":"loaded extension","type":"mutator","name":"only_check_output","description":"returns check output"}
+{"timestamp":"2013-04-23T22:53:27.883504+0530","level":"info","message":"loaded extension","type":"handler","name":"debug","description":"outputs json event data"}
+</code></pre>
+
+<p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check's. One of the best thing of sensu, all the config's are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check's and how to add these check's to various clients, and how to add handler's like Email alerts, Sending Metrics to graphite.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Monitoring with ZENOSS]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss/"/>
+    <updated>2013-04-11T17:03:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss</id>
+    <content type="html"><![CDATA[<p>It's being a year since i have really played with Centos or any Redhat based Distro's. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar's, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
+
+<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It's a bash script. We can download it from the below link.</p>
+
+<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
+</code></pre>
+
+<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
+
+<p>Once done, we can start the installer script.</p>
+
+<pre><code>$ ./core-autodeploy.sh
+</code></pre>
+
+<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>"connection reset"</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
+
+<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
+accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
+
+=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
+closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
+{channel0_error,starting,
+            {amqp_error,access_refused,
+                        "PLAIN login refused: user 'zenoss' - invalid credentials",
+                        'connection.start_ok'}}
+</code></pre>
+
+<p>The error says that the zenoss user credential is wrong. So using <strong><em>"rabbitmqctl"</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>"/opt/zenoss/etc"</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
+
+<pre><code>$ service zenoss start
+</code></pre>
+
+<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>"http://server_ip:8080"</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I've added my vps as well as few of my local server's with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground ...</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: linux | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/linux/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Virtualization using Linux Containers]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers/"/>
+    <updated>2013-03-19T23:18:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers</id>
+    <content type="html"><![CDATA[<p><strong>LXC</strong> or <strong>Linux Continers</strong> is is an operating system-level virtualization, using which we can run multiple isolated Linux systems on a single host.  LXC relies on the <a href="http://en.wikipedia.org/wiki/Cgroups">cgroups</a> functionality of the Linux Kernels. <em>Cgroups (control groups)</em> is a Linux kernel feature to limit, account and isolate resource usage (CPU, memory, disk I/O, etc.) of process groups. LXC does not provide a virtual machine, but rather provides a virtual environment that has its own process and network space. It is similar to a chroot, but offers much more isolation.</p>
+
+<p>First, let's install the necessary packages.</p>
+
+<pre><code>$ apt-get install lxc btrutils
+</code></pre>
+
+<p>By default in Ubuntu, when we install the lxc package, it will create a default bridge network called "lxcbr0". If we don't want to use this bridge network, we can disbale it by editing the <code>/etc/default/lxc</code> file. We can also create bridge networks using the <strong><em>"btrcl"</em></strong> or we can directly define the bridge networks in the interfaces file. There are a few templates, which gts shipped with the lxc package, which will be present in the <code>/usr/share/lxc/template</code>. I'm going to use the default template to create the containers. We can also use OPENVZ templates to create containers.</p>
+
+<p>I'm going to keep my keep all my container's files in a default path say "/lxc"</p>
+
+<pre><code>$ mkdir /lxc
+</code></pre>
+
+<p>Now we can create the first debian container.</p>
+
+<pre><code>$ mkdir /lxc/vm0    # where vm0 is the name of my conatiner.
+
+$ /usr/share/lxc/templates/lxc-debian -p /lxc/vm0
+</code></pre>
+
+<p>Now this will install and build the necessary files for the container. If we go inside the vm0 folder, we can see two things, one is the config file, and second is the root folder of the container. This root folder will be the virtual environment for our container. Now we can edit the config file, to mention the default Network options.</p>
+
+<pre><code>lxc.network.ipv4 = 192.168.0.123/24 # IP address should end with CIDR
+lxc.network.hwaddr = 4a:59:43:49:79:bf # MAC address
+lxc.network.link = br0 # name of the bridge interface
+lxc.network.type = veth 
+lxc.network.veth.pair = veth_vm0
+</code></pre>
+
+<p>Now we need to add the ip to the lxc's interface file alos, for that we need to edit the <code>/lxc/vm0/rootfs/etc/network/interfaces</code> file and set the ip address in it for the interface <em>eth0</em>
+We can create a bridge interface and we can bind it with the physical interface of the host, so that the lxc will be in the same network as that of the host. If there is a virtual network already existing, for example, when we install libvirt, it will create a bridge interface called "virbr0", or in Ubuntu the lxc package installation wil create a bridge interface called 'lxcbr0', we can alos use those with lxc. Or we can define a bridge interface in the "interfaces" file. Below is a configuration of creating a bridge interface.</p>
+
+<pre><code>    auto eth0
+    iface eth0 inet manual
+
+# Bridge setup
+    iface br0 inet static
+        bridge_ports eth0 
+        address 192.168.0.2
+        broadcast 192.168.0.255
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+</code></pre>
+
+<p>If a separate network has to be given for the lxc's, then we can to go for NATing. The below configuration on the interfaces file is for the NAT enabled.</p>
+
+<pre><code>auto br0
+iface br0 inet static
+address 172.16.0.1
+netmask 255.255.255.0
+bridge_stp off
+bridge_maxwait 5
+pre-up  /usr/sbin/brctl addbr br0
+post-up /usr/sbin/brctl setfd br0 0
+post-up /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+post-up echo 1 &gt; /proc/sys/net/ipv4/ip_forward
+</code></pre>
+
+<p>Once we are ready with the configurations, we can start our container using the below command.</p>
+
+<pre><code>$ lxc-start -n vm0 -f /lxc/vm0/config
+</code></pre>
+
+<p>In the NAT scenario, the lxc machines are under the "172.16" network, while the host lies in "192.168.0" network. There are some good projects which works around with lxc, <a href="https://github.com/chrisroberts/vagabond">vagabond</a> is an example for that.Vagabond is a tool integrated with Chef to build local nodes easily and most importantly, quickly. Vagabond is built for Chef.</p>
+]]></content>
+  </entry>
+  
+</feed>

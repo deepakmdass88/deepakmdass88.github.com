@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: QPSMTPD | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/qpsmtpd/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Plugging QPSMTPD Service with QMAIL]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/"/>
+    <updated>2013-05-01T15:26:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL</id>
+    <content type="html"><![CDATA[<p><em>QPSMTPD</em> is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small <em>extension plugins</em> using the easy to use object oriented plugin API. Basically I uses Qmail Based mail server's with a custom <em>qmailqueue</em>. We uses the <em>tcpsvd (TCP/IP Service Daemon)</em> for the smtp service and the mails are passed to a custom <em>qmailqueue</em> which is basically a perl script with custom filters for filtering out the mails. <em>QPSMTPD</em> has a verity of custom plugins which includes <em>SPF</em> check, <em>DKIM</em> check and even for <em>DMARC</em> also. If you are a Perl guy, then you can build custom plugins. The main reason why i got attracted to QPSMTPD was because of its plugin nature.</p>
+
+<p>In this blog i will explain on how to setup <em>QPSMTPD</em> along with <em>QMAIL MTA</em>. As i mentioned earlier, i'm using a custom qmailqueue, where i have some custom filtering which varies from client to client. So i will be using QPSMTPD to do initail filtering like checking <em>DNSBL/RBL</em>, <em>SPF</em> check, <em>DKIM</em>, <em>DMARC</em> etc. A breif info about various qpsmtpd plugins are available <a href="http://wiki.qpsmtpd.org/plugins">here</a></p>
+
+<p>Ths qpsmtpd source is available in <a href="https://github.com/smtpd/qpsmtpd/">Github</a>. The soucre comes with default run scripts which can be used with <em>runit/daemontools</em>. Clone the qpsmtpd source and install the dependency Perl modules.</p>
+
+<pre><code>$ git clone https://github.com/smtpd/qpsmtpd/
+
+$ cpan -i Net::DNS
+
+$ cpan -i MIME::Base64
+
+$ cpan -i Mail::Header
+</code></pre>
+
+<p>Now create a user for the qpsmtp service, say "<em>smtp</em>" with home folder as the location of the qpsmtpd folder and chown the qpsmtpd folder using the smptp user. Add sticky bit to the qpsmtpd folder by running <code>chmod o+t qpsmtpd</code>, in order to make supervise start the log process. By deafult inside the source folder there will be a sample config folder called <em>"config.sample"</em>. Copy the entire folder and create a new config folder.</p>
+
+<pre><code>$ cp config.sample config
+</code></pre>
+
+<p>In the config folder, edit the "<em>IP</em>" in order to mention which ip the qpsmtpd daemon should bind. Putting "0" will bind to all the interfaces. Now if we go through the qpsmtpd's <code>run</code> script in the source folder, it depends on two binaries <em>softlimit</em> and <em>tcpserver</em>. The <em>softlimit</em> binary comes with the <em>daemontools</em> debian package and the <em>tcpserver</em> binary comes with the <em>ucspi-tcp</em> debian package. so let's install those two packages.</p>
+
+<pre><code>$ apt-get install ucspi-tcp daemontools runit
+</code></pre>
+
+<p>Now start the qpsmtpd server. I'm using runit for service supervision.</p>
+
+<pre><code>$ update-service --add /usr/local/src/qpsmtpd qpsmtpd
+</code></pre>
+
+<p>The above command will add the service. We can check the service status using <code>sv s qpsmtpd</code> command. This will show us whether the serivce is running or not. Now go inside the "config" folder and open the "plugin" file. This is where we enable the plugins, by addin the plugin names with corresponding options. By default the "<em>rcpt_ok</em>" plugin must be enabled. This plugin handles the <em>qmail's rcpthosts feature</em>. It accepts the emails for the domains mentioned in the "<em>rcpthosts</em>" file present in the config folder. If this is not enabled it will not accept any mails. So the best way to understand how each plugin works is comment out all the plugins except "rcpt_ok" and then add the plugins one by one. The plugins are available in the "plugin" folder in the qpsmtpd source folder. All the basic info about the plugins are mentioned in the plugin files itself.</p>
+
+<p>Now most commonly used plugins are <em>auth</em> for SMTP AUTH, <em>DNSBL/RBL</em>, <em>spamassassin</em>, etc. We can enable these plugins by adding the names in the <code>config/plugin</code> files. For example, since i'm using a custom qmailqueue, once the qpsmtpd has accepted the mail, it has to be queued to my custom QMAILQUEUE. So i need to enable the "queue plugin". I can enable the plugin by adding the below line to the plugin file inside the config folder.</p>
+
+<pre><code>queue/qmail-queue /var/qmail/bin/qmail-scanner-queue
+</code></pre>
+
+<p>If you are using any other MTA, you can provide the corresponding MTA's queue. For example for postfix "<em>postfix-queue</em>", and for exim use "<em>exim-bsmtp</em>", or if you want to use QPSMTPD as a relaying server, you can use "<em>smtp-forward</em>" plugin for relaying mails to another SMTP server. So once the mail has been accepted by qpsmtpd, it will queue the mail to my custom qmail queue, and then it will start the mail delivery. Similarly i use ldap backend for smtp authentication. So i need to enable "<em>auth/auth_ldap_bind</em>" plugin for this. Like that we can add other plugins too. By default <em>DMARC</em> plugin is not added, but we can get it from <a href="https://github.com/qpsmtpd-dev/qpsmtpd-dev/tree/master/plugins">here</a>.</p>
+
+<p>Use tools like swaks for sending test mails, because plugins like check_basicheaders will not accept mails without proper headers, so using telnet to send mails wont work some times. Swaks is a good tool for sending test mail. We can increase the loglevel, by editing <code>config/loglevel</code> file. It's better to increase the log level to debug so that we will get more details of errors. Some plugins needs certain Perl modules, if it's missing the error will popup in the qpsmtpd logs, so use cpan and install those perl modules.</p>
+
+<p>By default the run script uses tcpserver to start the service. There many other ways of deployments like <strong><em>forkserver</em></strong>,<strong><em>pre-fork daemon</em></strong>,<strong><em>Apache::Qpsmtpd</em></strong> etc. To use the default <em>TLS</em> plugin, we need to use the "<em>forkserver model</em>". The forke server model script is availbale in the same run script, but it is commented by default. The default spool directory will be a "<em>tmp</em>" folder inside the QPUSER's ie, the user "smtp" home folder. In my case i'm using a separate folder for spool, <code>/var/spool/qpsmtp</code>, for such cases, edit <code>lib/Qpsmtpd.pm</code> and go to "<em>spool_dir</em>" subroutine and add "<strong><em>$Spool_dir = "/var/spool/qpsmtpd/";"</em></strong>. Now create the spool directory with owner as "<em>smtp</em>" user and folder permission "<em>0700</em>" and then restart the qpsmtpd service.</p>
+
+<p>Now to enable TLS, enable the <em>tls</em> plugin in the <code>config/plugin</code> file like this "<strong>tls cert_path priv_key_path ca_path</strong>". If there is no TLS certificate available ,then we can generate using a perl script "<em>tls_cert</em>", which is available at the <em>plugins</em> folder. Now we need to edit the <code>config/tls_before_auth</code> file and put the value <em>"0"</em>, otherwise AUTH will not be offered unless TLS/SSL are in place. Now we can try  sending a test mail using swaks with TLS enabled. Below is my swaks output.</p>
+
+<pre><code>=== Trying 192.168.42.189:587...
+=== Connected to 192.168.42.189.
+&lt;-  220 beingasysadmin.com ESMTP  send us your mail, but not your spam.
+ -&gt; EHLO deeptest.beingasysadmin.com
+&lt;-  250-beingasysadmin.com Hi deeptest [192.168.42.184]
+&lt;-  250-PIPELINING
+&lt;-  250-8BITMIME
+&lt;-  250-SIZE 5242880
+&lt;-  250-STARTTLS
+&lt;-  250 AUTH PLAIN LOGIN CRAM-MD5
+ -&gt; STARTTLS
+&lt;-  220 Go ahead with TLS
+=== TLS started w/ cipher xxxxxx-xxx-xxxxxx
+=== TLS peer subject DN="/C=XY/ST=unknown/L=unknown/O=QSMTPD/OU=Server/CN=debwheez.beingasysadmin.com/emailAddress=postmaster@debwheez.beingasysadmin.com"
+ ~&gt; EHLO deeptest.beingasysadmin.com
+&lt;~  250-beingasysadmin.com Hi deeptest [192.168.42.184]
+&lt;~  250-PIPELINING
+&lt;~  250-8BITMIME
+&lt;~  250-SIZE 5242880
+&lt;~  250 AUTH PLAIN LOGIN CRAM-MD5
+ ~&gt; AUTH PLAIN AGRlZXBhawBteWRlZXByb290
+&lt;~  235 PLAIN authentication successful for deepak - authldap/plain
+ ~&gt; MAIL FROM:&lt;deepak@beingasysadmin.com&gt;
+&lt;~  250 &lt;deepak@beingasysadmin.com&gt;, sender OK - how exciting to get mail from you!
+ ~&gt; RCPT TO:&lt;deepakmdass88@gmail.com&gt;
+&lt;~  250 &lt;deepakmdass88@gmail.com&gt;, recipient ok
+ ~&gt; DATA
+&lt;~  354 go ahead
+ ~&gt; Date: Wed, 01 May 2013 23:19:54 +0530
+ ~&gt; To: deepakmdass88@gmail.com
+ ~&gt; From: deepak@beingasysadmin.com
+ ~&gt; Subject: testing TLS + Auth in qpsmtpd
+ ~&gt; X-Mailer: swaks v20120320.0 jetmore.org/john/code/swaks/
+ ~&gt;
+ ~&gt; This is a test mailing
+ ~&gt;
+ ~&gt; .
+&lt;~  250 Queued! 1367430597 qp 9222 &lt;&gt;
+ ~&gt; QUIT
+&lt;~  221 beingasysadmin.com closing connection. Have a wonderful day.
+=== Connection closed with remote host. 
+</code></pre>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: vagrant | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/vagrant/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Building Custom Vagrant Boxes]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/01/21/building-custom-vagrant-boxes/"/>
+    <updated>2013-01-21T16:52:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/01/21/building-custom-vagrant-boxes</id>
+    <content type="html"><![CDATA[<p><code>Vagrant</code> has become a common tool used by most of the sys admins who play around with computers. It has made virtualization so easy. Seriously it's a must have tool. <strong><em>Vagrant</em></strong> supports <strong>Puppet/Chef</strong> provisioning, which makes it even more powerfull. We just need the base boxes to play around with Vagrant. In this blog i will be explaing about creating custom Vagrant Boxes. I work for <a href="http://www.deeproot.in">DeepRootLinux</a>, developers of the deepOfix Mail Server, a Debian based GNU/Linux distribution. I will be using our distribution for creating base box. It will help us to deploy deepOfix VM in a faster way and we it helps us to test our custom puppet modules into our operating system.</p>
+
+<p>SO first we need to create a base VM in the Virtualbox. Ensure that the network controller is set to <strong><em>"NAT"</em></strong>. For port forwarding to work properly, NAT must be used. There a few point to remember, As per the Vagrant's Documentation, Vagrant makes some assumptions,</p>
+
+<ul>
+<li>The root password is "<strong><em>Vagrant</em></strong>"</li>
+<li>One user account "<strong><em>vagrant</em></strong>" with password "<strong><em>vagrant</em></strong>".</li>
+<li>Domain is "<strong><em>vagrantup.com</em></strong>"</li>
+<li>Hostname is  "<strong><em>vagrant-[os-name]</em></strong>", e.g. vagrant-debian-lenny</li>
+</ul>
+
+
+<p>If any different values are being used, it has to be specified in the <code>Vagrantfile</code>. I've used custom domain name and hostname and i did not mentioned it in my Vagrant file. But it did not created any problem. Anyways Vagrant is using key-based authentication for SSH. So once we SSH into the system, we will login in to the system as the <strong><em>Main user</em></strong>, in our case "<em>vagrant</em>" user. So we should make this "<em>vagrant</em>" user as a member of the "<strong><em>sudo (super user doers)</em></strong>" group, so that we can use "sudo su" to switch to the root user.</p>
+
+<p>Normally, using sudo will always prompt for the user password, we can remove this by modifying the <code>/etc/sudoers</code> file. We just need to add one line into the file "<strong><em>%sudo ALL=NOPASSWD: ALL</em></strong>". This will prevent password prompt for the user's who are the member's of the sudo group. Once the file is edited, we need to do "<strong><em>/etc/init.d/sudo restart</em></strong>" to reflect the changes.We can verify that sudo works without a password, but logging into the sudo user account, then sudo which sudo. We should get output similar to "/usr/bin/sudo".</p>
+
+<p>Now we need to setup <em>Virtualbox Guest Additions</em>. So, first we need to build the necessary packages.</p>
+
+<pre><code>apt-get install linux-headers-$(uname -r) build-essential    # for root user
+
+sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo user's
+</code></pre>
+
+<p> We need to insert the guest additions image by using the GUI and clicking on "<strong><em>Devices</em></strong>" followed by "<strong><em>Install Guest Additions</em></strong>". And we need to mount the CDROM.</p>
+
+<pre><code>mount /dev/hd0 /media/cdrom     # where /dev/hd0 is the CDROM block device in deepOfix
+</code></pre>
+
+<p>And finally, run the shell <em>script</em> which matches our system.</p>
+
+<pre><code>sh /media/cdrom/VBoxLinuxAdditions.run
+</code></pre>
+
+<p>Since Vagrant only supports <em>key-based authentication for SSH</em>, we must setup the SSH user to use key-based authentication. We need to copy a public key into "<strong><em>~/.ssh/authorized_keys</em></strong>" of the "<em>vagrant</em>" user. Vagrant provides an "<em>insecure</em>" pair of public and private keys which are available <a href="https://github.com/mitchellh/vagrant/tree/master/keys/">here</a>. Once the public key is copied, we can shut down our VM. And we can start building our base box.</p>
+
+<pre><code>vagrant package --base &lt;box_name&gt;
+</code></pre>
+
+<p>If there is any custom option to be set like, using a specific port port forwarding, or a specific SSH keys, we can create a <code>Vagrantfile</code> with all custom options and we can use it during the packaging.</p>
+
+<pre><code>vagrant package --base &lt;bxo_name&gt; --vagrantfile Vagrantfile
+</code></pre>
+
+<p>If everything goes fine, it will generate a base box file. We can use this base box file anywhere with the vagrant.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Vagrant: Make Virtualization Easier]]></title>
+    <link href="http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier/"/>
+    <updated>2012-11-26T18:21:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier</id>
+    <content type="html"><![CDATA[<p><strong><em>Vagrant</em></strong> is a light weight virtualization tool, build over Oracle's <code>VirtualBox</code>. It's completely written in ruby and it's very easy to install and configure. The only dependency is <code>VirtualBox</code>. Once VirtualBox is installed, we can either use <code>RubyGems</code> to install <code>Vagrant</code> or we can get the installer from <a href="http://downloads.vagrantup.com/">Vagrant</a>.</p>
+
+<p>I prefer ruby gems, So</p>
+
+<pre><code>$ gem install vagrant
+</code></pre>
+
+<p>That's it, it will install vagrant. Now we need to get the base box. Vagrant uses the base boxes to build the VM's. We can download the base boxes from <a href="http://www.vagrantbox.es/">Vagrant Boxes</a>. we can directly use the url to create the boxes, but it's alwasy good if we have a downloaded copy of the base boxes.</p>
+
+<p>Basically we need to follow just 3 steps. <em>add</em>,<em>initialize</em>,<em>up</em>. So once we have the base box just add the base box.</p>
+
+<pre><code>$ vagrant box add new_box_name our_downloaded_basebox_file
+
+example,
+$ vagrant box add mybox precise32.box
+</code></pre>
+
+<p>Now just do a <strong>vagrant init</strong> to create the <code>Vagrantfile</code>. This is the main configuration file. If we go through the <code>Vagrantfile</code>, we can see a bunch of options like port forward, provisioning, setting network and so on. If only one vm is required, then we just have to add the <em>new_box</em> name which we created at the <code>config.vm.box=</code> option int the <code>Vagrantfile</code>. And <strong>vagrant up</strong> will start the VM.</p>
+
+<p>But one of the most important feature of <strong><em>Vagrant</em></strong> is it suports multiple VM's over one single box. But we have to define those VM's in the <code>Vagrantfile</code>. Below i've defined two VM's in my <code>Vagrantfile</code>, also comment out <strong>config.vm.box=base</strong></p>
+
+<pre><code>config.vm.define :ubuntu do |ubuntu_config|
+     ubuntu_config.vm.box = "precise32"
+end
+config.vm.define :puppet do |puppet_config|
+     puppet_config.vm.box = "precise32"
+end
+</code></pre>
+
+<p>Where <em>ubuntu</em> and <em>puppet</em> are the name of the VM's. And <em>precise32</em> is the name of the the box which i've created. Now, <strong>vagrant up</strong> will start all the VM's. But we can mention the name to start a specific VM. Like <strong>vagrant up ubuntu</strong>. It will start only the <strong>ubuntu</strong> VM.</p>
+
+<p>Provisioning is another important feature of Vagrant. We can use <strong><em>puppet</em></strong>,<strong><em>chef</em></strong> and <strong><em>shell</em></strong> scripts to bootstrap the vm's. I saw <a href="https://twitter.com/mitchellh">@mitchellh's</a> talk at <a href="http://www.youtube.com/watch?v=UTQQggVx4sI&amp;feature=BFa&amp;list=PLV86BgbREluVFB73Wwqp_tCbw5Z9TMLX1">PuppetConf 2012</a>, in which he mentioned about how to create a <strong>Fully Automated Puppet Master</strong> using the <strong>shell</strong> provisioner. I've tried this out using a shell script that will install puppet master and genrate the ssl certificates. It's working fine, soon i will post it here.</p>
+]]></content>
+  </entry>
+  
+</feed>

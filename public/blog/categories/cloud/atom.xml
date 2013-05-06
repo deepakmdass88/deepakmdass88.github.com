@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Cloud | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/cloud/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up Apache CloudStack]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/"/>
+    <updated>2013-04-07T22:16:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack</id>
+    <content type="html"><![CDATA[<p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It's almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform's available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
+
+<h3>Building Debian Packages from the Source</h3>
+
+<p>First we need to install the below dependency packages.</p>
+
+<pre><code>1.  Apache Ant
+2.  JDepend
+3.  Apache Maven (version 3)
+4.  Java (Java 6/OpenJDK 1.6)
+5.  Apache Web Services Common Utilities (ws-commons-util)
+6.  MySQL
+7.  MySQLdb (provides Python database API)
+8.  Tomcat 6 (not 6.0.35)
+9.  genisoimage
+10. dpkg-dev and their dependencies
+</code></pre>
+
+<p>Maven 3, which is not currently available in 12.10. So, we'll need to add a PPA repository that includes Maven 3</p>
+
+<pre><code>$ add-apt-repository ppa:natecarlson/maven3
+</code></pre>
+
+<p>The current ppa supports only ubuntu 12.04 aka Precise, so edit <code>/etc/apt/sources.list.d/natecarlson-maven3-quantal.list</code> and replace "quantal" with "precise". So now the content of the file looks like below one</p>
+
+<pre><code>deb http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+deb-src http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+</code></pre>
+
+<p>Now we can start installing the dependencies,</p>
+
+<pre><code>$ apt-get install ant debhelper openjdk-6-jdk tomcat6 libws-commons-util-java genisoimage python-mysqldb libcommons-codec-java libcommons-httpclient-java liblog4j1.2-java python-software-properties maven3
+</code></pre>
+
+<p>Now we can resolve the buildtime depdencies for CloudStack by running the below command.</p>
+
+<pre><code>$ mvn3 -P deps.
+</code></pre>
+
+<p>Now there is a small <a href="https://issues.apache.org/jira/browse/CLOUDSTACK-1589">bug</a>, which add the dependency of "chkconfig" package to a few of the cloudstack packages. But "chkconfig" is required for Redhat based machines, not for debian based machines. So edit "Debian/control" file inside the apache cloudstack source folder and remove "chkconfig" from the dependency list. After that we can start building the debian packages.</p>
+
+<pre><code>$ dpkg-buildpackage -uc -us
+</code></pre>
+
+<p>The above command will build 16 debian packages.</p>
+
+<h3>Setting up a Local APT repo</h3>
+
+<p>Now we can set up a local apt repo so that we can install all these 16 packages along with their corresponding dependencies. First ensure that "dpkg-dev" is installed. After that copy all the packages to a specific location in order to create the local repo.</p>
+
+<pre><code>$ mkdir -p /var/www/cloudstack/repo/binary
+$ cp *.deb /var/www/cloudstack/repo/binary
+$ cd /var/www/cloudstack/repo/binary
+$ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
+</code></pre>
+
+<p>We need to configure the local machine to use this local repo. Add the local repository in <code>echo "deb http://server_url/cloudstack/repo/binary ./" &gt; /etc/apt/sources.list.d/cloudstack.list</code> and run "apt-get update". Now we can install the cloudstack packages.</p>
+
+<pre><code>$ apt-get install cloud-agent cloud-agent-deps cloud-agent-libs cloud-awsapi cloud-cli cloud-client cloud-client-ui cloud-core cloud-deps cloud-python cloud-scripts cloud-server cloud-setup cloud-system-iso cloud-usage cloud-utils
+</code></pre>
+
+<p>Now from the web browser go to "http://server_url:8080/client/. The default Username is "admin" and password is "password". For the admin user, we don't need to provide the domain option.</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Centos | Welcome to My World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/centos/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-05-02T00:16:31+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Monitoring with ZENOSS]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss/"/>
+    <updated>2013-04-11T17:03:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss</id>
+    <content type="html"><![CDATA[<p>It's being a year since i have really played with Centos or any Redhat based Distro's. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar's, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
+
+<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It's a bash script. We can download it from the below link.</p>
+
+<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
+</code></pre>
+
+<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
+
+<p>Once done, we can start the installer script.</p>
+
+<pre><code>$ ./core-autodeploy.sh
+</code></pre>
+
+<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>"connection reset"</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
+
+<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
+accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
+
+=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
+closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
+{channel0_error,starting,
+            {amqp_error,access_refused,
+                        "PLAIN login refused: user 'zenoss' - invalid credentials",
+                        'connection.start_ok'}}
+</code></pre>
+
+<p>The error says that the zenoss user credential is wrong. So using <strong><em>"rabbitmqctl"</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>"/opt/zenoss/etc"</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
+
+<pre><code>$ service zenoss start
+</code></pre>
+
+<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>"http://server_ip:8080"</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I've added my vps as well as few of my local server's with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground ...</p>
+]]></content>
+  </entry>
+  
+</feed>

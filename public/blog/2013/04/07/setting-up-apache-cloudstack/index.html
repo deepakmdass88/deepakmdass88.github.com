@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Setting Up Apache CloudStack - Welcome to My World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got WebVirtmanager to play around, &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My World" />
+  <meta name="og:title" content="Setting Up Apache CloudStack" />
+  <meta name="og:description" content="Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got WebVirtmanager to play around, &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/">
+  
+  <meta name="subject" content="CloudUbuntu,Virtualization,"/>
+  <meta name="category" content="CloudUbuntu,Virtualization,"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Setting Up Apache CloudStack</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-07T22:16:00+05:30" pubdate data-updated="true">Apr 7<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/cloud/'>Cloud</a>, <a class='category' href='/blog/categories/ubuntu-/'>Ubuntu,</a>, <a class='category' href='/blog/categories/virtualization-/'>Virtualization,</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It&#8217;s almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform&#8217;s available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
+
+<h3>Building Debian Packages from the Source</h3>
+
+<p>First we need to install the below dependency packages.</p>
+
+<pre><code>1.  Apache Ant
+2.  JDepend
+3.  Apache Maven (version 3)
+4.  Java (Java 6/OpenJDK 1.6)
+5.  Apache Web Services Common Utilities (ws-commons-util)
+6.  MySQL
+7.  MySQLdb (provides Python database API)
+8.  Tomcat 6 (not 6.0.35)
+9.  genisoimage
+10. dpkg-dev and their dependencies
+</code></pre>
+
+<p>Maven 3, which is not currently available in 12.10. So, we&#8217;ll need to add a PPA repository that includes Maven 3</p>
+
+<pre><code>$ add-apt-repository ppa:natecarlson/maven3
+</code></pre>
+
+<p>The current ppa supports only ubuntu 12.04 aka Precise, so edit <code>/etc/apt/sources.list.d/natecarlson-maven3-quantal.list</code> and replace &#8220;quantal&#8221; with &#8220;precise&#8221;. So now the content of the file looks like below one</p>
+
+<pre><code>deb http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+deb-src http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+</code></pre>
+
+<p>Now we can start installing the dependencies,</p>
+
+<pre><code>$ apt-get install ant debhelper openjdk-6-jdk tomcat6 libws-commons-util-java genisoimage python-mysqldb libcommons-codec-java libcommons-httpclient-java liblog4j1.2-java python-software-properties maven3
+</code></pre>
+
+<p>Now we can resolve the buildtime depdencies for CloudStack by running the below command.</p>
+
+<pre><code>$ mvn3 -P deps.
+</code></pre>
+
+<p>Now there is a small <a href="https://issues.apache.org/jira/browse/CLOUDSTACK-1589">bug</a>, which add the dependency of &#8220;chkconfig&#8221; package to a few of the cloudstack packages. But &#8220;chkconfig&#8221; is required for Redhat based machines, not for debian based machines. So edit &#8220;Debian/control&#8221; file inside the apache cloudstack source folder and remove &#8220;chkconfig&#8221; from the dependency list. After that we can start building the debian packages.</p>
+
+<pre><code>$ dpkg-buildpackage -uc -us
+</code></pre>
+
+<p>The above command will build 16 debian packages.</p>
+
+<h3>Setting up a Local APT repo</h3>
+
+<p>Now we can set up a local apt repo so that we can install all these 16 packages along with their corresponding dependencies. First ensure that &#8220;dpkg-dev&#8221; is installed. After that copy all the packages to a specific location in order to create the local repo.</p>
+
+<pre><code>$ mkdir -p /var/www/cloudstack/repo/binary
+$ cp *.deb /var/www/cloudstack/repo/binary
+$ cd /var/www/cloudstack/repo/binary
+$ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
+</code></pre>
+
+<p>We need to configure the local machine to use this local repo. Add the local repository in <code>echo "deb http://server_url/cloudstack/repo/binary ./" &gt; /etc/apt/sources.list.d/cloudstack.list</code> and run &#8220;apt-get update&#8221;. Now we can install the cloudstack packages.</p>
+
+<pre><code>$ apt-get install cloud-agent cloud-agent-deps cloud-agent-libs cloud-awsapi cloud-cli cloud-client cloud-client-ui cloud-core cloud-deps cloud-python cloud-scripts cloud-server cloud-setup cloud-system-iso cloud-usage cloud-utils
+</code></pre>
+
+<p>Now from the web browser go to &#8220;http://server_url:8080/client/. The default Username is &#8220;admin&#8221; and password is &#8220;password&#8221;. For the admin user, we don&#8217;t need to provide the domain option.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-07T22:16:00+05:30" pubdate data-updated="true">Apr 7<span>th</span>, 2013</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/cloud/'>Cloud</a>, <a class='category' href='/blog/categories/ubuntu-/'>Ubuntu,</a>, <a class='category' href='/blog/categories/virtualization-/'>Virtualization,</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2013/04/07/webvirtmanager-and-libvirt-kvm/" title="Previous Post: WebVirtManager and Libvirt-KVM">&laquo; WebVirtManager and Libvirt-KVM</a>
+    
+    
+      <a class="pull-right" href="/blog/2013/04/11/monitoring-with-zenoss/" title="Next Post: Monitoring with ZENOSS">Monitoring with ZENOSS &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/30/dkim-signing-in-qmail/">DKIM Signing in QMAIL</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - A GUI for Sensu API</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting up Check's and Handler's</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My World</a>
+  - Copyright &copy; 2013 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>
