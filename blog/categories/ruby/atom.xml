@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Ruby | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/ruby/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-06-27T23:20:17+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Runing MCollective in a Multi-Ruby Environment]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/"/>
+    <updated>2013-05-28T09:34:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment</id>
+    <content type="html"><![CDATA[<p>Mcollective one of the best open sourced orchestration tools. It's build on Ruby and depends on Ruby1.8. But now a days most of the Ruby apps are build on Ruby1.9+, so the default Ruby versions will be 1.9+. This ususally causes problem for Mcollective to run. By default when we install Mcollective from APT, it will install Ruby1.8 also. So the best hack to make Mcollective run under such Multi-Ruby setup is edit the <code>/usr/sbin/mcollectived</code> file,</p>
+
+<p>From <strong>#!/usr/bin/env ruby</strong>*,  Change it to <strong>#!/usr/bin/env ruby1.8</strong>.</p>
+
+<p>This will help the mcollective to work normally. That's it, a small hack, but will helps us in Multi Ruby environment</p>
+]]></content>
+  </entry>
+  
+</feed>

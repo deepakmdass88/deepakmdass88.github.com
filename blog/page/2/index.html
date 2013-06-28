@@ -6,7 +6,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Welcome to My World</title>
+  <title>Welcome to My Nerd World</title>
   <meta name="author" content="Deepak M Das">
   <link rel="author" href="humans.txt">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -26,10 +26,10 @@
   <link href="/favicon.png" rel="icon">
   <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
-  <link href="/atom.xml" rel="alternate" title="Welcome to My World" type="application/atom+xml">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
   <meta name="og:type" content="website" />
-  <meta name="og:site_name" content="Welcome to My World" />
-  <meta name="og:title" content="Welcome to My World" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Welcome to My Nerd World" />
   <meta name="og:description" content=" " />
   <meta name="og:url" content="http://beingasysadmin.com/blog/page/2/index.html"/>
   <meta name="url" content="http://beingasysadmin.com/blog/page/2/index.html">
@@ -90,6 +90,441 @@
   <div class="container">
     <div class="row">
     
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/11/monitoring-with-zenoss/">Monitoring With ZENOSS</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-11T17:03:00+05:30" pubdate data-updated="true">Apr 11<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/centos/'>Centos</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/zenoss/'>Zenoss</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s being a year since i have really played with Centos or any Redhat based Distro&#8217;s. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar&#8217;s, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
+
+<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It&#8217;s a bash script. We can download it from the below link.</p>
+
+<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
+</code></pre>
+
+<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
+
+<p>Once done, we can start the installer script.</p>
+
+<pre><code>$ ./core-autodeploy.sh
+</code></pre>
+
+<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>&#8220;connection reset&#8221;</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
+
+<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
+accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
+
+=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
+closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
+{channel0_error,starting,
+            {amqp_error,access_refused,
+                        "PLAIN login refused: user 'zenoss' - invalid credentials",
+                        'connection.start_ok'}}
+</code></pre>
+
+<p>The error says that the zenoss user credential is wrong. So using <strong><em>&#8220;rabbitmqctl&#8221;</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>&#8220;/opt/zenoss/etc&#8221;</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
+
+<pre><code>$ service zenoss start
+</code></pre>
+
+<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>&#8220;http://server_ip:8080&#8221;</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I&#8217;ve added my vps as well as few of my local server&#8217;s with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground &#8230;</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/07/setting-up-apache-cloudstack/">Setting Up Apache CloudStack</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-07T22:16:00+05:30" pubdate data-updated="true">Apr 7<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/cloud/'>Cloud</a>, <a class='category' href='/blog/categories/ubuntu-/'>Ubuntu,</a>, <a class='category' href='/blog/categories/virtualization-/'>Virtualization,</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It&#8217;s almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform&#8217;s available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
+
+<h3>Building Debian Packages from the Source</h3>
+
+<p>First we need to install the below dependency packages.</p>
+
+<pre><code>1.  Apache Ant
+2.  JDepend
+3.  Apache Maven (version 3)
+4.  Java (Java 6/OpenJDK 1.6)
+5.  Apache Web Services Common Utilities (ws-commons-util)
+6.  MySQL
+7.  MySQLdb (provides Python database API)
+8.  Tomcat 6 (not 6.0.35)
+9.  genisoimage
+10. dpkg-dev and their dependencies
+</code></pre>
+
+<p>Maven 3, which is not currently available in 12.10. So, we&#8217;ll need to add a PPA repository that includes Maven 3</p>
+
+<pre><code>$ add-apt-repository ppa:natecarlson/maven3
+</code></pre>
+
+<p>The current ppa supports only ubuntu 12.04 aka Precise, so edit <code>/etc/apt/sources.list.d/natecarlson-maven3-quantal.list</code> and replace &#8220;quantal&#8221; with &#8220;precise&#8221;. So now the content of the file looks like below one</p>
+
+<pre><code>deb http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+deb-src http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+</code></pre>
+
+<p>Now we can start installing the dependencies,</p>
+
+<pre><code>$ apt-get install ant debhelper openjdk-6-jdk tomcat6 libws-commons-util-java genisoimage python-mysqldb libcommons-codec-java libcommons-httpclient-java liblog4j1.2-java python-software-properties maven3
+</code></pre>
+
+<p>Now we can resolve the buildtime depdencies for CloudStack by running the below command.</p>
+
+<pre><code>$ mvn3 -P deps.
+</code></pre>
+
+<p>Now there is a small <a href="https://issues.apache.org/jira/browse/CLOUDSTACK-1589">bug</a>, which add the dependency of &#8220;chkconfig&#8221; package to a few of the cloudstack packages. But &#8220;chkconfig&#8221; is required for Redhat based machines, not for debian based machines. So edit &#8220;Debian/control&#8221; file inside the apache cloudstack source folder and remove &#8220;chkconfig&#8221; from the dependency list. After that we can start building the debian packages.</p>
+
+<pre><code>$ dpkg-buildpackage -uc -us
+</code></pre>
+
+<p>The above command will build 16 debian packages.</p>
+
+<h3>Setting up a Local APT repo</h3>
+
+<p>Now we can set up a local apt repo so that we can install all these 16 packages along with their corresponding dependencies. First ensure that &#8220;dpkg-dev&#8221; is installed. After that copy all the packages to a specific location in order to create the local repo.</p>
+
+<pre><code>$ mkdir -p /var/www/cloudstack/repo/binary
+$ cp *.deb /var/www/cloudstack/repo/binary
+$ cd /var/www/cloudstack/repo/binary
+$ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
+</code></pre>
+
+<p>We need to configure the local machine to use this local repo. Add the local repository in <code>echo "deb http://server_url/cloudstack/repo/binary ./" &gt; /etc/apt/sources.list.d/cloudstack.list</code> and run &#8220;apt-get update&#8221;. Now we can install the cloudstack packages.</p>
+
+<pre><code>$ apt-get install cloud-agent cloud-agent-deps cloud-agent-libs cloud-awsapi cloud-cli cloud-client cloud-client-ui cloud-core cloud-deps cloud-python cloud-scripts cloud-server cloud-setup cloud-system-iso cloud-usage cloud-utils
+</code></pre>
+
+<p>Now from the web browser go to &#8220;http://server_url:8080/client/. The default Username is &#8220;admin&#8221; and password is &#8220;password&#8221;. For the admin user, we don&#8217;t need to provide the domain option.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/07/webvirtmanager-and-libvirt-kvm/">WebVirtManager and Libvirt-KVM</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-07T13:49:00+05:30" pubdate data-updated="true">Apr 7<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/libvirt/'>Libvirt</a>, <a class='category' href='/blog/categories/ubuntu-/'>Ubuntu,</a>, <a class='category' href='/blog/categories/virtualization-/'>Virtualization,</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s been almost two years since i&#8217;ve started using <em>KVM</em> and <em>Libvirt</em> for creating Virtual machines. All our production server&#8217;s are VM&#8217;s, so far KVM has never let us down. The <code>Virt Manager</code> is a wonderful tool taht can installed in most of the linux distributions. But when i switched to ma new MacAir, i could not find a similar tool, so i decided to use a web based tool, so that it can be used from anywhere irrespective of devices. I came across this <a href="https://www.webvirtmgr.net/">WebVirtManager</a>, a python and django based web app, which is very active in development, so i decided to give it a try. In my libvirt setup, i&#8217;m using LVM as my storage pooli for my VM&#8217;s, so the main thing which i wanted to check was, whether the <code>WebVirtManager</code> is able to create LVM&#8217;s, so that it can be used as the <strong><em>HDD image</em></strong> for my new VM&#8217;s from the WebInterface.</p>
+
+<p>First, we need to install the basic dependency packages.</p>
+
+<pre><code>$ apt-get install git python-django virtinst apache2 libapache2-mod-python libapache2-mod-wsgi
+</code></pre>
+
+<p>Now go to <code>libvirtd.conf</code>, and ensure that <em>&#8220;listen_tcp&#8221;</em> is enabled. Also go to <strong><em>&#8220;/etc/default/libvirt&#8221;</em></strong> and add the <strong><em>&#8220;-l&#8221;</em></strong> to the <strong><em>&#8220;libvirtd_opts&#8221;</em></strong>, so that libvirt will listen on tcp. The default port is &#8220;16509&#8221;.</p>
+
+<p>Now we can clone the repository from the Github.</p>
+
+<pre><code>$ git clone git://github.com/retspen/webvirtmgr.git
+$ cd webvirtmgr
+$ ./manage.py syncdb
+</code></pre>
+
+<p>While running the sync, it will ask to create a super user, so create the user, this user can be used to login to the <code>WebVirtManager</code> GUI. Now We can create a <em>virtualhost</em> in apache, and we can start the server. The Apache configurations are available in the Readme. I&#8217;ve added the below WSGI settings in my default apache sites.</p>
+
+<pre><code>WSGIScriptAlias / /var/www/webvirtmgr/wsgi/django.wsgi
+Alias /static /var/www/webvirtmgr/ virtmgr/static/
+&lt;Directory /var/www/webvirtmgr/wsgi&gt;
+ Order allow,deny
+Allow from all
+&lt;/Directory&gt;
+</code></pre>
+
+<p>Ensure that the directory is <strong><em>writable by apache user</em></strong>. But for testing, we can start the server from command line using the below command.</p>
+
+<pre><code>$ ./manage.py runserver x.x.x.x:8000 (x.x.x.x - your IP address server)
+</code></pre>
+
+<p>So this command will start the <code>WebvirtManager</code>, which is listening at port &#8220;8000&#8221;. So from the Browser, we can access the url. The default usernmae and password is the one which we created during the syndb.  Now before adding the connection, we need to create a user which can access the libvirt. For that we are going to use <em>&#8220;saslpasswd2&#8221;</em>. Ensure that the package <em>sasl2-bin</em> is installed in the machine.</p>
+
+<pre><code>$ saslpasswd2 -a libvirt testuser     # replace testuser is the user name.
+</code></pre>
+
+<p>To list all the user&#8217;s, we can use the <code>sasldblistusers2</code> command.</p>
+
+<pre><code>$ sasldblistusers2 -f /etc/libvirt/passwd.db
+$ testuser@cloud: userPassword        # Note that the actual user name is testuser@cloud, where cloud is the hostname of my server. This full user name has to be used for adding connections.
+</code></pre>
+
+<p>Now login to the <code>WebvirManager</code>, and click on <strong><em>&#8220;Add Connection&#8221;</em></strong>. Fill in the connection name, ip of the server, the user which we created using <em>saslpasswd2</em>, ie <strong><em>testuser@cloud</em></strong> and the password for that user.If everything goes fine, we can see the host connected. Now click on the &#8220;Overview&#8221;, to see the settings of the host.</p>
+
+<p>Now i need to check the storage pool part. Since the storage pool is already active and running, it will get displayed at the storage pool option. If a new pool has to created, click at the <em>&#8220;add pool&#8221;</em> option, and select the &#8220;lvm&#8221; option, define the <strong><em>VolumeGroup</em></strong> name and the <strong><em>physical volumes</em></strong>.</p>
+
+<p>I tried creating a new VM from the interface, while creating, i selected my VolumeGroup as the storage, and it sucessfully created an LVM with the specified size, and i able to continue my installtion using the vnc option avalable at the WebVirtManager.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/03/19/virtualiation-using-linux-containers/">Virtualization Using Linux Containers</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-19T23:18:00+05:30" pubdate data-updated="true">Mar 19<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/linux/'>linux</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><strong>LXC</strong> or <strong>Linux Continers</strong> is is an operating system-level virtualization, using which we can run multiple isolated Linux systems on a single host.  LXC relies on the <a href="http://en.wikipedia.org/wiki/Cgroups">cgroups</a> functionality of the Linux Kernels. <em>Cgroups (control groups)</em> is a Linux kernel feature to limit, account and isolate resource usage (CPU, memory, disk I/O, etc.) of process groups. LXC does not provide a virtual machine, but rather provides a virtual environment that has its own process and network space. It is similar to a chroot, but offers much more isolation.</p>
+
+<p>First, let&#8217;s install the necessary packages.</p>
+
+<pre><code>$ apt-get install lxc btrutils
+</code></pre>
+
+<p>By default in Ubuntu, when we install the lxc package, it will create a default bridge network called &#8220;lxcbr0&#8221;. If we don&#8217;t want to use this bridge network, we can disbale it by editing the <code>/etc/default/lxc</code> file. We can also create bridge networks using the <strong><em>&#8220;btrcl&#8221;</em></strong> or we can directly define the bridge networks in the interfaces file. There are a few templates, which gts shipped with the lxc package, which will be present in the <code>/usr/share/lxc/template</code>. I&#8217;m going to use the default template to create the containers. We can also use OPENVZ templates to create containers.</p>
+
+<p>I&#8217;m going to keep my keep all my container&#8217;s files in a default path say &#8220;/lxc&#8221;</p>
+
+<pre><code>$ mkdir /lxc
+</code></pre>
+
+<p>Now we can create the first debian container.</p>
+
+<pre><code>$ mkdir /lxc/vm0    # where vm0 is the name of my conatiner.
+
+$ /usr/share/lxc/templates/lxc-debian -p /lxc/vm0
+</code></pre>
+
+<p>Now this will install and build the necessary files for the container. If we go inside the vm0 folder, we can see two things, one is the config file, and second is the root folder of the container. This root folder will be the virtual environment for our container. Now we can edit the config file, to mention the default Network options.</p>
+
+<pre><code>lxc.network.ipv4 = 192.168.0.123/24 # IP address should end with CIDR
+lxc.network.hwaddr = 4a:59:43:49:79:bf # MAC address
+lxc.network.link = br0 # name of the bridge interface
+lxc.network.type = veth 
+lxc.network.veth.pair = veth_vm0
+</code></pre>
+
+<p>Now we need to add the ip to the lxc&#8217;s interface file alos, for that we need to edit the <code>/lxc/vm0/rootfs/etc/network/interfaces</code> file and set the ip address in it for the interface <em>eth0</em>
+We can create a bridge interface and we can bind it with the physical interface of the host, so that the lxc will be in the same network as that of the host. If there is a virtual network already existing, for example, when we install libvirt, it will create a bridge interface called &#8220;virbr0&#8221;, or in Ubuntu the lxc package installation wil create a bridge interface called &#8216;lxcbr0&#8217;, we can alos use those with lxc. Or we can define a bridge interface in the &#8220;interfaces&#8221; file. Below is a configuration of creating a bridge interface.</p>
+
+<pre><code>    auto eth0
+    iface eth0 inet manual
+
+# Bridge setup
+    iface br0 inet static
+        bridge_ports eth0 
+        address 192.168.0.2
+        broadcast 192.168.0.255
+        netmask 255.255.255.0
+        gateway 192.168.0.1
+</code></pre>
+
+<p>If a separate network has to be given for the lxc&#8217;s, then we can to go for NATing. The below configuration on the interfaces file is for the NAT enabled.</p>
+
+<pre><code>auto br0
+iface br0 inet static
+address 172.16.0.1
+netmask 255.255.255.0
+bridge_stp off
+bridge_maxwait 5
+pre-up  /usr/sbin/brctl addbr br0
+post-up /usr/sbin/brctl setfd br0 0
+post-up /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+post-up echo 1 &gt; /proc/sys/net/ipv4/ip_forward
+</code></pre>
+
+<p>Once we are ready with the configurations, we can start our container using the below command.</p>
+
+<pre><code>$ lxc-start -n vm0 -f /lxc/vm0/config
+</code></pre>
+
+<p>In the NAT scenario, the lxc machines are under the &#8220;172.16&#8221; network, while the host lies in &#8220;192.168.0&#8221; network. There are some good projects which works around with lxc, <a href="https://github.com/chrisroberts/vagabond">vagabond</a> is an example for that.Vagabond is a tool integrated with Chef to build local nodes easily and most importantly, quickly. Vagabond is built for Chef.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
     
     
       <article class="span4">
@@ -794,449 +1229,6 @@ user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/">Using Mongo Discovery Method in MCollective</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-29T21:48:00+05:30" pubdate data-updated="true">Nov 29<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/mcollective/'>MCollective</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>I&#8217;ve been playing around with  <strong><em>MCollective</em></strong> for the past few months. But this time i wanted to try out the <code>Mongo</code> discovery method. The response time was quite faster for the <code>Mongo</code> discovery method. So i really wanted to try it out. Setting out MCollective Server/Client is prettyl simple. You can go through  my previous <a href="http://beingasysadmin.wordpress.com/2012/09/10/setting-up-mcollective-with-activemq-in-ubuntu-12-04/">blog</a>. Now we need to install the <strong>Meta</strong> registration plugin on all the MCollective Servers. Just Download and Copy <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/registration/meta.rb">meta.rb</a> in the MCollective registration plugin folder. In my case, i&#8217;ve Debian based machine&#8217;s, so the location is, <code>/usr/share/mcollective/plugins/mcollective/registration/</code>. This will make the metadata available to other nodes.</p>
-
-<p>Now add the below three lines into the <code>server.cfg</code> of all the MCollective server&#8217;s.</p>
-
-<pre><code>registration = Meta
-registerinterval = 300
-factsource = facter
-</code></pre>
-
-<p>Now install the <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/agent/registration-mongodb/agent/registration.rb">mongodb registration agent</a> on one of the nodes, which will be our slave node.. Do not install this on all the nodes. There is a small <a href="http://projects.puppetlabs.com/issues/16447">bug</a> in this agent. So follow the steps mentioned <a href="http://projects.puppetlabs.com/issues/16447">here</a> and modify the <code>registration.rb</code> file. Now install mongoDB server on the slave node. Also add the below lines to the <strong><em>server.cfg</em></strong> in the slave machine.</p>
-
-<pre><code>plugin.registration.mongohost = localhost
-plugin.registration.mongodb = puppet
-plugin.registration.collection = nodes
-</code></pre>
-
-<p>Now restart the mcollective service. If we increase the log level to <strong>debug</strong>, then we can see the below lines in the <code>mcollective.log</code>. This indicates that the plugin is getting activated and it is receiving request from the machines, whose fqdn is shown in the below line.</p>
-
-<pre><code>D, [2012-11-29T15:51:34.391762 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host vagrant-debian-squeeze.vagrantup.com with id 50b650d4454bc346e4000002 in 0.0027310848236084s
-D, [2012-11-29T15:50:05.810180 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host ubuntults.vargrantup.com with id 50b650c0454bc346e4000001 in 0.00200200080871582s
-</code></pre>
-
-<p>Initially, i used the default <code>registration.rb</code> file which i downloaded from the github. But it was giving me an error <code>handlemsg Got stats without a FQDN in facts</code>. So don&#8217;t forget to modify the <code>registration.rb</code></p>
-
-<p>Now go connect to mongoDB and verify that the nodes are getting registered in it.</p>
-
-<pre><code>$ mongo
- MongoDB shell version: 2.0.4
- connecting to: test
- &gt; use puppet
- switched to db puppet
- &gt; db.nodes.find().count()
- 2
-</code></pre>
-
-<p>So, now both my master and slave have been registered into the mongoDB. Now in order to use the <strong><em>Mongo Discovery Method</em></strong>, we need to install the <a href="https://github.com/puppetlabs/mcollective-plugins/tree/261ac8ef8433df98f3a9179778182807b916bc46/agent/registration-mongodb/discovery">mongodb discovery plugin</a> and also we need to enable the <strong><em>direct addressing mode</em></strong>. so we need to add <code>direct_addressing = 1</code> in the <code>server.cfg</code> file.</p>
-
-<p>Now we can use the <strong>&#8211;dm</strong> option to specify the discovery method.</p>
-
-<pre><code>$ mco rpc rpcutil ping --dm=mongo -v
-  Discovering hosts using the mongo method .... 2
-
-  * [ ========================================================&gt; ] 2 / 2
-
-
-  vagrant-debian-squeeze                  : OK
-    {:pong=&gt;1354187911}
-
-  ubuntults                               : OK
-        {:pong=&gt;1354187880}
-
-
-
-  ---- rpcutil#ping call stats ----
-            Nodes: 2 / 2
-      Pass / Fail: 2 / 0
-      Start Time: Thu Nov 29 16:48:00 +0530 2012
-  Discovery Time: 68.48ms
-      Agent Time: 108.35ms
-      Total Time: 176.83ms
-
-$ mco rpc rpcutil ping --dm=mc -v
-  Discovering hosts using the mc method for 2 second(s) .... 2
-
-  * [ ========================================================&gt; ] 2 / 2
-
-
-  vagrant-debian-squeeze                  : OK
-        {:pong=&gt;1354188083}
-
-  ubuntults                               : OK
-        {:pong=&gt;1354188053}
-
-
-
-  ---- rpcutil#ping call stats ----
-            Nodes: 2 / 2
-      Pass / Fail: 2 / 0
-      Start Time: Thu Nov 29 16:50:52 +0530 2012
-  Discovery Time: 2004.24ms
-      Agent Time: 104.28ms
-      Total Time: 2108.51ms
-</code></pre>
-
-<p>From the above commands, we can see the difference in the <strong><em>Discovery Time</em></strong>.</p>
-
-<p>Now for those who want <strong><em>GUI</em></strong>, <a href="http://www.devco.net/">R.I.Pienaar</a> has develeoped a web gui called <a href="https://github.com/ripienaar/mco_rpc_web.git">Mco-Rpc-Web</a>. He has uploaded a few <a href="http://www.screenr.com/user/ripienaar">screencasts</a>, which will give us a short demo on all of these.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/26/vagrant-make-virtualization-easier/">Vagrant: Make Virtualization Easier</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-26T18:21:00+05:30" pubdate data-updated="true">Nov 26<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><strong><em>Vagrant</em></strong> is a light weight virtualization tool, build over Oracle&#8217;s <code>VirtualBox</code>. It&#8217;s completely written in ruby and it&#8217;s very easy to install and configure. The only dependency is <code>VirtualBox</code>. Once VirtualBox is installed, we can either use <code>RubyGems</code> to install <code>Vagrant</code> or we can get the installer from <a href="http://downloads.vagrantup.com/">Vagrant</a>.</p>
-
-<p>I prefer ruby gems, So</p>
-
-<pre><code>$ gem install vagrant
-</code></pre>
-
-<p>That&#8217;s it, it will install vagrant. Now we need to get the base box. Vagrant uses the base boxes to build the VM&#8217;s. We can download the base boxes from <a href="http://www.vagrantbox.es/">Vagrant Boxes</a>. we can directly use the url to create the boxes, but it&#8217;s alwasy good if we have a downloaded copy of the base boxes.</p>
-
-<p>Basically we need to follow just 3 steps. <em>add</em>,<em>initialize</em>,<em>up</em>. So once we have the base box just add the base box.</p>
-
-<pre><code>$ vagrant box add new_box_name our_downloaded_basebox_file
-
-example,
-$ vagrant box add mybox precise32.box
-</code></pre>
-
-<p>Now just do a <strong>vagrant init</strong> to create the <code>Vagrantfile</code>. This is the main configuration file. If we go through the <code>Vagrantfile</code>, we can see a bunch of options like port forward, provisioning, setting network and so on. If only one vm is required, then we just have to add the <em>new_box</em> name which we created at the <code>config.vm.box=</code> option int the <code>Vagrantfile</code>. And <strong>vagrant up</strong> will start the VM.</p>
-
-<p>But one of the most important feature of <strong><em>Vagrant</em></strong> is it suports multiple VM&#8217;s over one single box. But we have to define those VM&#8217;s in the <code>Vagrantfile</code>. Below i&#8217;ve defined two VM&#8217;s in my <code>Vagrantfile</code>, also comment out <strong>config.vm.box=base</strong></p>
-
-<pre><code>config.vm.define :ubuntu do |ubuntu_config|
-     ubuntu_config.vm.box = "precise32"
-end
-config.vm.define :puppet do |puppet_config|
-     puppet_config.vm.box = "precise32"
-end
-</code></pre>
-
-<p>Where <em>ubuntu</em> and <em>puppet</em> are the name of the VM&#8217;s. And <em>precise32</em> is the name of the the box which i&#8217;ve created. Now, <strong>vagrant up</strong> will start all the VM&#8217;s. But we can mention the name to start a specific VM. Like <strong>vagrant up ubuntu</strong>. It will start only the <strong>ubuntu</strong> VM.</p>
-
-<p>Provisioning is another important feature of Vagrant. We can use <strong><em>puppet</em></strong>,<strong><em>chef</em></strong> and <strong><em>shell</em></strong> scripts to bootstrap the vm&#8217;s. I saw <a href="https://twitter.com/mitchellh">@mitchellh&#8217;s</a> talk at <a href="http://www.youtube.com/watch?v=UTQQggVx4sI&amp;feature=BFa&amp;list=PLV86BgbREluVFB73Wwqp_tCbw5Z9TMLX1">PuppetConf 2012</a>, in which he mentioned about how to create a <strong>Fully Automated Puppet Master</strong> using the <strong>shell</strong> provisioner. I&#8217;ve tried this out using a shell script that will install puppet master and genrate the ssl certificates. It&#8217;s working fine, soon i will post it here.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/25/using-riak-with-logstash/">Using Riak With Logstash</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-25T20:34:00+05:30" pubdate data-updated="true">Nov 25<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/riak/'>Riak</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>For the last few days i was playing around with <code>Riak</code>, a distributed database. It&#8217;s very simple to configure and use and offcourse it supports MapReduce. I wanted to try out the <strong><em>map reduce</em></strong>, and since <strong><em>Logstash</em></strong> has a plugin to write data into riak, i decided to use it with logstash on an Ubuntu 12.04 machine.</p>
-
-<p>Installing <code>Riak</code> is very simple, it has only one dependency.</p>
-
-<pre><code>$ apt-get install libssl0.9.8
-</code></pre>
-
-<p>Once the dependencies are being installed, we have to download and install the deb package of Riak from its website. The below link is for 32bit OS.</p>
-
-<pre><code>$ wget http://downloads.basho.com.s3-website-us-east-1.amazonaws.com/riak/CURRENT/ubuntu/lucid/riak_1.2.1-1_i386.deb
-
-$ dpkg -i  riak_1.2.1-1_i386.deb
-</code></pre>
-
-<p>Once Riak is installed, go to <code>/etc/riak</code>, where the config files are available. We can change the name of the riak node by editing the <code>vm.args</code> file. By default Riak will listen to <strong><em>127.0.0.1</em></strong>, but we can change this by editing <code>app.config</code> file.  In order to use enable https enable, we need to uncomment the https section in Riak core config. We also have to mention the path of the server key and certificate. Riak comes with a build in Admin console, which currently has very minimal functions. It shows the status of the riak nodes as well as the members in the riak ring. To enable this, open the <code>app.config</code>  go to <strong><em>riak_control_config</em></strong> and change the <strong><em>enabled,false</em></strong>to <strong><em>enabled,true</em></strong>. The user name and password can be mentioned in the userlist option.</p>
-
-<p>If we have multiple machine we can create a riak cluster using riak-admin tool. Currently i&#8217;ve only one machine with Riak installed.</p>
-
-<p>In Riak, data&#8217;s are stored in <code>Buckets</code>. A <code>Bucket</code> is a container and keyspace for data stored in Riak, with a set of common properties for its contents (the number of replicas, or n_val, for instance). Buckets are accessed at the top of the URL hierarchy under <strong><em>riak</em></strong>, e.g. <code>/riak/bucket</code>.</p>
-
-<p>Now we have Riak machine, listening on port port <strong>8098</strong>. Now we need to configure <code>Logstash</code> to send the data to the <strong><em>riak</em></strong>. This is very simple because logstash has an output plugin which can directly write to riak.In the output section of logstash config file, add the riak output plugin.  It should be like this,</p>
-
-<pre><code>riak {
-
-  bucket =&gt; bucketname
-
-  type =&gt; typename
-
-  nodes =&gt; ["riakserverip","8098","riakserverip","8098"]
-
-    }
-</code></pre>
-
-<p>In the nodes section we have to mention the riak node ip&#8217;s. Since i&#8217;ve only one riak node, i&#8217;m mentioning the same ip twice.That&#8217;s it, now we need to start logstash, then logstash will start writing data into the bucket which we mentioned in the conf file.There is one good GUI for Riak called <a href="https://github.com/basho/rekon">rekon</a>. Just get the source code from <em>github</em> and edit the <strong><em>install.sh</em></strong>and change the ip mentioned in to the ip which riak listens to and execute it. Now we can access the GUI using the below url.</p>
-
-<pre><code>http://riakserverip:8098/riak/rekon/go
-</code></pre>
-
-<p>Now testing the <strong><em>Map Reduce Function</em></strong></p>
-
-<p>This is one of the main features of Riak. For example i&#8217;m going to write a <em>map reduce function</em> that will display all the keys in my bucket that has the keyword <strong><em>mylinux</em></strong>, which is the hostname of my machine. This function will return the <em>key</em> as well as the <em>number of occurrences</em>. Below is a simple <em>MapReduce</em> function.</p>
-
-<pre><code>"inputs":"mybucket",
-"query":[{"map":{"language":"javascript",
-"source":"function(riakObject) {
-var m = riakObject.values[0].data.match(\"mylinux\");
-return [[riakObject.key, (m ? m.length : 0 )]];
-}"
-</code></pre>
-
-<p>To execute the map reduce function, execute the following command,</p>
-
-<pre><code>curl -X POST http://192.168.1.173:8098/mapred -H 'Content-Type: application/json' -d '{
-"inputs":"mybucket",
-"query":[{"map":{"language":"javascript",
-"source":"function(riakObject) {
-var m = riakObject.values[0].data.match(\"mylinux\");
-return [[riakObject.key, (m ? m.length : 0 )]];
-}"}}]}'
-</code></pre>
-
-<p>The above command will return all the keys which has the keyword <strong>mylinux</strong> along with number of occurrences.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/24/hiear-http-and-riak-vagrant/">Hiera-Http and Riak</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-24T23:48:00+05:30" pubdate data-updated="true">Nov 24<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/hiera/'>Hiera</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>For the past few days, i was playing with <code>hiera-puppet</code>. I strongly wanted to use <code>hiera</code> in my puppet modules. Yesterday i was going through <a href="http://www.craigdunn.org">craigdunn&#8217;s</a> blog, there i saw his new blog post about the <code>hiera-http</code>,a Hiera back end to connect to any HTTP RESTful API and return data based on a lookup. <code>hiera-http</code> is available as a rubygem or from <a href="http://github.com/crayfishx/hiera-http">craigdunn&#8217;s</a> Github page. In his blog he has clearly explained how he uses <code>hiera-http</code> to query data from <code>couchdb</code>. Since i&#8217;m a fan of Riak, i wanted to try the same from Riak.</p>
-
-<p>I used the <a href="https://github.com/basho/riak-ruby-client">riak-ruby-client</a> to pass my json data to Riak. Below is a simple ruby script which i used,</p>
-
-<pre><code>    #! /usr/local/bin/ruby
-    require 'rubygems'
-    require 'riak'
-
-    client = Riak::Client.new(:host =&gt; '192.168.1.120', :http_port =&gt; 8098)
-    bucket = client.bucket("hiera_bucket")
-    deb = Riak::RObject.new(bucket, "Debian")
-    deb.content_type = "application/json"
-    deb.data = { "db_name" =&gt; "testdb", "db_pass" =&gt; "P@ssw0rd" }
-    deb.store
-</code></pre>
-
-<p>where <strong><em>hiera_bucket</em></strong> is the name of the Bucket and <strong><em>Debian</em></strong> is the key.</p>
-
-<p>Now we need to create a <code>hiera.yaml</code>,</p>
-
-<pre><code>    :backends:
-      - http
-
-    :http:
-      :host: 192.168.1.120
-      :port: 8098
-      :output: json
-      :failure: graceful
-      :paths: /riak/hiera_bucket/Debian
-</code></pre>
-
-<p>We can test the working using hiera cli <code>hiera -c hiera.yaml db_name</code></p>
-
-<p>As per the <code>hiera-http</code> dcumentation, we can use the facter variables, so  the path can be <code>:paths: /riak/hiera_bucket/%{operatingsystem}</code>. For those who wants a gui for Riak, i prefer <a href="https://github.com/basho/rekon.git">rekon</a>. It&#8217;s very simple to install and configure, also we can edit our values directly using this.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1264,23 +1256,23 @@ posted in
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - A Light Weight Log shipper for Logstash </a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
+        </li>
+      
+        <li>
           <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/04/30/dkim-signing-in-qmail/">DKIM Signing in QMAIL</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - A GUI for Sensu API</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting up Check's and Handler's</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a>
         </li>
       
     </ul>
@@ -1315,7 +1307,7 @@ posted in
 <footer class="footer">
   <div class="container">
     <p class="pull-left">
-  <a href="/">Welcome to My World</a>
+  <a href="/">Welcome to My Nerd World</a>
   - Copyright &copy; 2013 - Deepak M Das
 </p>
 <p class="pull-right">

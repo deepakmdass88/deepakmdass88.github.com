@@ -1,0 +1,406 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="For the last few days i was playing around with my two of my favourite tools Logstash and StatsD. Logstash, StatsD, Graphite together makes a killer &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite" />
+  <meta name="og:description" content="For the last few days i was playing around with my two of my favourite tools Logstash and StatsD. Logstash, StatsD, Graphite together makes a killer &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">
+  
+  <meta name="subject" content="GraphiteLogstashLumberjackMonitoringStatsd"/>
+  <meta name="category" content="GraphiteLogstashLumberjackMonitoringStatsd"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Real Time Web-Monitoring Using Lumberjack-Logstash-Statsd-Graphite</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-27T16:29:00+05:30" pubdate data-updated="true">Jun 27<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/graphite/'>Graphite</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/lumberjack/'>Lumberjack</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/statsd/'>Statsd</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I&#8217;m going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log&#8217;s porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i&#8217;ve explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server&#8217;s access logs.</p>
+
+<p>By default, i&#8217;m using the combined apache log format, but it doesnot have the original response time for each request as well as the total reponse time. So we need to modify the LogFormat, in order to add the two. Below is the LogFormat which i&#8217;m using for my test setup.</p>
+
+<pre><code>LogFormat "%h %l %u %t \"%r\" %&gt;s %O \"%{Referer}i\" \"%{User-Agent}i\" %D %&gt;D" combined
+</code></pre>
+
+<p>Once the LogFormat is modified, restart the apache service in order to make the change to be effective.</p>
+
+<h4>Setting up Logstash Server</h4>
+
+<p>First Download the latest Logstash Jar file from the Logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">site</a>. Now we need to create a logstash conf file. By default there is a grok pattern available for apache log called &#8220;COMBINEDAPACHELOG&#8221;, but since we have added the tow new fields for the response time, we need to add the same for grok pattern also. So below is a pattern which is going to be used with Logstash.</p>
+
+<pre><code>pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+</code></pre>
+
+<p>So the Logstash conf file will look like this,</p>
+
+<pre><code>input {
+      lumberjack {
+        type =&gt; "apache-access"
+        port =&gt; 4444
+        ssl_certificate =&gt; "/etc/ssl/logstash.pub"
+        ssl_key =&gt; "/etc/ssl/logstash.key"
+  }
+}
+
+filter {
+  grok {
+        type =&gt; "apache-access"
+    pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+  }
+}
+
+output {
+  stdout {
+    debug =&gt; true
+      }
+  statsd {
+    type =&gt; "apache-access"
+    host =&gt; "localhost"
+    port =&gt; 8125
+    debug =&gt; true
+    timing =&gt; [ "apache.servetime", "%{resptimefull}" ]
+    increment =&gt; "apache.response.%{response}"
+  }
+}
+</code></pre>
+
+<h4>Setting up STATSD</h4>
+
+<p>Now we can start setting up the StatsD daemon. By default, Ubuntu&#8217;s latest OS ships with newer verision of NodeJS and NPM. So we can install it using APT/Aptitude.</p>
+
+<pre><code>$ apt-get install nodejs npm
+</code></pre>
+
+<p>Now clone the StatsD github repository to the local machine.</p>
+
+<pre><code>$ git clone git://github.com/etsy/statsd.git
+</code></pre>
+
+<p>Now create a local config file &#8220;localConfig.js&#8221; with the below contents.</p>
+
+<pre><code>{
+graphitePort: 2003
+, graphiteHost: "127.0.0.1"
+, port: 8125
+}
+</code></pre>
+
+<p>Now we can start the StatsD daemon.</p>
+
+<pre><code>$ node /opt/statsd/stats.js /opt/statsd/localConfig.js
+</code></pre>
+
+<p>The above command will start the StatsD in foreground. Now we can go ahead with setting up the Graphite.</p>
+
+<h4>Setting up Graphite</h4>
+
+<p>First, let&#8217;s install the basic python dependencies.</p>
+
+<pre><code>$ apt-get install python-software-properties memcached python-dev python-pip sqlite3 libcairo2 libcairo2-dev python-cairo pkg-config
+</code></pre>
+
+<p>Then, we can start installing Carbon and Graphite dependencies.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/graphite_reqs.txt &lt;&lt; EOF
+        django==1.3
+        python-memcached
+        django-tagging
+        twisted
+        whisper==0.9.9
+        carbon==0.9.9
+        graphite-web==0.9.9
+        EOF
+
+$  pip install -r /tmp/graphite_reqs.txt
+</code></pre>
+
+<p>Now we can configure Carbon.</p>
+
+<pre><code>$ cd /opt/graphite/conf/
+
+$ cp carbon.conf.example carbon.conf
+</code></pre>
+
+<p>Now we need to create a storage schema.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/storage-schemas.conf &lt;&lt; EOF
+        # Schema definitions for Whisper files. Entries are scanned in order,
+        # and first match wins. This file is scanned for changes every 60 seconds.
+        # [name]
+        # pattern = regex
+        # retentions = timePerPoint:timeToStore, timePerPoint:timeToStore
+        [stats]
+        priority = 110
+        pattern = ^stats\..*
+        retentions = 10s:6h,1m:7d,10m:1y
+        EOF
+
+
+$ cp /tmp/storage-schemas.conf /opt/graphite/conf/storage-schemas.conf
+</code></pre>
+
+<p>Also we need to create a log directory for graphite.</p>
+
+<pre><code>$ mkdir -p /opt/graphite/storage/log/webapp
+</code></pre>
+
+<p>Now we need to copy over the local settings file and initialize database</p>
+
+<pre><code>$ cd /opt/graphite/webapp/graphite/
+
+$ cp local_settings.py.example local_settings.py
+
+$ python manage.py syncdb
+</code></pre>
+
+<p>Fill in the necessary details including the super user details while initializing the database. Once the database is initialized we can start the carbon cache and graphite webgui.</p>
+
+<pre><code>$ /opt/graphite/bin/carbon-cache.py start
+
+$ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
+</code></pre>
+
+<p>Now we can access the dashboard using the url, &#8220;http://ip-address:8080&#8221;. Once we have started the carbon cache, we can start the Logstash server.</p>
+
+<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
+</code></pre>
+
+<p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i&#8217;ve enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph&#8217;s from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-27T16:29:00+05:30" pubdate data-updated="true">Jun 27<span>th</span>, 2013</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/graphite/'>Graphite</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/lumberjack/'>Lumberjack</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/statsd/'>Statsd</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/" title="Previous Post: Lumberjack - A Light Weight Log shipper for Logstash ">&laquo; Lumberjack - A Light Weight Log shipper for Logstash </a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - A Light Weight Log shipper for Logstash </a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2013 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

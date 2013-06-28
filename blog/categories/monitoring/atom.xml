@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Monitoring | Welcome to My World]]></title>
+  <title><![CDATA[Category: Monitoring | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/monitoring/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-05-02T00:16:31+05:30</updated>
+  <updated>2013-06-27T23:20:17+05:30</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,267 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/"/>
+    <updated>2013-06-27T16:29:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite</id>
+    <content type="html"><![CDATA[<p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I'm going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log's porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i've explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server's access logs.</p>
+
+<p>By default, i'm using the combined apache log format, but it doesnot have the original response time for each request as well as the total reponse time. So we need to modify the LogFormat, in order to add the two. Below is the LogFormat which i'm using for my test setup.</p>
+
+<pre><code>LogFormat "%h %l %u %t \"%r\" %&gt;s %O \"%{Referer}i\" \"%{User-Agent}i\" %D %&gt;D" combined
+</code></pre>
+
+<p>Once the LogFormat is modified, restart the apache service in order to make the change to be effective.</p>
+
+<h4>Setting up Logstash Server</h4>
+
+<p>First Download the latest Logstash Jar file from the Logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">site</a>. Now we need to create a logstash conf file. By default there is a grok pattern available for apache log called "COMBINEDAPACHELOG", but since we have added the tow new fields for the response time, we need to add the same for grok pattern also. So below is a pattern which is going to be used with Logstash.</p>
+
+<pre><code>pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+</code></pre>
+
+<p>So the Logstash conf file will look like this,</p>
+
+<pre><code>input {
+      lumberjack {
+        type =&gt; "apache-access"
+        port =&gt; 4444
+        ssl_certificate =&gt; "/etc/ssl/logstash.pub"
+        ssl_key =&gt; "/etc/ssl/logstash.key"
+  }
+}
+
+filter {
+  grok {
+        type =&gt; "apache-access"
+    pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+  }
+}
+
+output {
+  stdout {
+    debug =&gt; true
+      }
+  statsd {
+    type =&gt; "apache-access"
+    host =&gt; "localhost"
+    port =&gt; 8125
+    debug =&gt; true
+    timing =&gt; [ "apache.servetime", "%{resptimefull}" ]
+    increment =&gt; "apache.response.%{response}"
+  }
+}
+</code></pre>
+
+<h4>Setting up STATSD</h4>
+
+<p>Now we can start setting up the StatsD daemon. By default, Ubuntu's latest OS ships with newer verision of NodeJS and NPM. So we can install it using APT/Aptitude.</p>
+
+<pre><code>$ apt-get install nodejs npm
+</code></pre>
+
+<p>Now clone the StatsD github repository to the local machine.</p>
+
+<pre><code>$ git clone git://github.com/etsy/statsd.git
+</code></pre>
+
+<p>Now create a local config file "localConfig.js" with the below contents.</p>
+
+<pre><code>{
+graphitePort: 2003
+, graphiteHost: "127.0.0.1"
+, port: 8125
+}
+</code></pre>
+
+<p>Now we can start the StatsD daemon.</p>
+
+<pre><code>$ node /opt/statsd/stats.js /opt/statsd/localConfig.js
+</code></pre>
+
+<p>The above command will start the StatsD in foreground. Now we can go ahead with setting up the Graphite.</p>
+
+<h4>Setting up Graphite</h4>
+
+<p>First, let's install the basic python dependencies.</p>
+
+<pre><code>$ apt-get install python-software-properties memcached python-dev python-pip sqlite3 libcairo2 libcairo2-dev python-cairo pkg-config
+</code></pre>
+
+<p>Then, we can start installing Carbon and Graphite dependencies.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/graphite_reqs.txt &lt;&lt; EOF
+        django==1.3
+        python-memcached
+        django-tagging
+        twisted
+        whisper==0.9.9
+        carbon==0.9.9
+        graphite-web==0.9.9
+        EOF
+
+$  pip install -r /tmp/graphite_reqs.txt
+</code></pre>
+
+<p>Now we can configure Carbon.</p>
+
+<pre><code>$ cd /opt/graphite/conf/
+
+$ cp carbon.conf.example carbon.conf
+</code></pre>
+
+<p>Now we need to create a storage schema.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/storage-schemas.conf &lt;&lt; EOF
+        # Schema definitions for Whisper files. Entries are scanned in order,
+        # and first match wins. This file is scanned for changes every 60 seconds.
+        # [name]
+        # pattern = regex
+        # retentions = timePerPoint:timeToStore, timePerPoint:timeToStore
+        [stats]
+        priority = 110
+        pattern = ^stats\..*
+        retentions = 10s:6h,1m:7d,10m:1y
+        EOF
+
+
+$ cp /tmp/storage-schemas.conf /opt/graphite/conf/storage-schemas.conf
+</code></pre>
+
+<p>Also we need to create a log directory for graphite.</p>
+
+<pre><code>$ mkdir -p /opt/graphite/storage/log/webapp
+</code></pre>
+
+<p>Now we need to copy over the local settings file and initialize database</p>
+
+<pre><code>$ cd /opt/graphite/webapp/graphite/
+
+$ cp local_settings.py.example local_settings.py
+
+$ python manage.py syncdb
+</code></pre>
+
+<p>Fill in the necessary details including the super user details while initializing the database. Once the database is initialized we can start the carbon cache and graphite webgui.</p>
+
+<pre><code>$ /opt/graphite/bin/carbon-cache.py start
+
+$ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
+</code></pre>
+
+<p>Now we can access the dashboard using the url, "http://ip-address:8080". Once we have started the carbon cache, we can start the Logstash server.</p>
+
+<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
+</code></pre>
+
+<p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i've enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph's from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Lumberjack - A Light Weight Log shipper for Logstash ]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/"/>
+    <updated>2013-06-25T13:52:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash</id>
+    <content type="html"><![CDATA[<p><strong>Logstash</strong> is one of the coolest projects that i always wanted to play around. Since i'm a sysadmin, i'm forced to handle multiple apps, which will logs in different formats. The most weird part is the timestamps, where most of the app uses it's own time formats. Logstash helps us to solve such situations, we can remodify the time stamp to a standard time format, we can use the predefined filter's for filtering out the log's, even we can create our own filter's using regex. All the documentations are available in the <a href="http://logstash.net">Logstash website</a> Logstash mainly has 3 parts, 1) <em>INPUT</em> -> from which the log's are shipped to Logstash, 2) <em>Filter</em> -> for filtering our incoming log's to suit to our needs, 3) <em>Output</em> -> For storing or relaying the Filtered output log's to various Applications.</p>
+
+<p>Lumberjack is one such input plugin designed for logstash. Though the plugin is still in beta state, i decided to give it a try. By default we can also use logstash itself for shipping logs to centralized Logstash server, the JVM made it difficult to work with many of my constrained machines. Lumberjack claims to be a light weight log shipper which uses <em>SSL</em> and we can add custom <code>fields</code> for each line of log which we ships.</p>
+
+<h4>Setting up Logstash Server</h4>
+
+<p>Download the latest the logstash jar file from the logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">website</a>. Now create a logstash configuration file for the logstash instance. In the config file, we have to enable the <code>lumberjack</code> plugin. Lumberjack uses SSL CA to verify the server. So we need to generate the same for the logstash server. We can use the below mentioned command to generate the SSL certificate and key.</p>
+
+<pre><code>$ openssl req -x509 -newkey rsa:2048 -keyout /etc/ssl/logstash.key -out /etc/ssl/logstash.pub -nodes -days 3650
+</code></pre>
+
+<p>Below is the sample logstash conf file which i used for stashing logs from <code>Socklog</code>.</p>
+
+<pre><code>input {
+
+  lumberjack {
+    type =&gt; "qmail"
+    port =&gt; 4545
+    ssl_certificate =&gt; "/etc/ssl/logstash.pub"
+        ssl_key =&gt; "/etc/ssl/logstash.key"
+  }
+}
+
+filter {
+  grok {
+        type =&gt; "socklog"
+        pattern =&gt; "%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"
+  }
+  mutate {
+        replace =&gt; [ "@message", "%{mess}" ]
+  }
+  date {
+        type =&gt; "socklog"
+        match =&gt; [ "timestamp", "MMM dd HH:mm:ss" ]
+  }
+}
+
+output {
+  stdout {
+    debug =&gt; true
+      }
+}
+</code></pre>
+
+<p>Now we can start the the logstash using the above config.</p>
+
+<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
+</code></pre>
+
+<p>Once the logstash has started successfully, we can use netstat to check if it listening on port <em>4545</em>. I'm currently running logstash in the foreground, below is the logoutput from logstash</p>
+
+<pre><code>Starting lumberjack input listener {:address=&gt;"0.0.0.0:4545", :level=&gt;:info}
+Input registered {:plugin=&gt;&lt;LogStash::Inputs::Lumberjack type=&gt;"socklog", ssl_certificate=&gt;"/etc/ssl/logstash.pub", ssl_key=&gt;"/etc/ssl/logstash.key", charset=&gt;"UTF-8", host=&gt;"0.0.0.0"&gt;, :level=&gt;:info}
+Match data {:match=&gt;{"@message"=&gt;["%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"]}, :level=&gt;:info}
+Grok compile {:field=&gt;"@message", :patterns=&gt;["%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"], :level=&gt;:info}
+Output registered {:plugin=&gt;&lt;LogStash::Outputs::Stdout debug_format=&gt;"ruby", message=&gt;"%{@timestamp} %{@source}: %{@message}"&gt;, :level=&gt;:info}
+All plugins are started and registered. {:level=&gt;:info}
+</code></pre>
+
+<h4>Setting up Lumberjack agent</h4>
+
+<p>On the machine from which we are going to ship the log's, clone the Lumberjack github <a href="https://github.com/jordansissel/lumberjack.git">repo</a>.</p>
+
+<pre><code>$ git clone https://github.com/jordansissel/lumberjack.git
+</code></pre>
+
+<p>Install the <strong><em>fpm</em></strong> ruby gem, which is required to build the lumberjack package.</p>
+
+<pre><code>$ gem install fpm
+
+$ cd lumberjack &amp;&amp; make
+
+$ make deb   =&gt; This will build a debian package of the lumberjack
+
+$ dpkg -i lumberjack_0.0.30_amd64.deb  =&gt; The package will install all the files to the `/opt/lumberjack`
+</code></pre>
+
+<p>Now copy the SSL certificate which we have generated at the Logstash server, to the Lumberjack machine. Once the SSL certificte has been copied, we can start the lumberjack agent.</p>
+
+<pre><code>$ /opt/lumberjack/bin/lumberjack --ssl-ca-path ./ssl/logstash.pub --host logstash.test.com --port 4545 /var/log/socklog/main/current
+</code></pre>
+
+<p>Below is the log output from the lumberjack.</p>
+
+<pre><code>2013-06-25T15:04:32.798+0530 Watching 1 files, setting open file limit to 103
+2013-06-25T15:04:32.798+0530 Watching 1 files, setting memory usage limit to 1048576 bytes
+2013-06-25T15:04:32.878+0530 Connecting to logstash.test.com(192.168.19.19):4545
+2013-06-25T15:04:33.186+0530 slow operation (0.307 seconds): connect to 192.168.19.19:4545
+2013-06-25T15:04:33.186+0530 Connected successfully to logstash.test.com(192.168.19.19):4545
+2013-06-25T15:04:34.653+0530 Declaring window size of 4096
+2013-06-25T15:04:36.734+0530 flushing since nothing came in over zmq
+</code></pre>
+
+<p>Now we will start getting the output from the Logstash in our screen, since we are using the 'stdout' output plugin. A very good detailed documentation about Lumberjack and Logstash can be found <a href="http://mzlizz.mit.edu/vmdoh-centralizing-logs-lumberjack-logstash-and-elasticsearch">here</a>, written by <a href="https://portland2013.drupal.org/users/brian-altenhofel">Brian Altenhofel</a>. He had given a talk on this at Drupalcon 2013, Portland. The video for the talk is available <a href="http://youtu.be/p0Av29yaBEI">here</a>. It's a very good blog post.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Sensu Admin - A GUI for Sensu API]]></title>
@@ -339,47 +600,6 @@ $ update-rc.d sensu-dashboard defaults
 </code></pre>
 
 <p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check's. One of the best thing of sensu, all the config's are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check's and how to add these check's to various clients, and how to add handler's like Email alerts, Sending Metrics to graphite.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Monitoring with ZENOSS]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss/"/>
-    <updated>2013-04-11T17:03:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss</id>
-    <content type="html"><![CDATA[<p>It's being a year since i have really played with Centos or any Redhat based Distro's. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar's, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
-
-<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It's a bash script. We can download it from the below link.</p>
-
-<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
-</code></pre>
-
-<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
-
-<p>Once done, we can start the installer script.</p>
-
-<pre><code>$ ./core-autodeploy.sh
-</code></pre>
-
-<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>"connection reset"</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
-
-<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
-accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
-
-=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
-closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
-{channel0_error,starting,
-            {amqp_error,access_refused,
-                        "PLAIN login refused: user 'zenoss' - invalid credentials",
-                        'connection.start_ok'}}
-</code></pre>
-
-<p>The error says that the zenoss user credential is wrong. So using <strong><em>"rabbitmqctl"</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>"/opt/zenoss/etc"</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
-
-<pre><code>$ service zenoss start
-</code></pre>
-
-<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>"http://server_ip:8080"</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I've added my vps as well as few of my local server's with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground ...</p>
 ]]></content>
   </entry>
   

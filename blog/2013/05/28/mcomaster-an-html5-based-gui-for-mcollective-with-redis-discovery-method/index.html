@@ -1,0 +1,446 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Mcollective is a framework to build server orchestration or parallel job execution systems. It&#8217;s completely built on RUBY, and offcourse Open &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method" />
+  <meta name="og:description" content="Mcollective is a framework to build server orchestration or parallel job execution systems. It&#8217;s completely built on RUBY, and offcourse Open &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">
+  
+  <meta name="subject" content="DebianMcollectiveRedisDiscovery"/>
+  <meta name="category" content="DebianMcollectiveRedisDiscovery"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">McoMaster - an HTML5 Based GUI for Mcollective With Redis Discovery Method</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-28T09:46:00+05:30" pubdate data-updated="true">May 28<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mcollective/'>Mcollective</a>, <a class='category' href='/blog/categories/redisdiscovery/'>RedisDiscovery</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Mcollective</code> is a framework to build server orchestration or parallel job execution systems. It&#8217;s completely built on  <strong>RUBY</strong>, and offcourse <a href="https://github.com/puppetlabs/puppetlabs-mcollective">Open Sourced</a>. There are a quite good <a href="https://github.com/puppetlabs/mcollective-plugins">plugins</a> available for mcollective. In my previous blog&#8217;s i&#8217;ve explained on how to setup Mcollective with ActiveMQ and also how to use Mongo Discovery method with Mcollective. In this blog i will explain on how to use Mcollective with Rabbitmq connector and a new project called <a href="http://mcomaster.org">mcomaster</a>, an HTML5 web interface to mcollective, which uses <em>REDIS</em> Discovery method in the backend.</p>
+
+<h3>Setting up RabbitMQ</h3>
+
+<p>First add the <code>RaabitMQ</code> APT repo,</p>
+
+<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;&gt; /etc/apt/sources.list
+
+$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc 
+
+$ apt-key add ~/rabbitmq-signing-key-public.asc
+
+$ apt-get update
+</code></pre>
+
+<p>And install the RabbitMQ server</p>
+
+<pre><code>$ apt-get install rabbitmq-server
+</code></pre>
+
+<p>Now using <code>rabbitmqctl</code> create a vhost &#8221;<em>/mcollective</em>&#8221;. Also create a user called &#8221;<strong>mcollective</strong>&#8221; in Rabbitmq using rabbitmqctl and give full permission for this user to the new mcollective vhost.</p>
+
+<pre><code>$ rabbitmqctl add_vhost /mcollective
+
+$ rabbitmqctl add_user mcollective mcollective
+
+$ rabbitmqctl set_permissions -p /mcollective mcollective ".*" ".*" ".*"
+</code></pre>
+
+<p>There is also managemnet gui for rabbitmq, we can perform all the above tasks from that also. For that we need enable the management plugin in rabbitmq.</p>
+
+<pre><code>$ rabbitmq-plugins enable rabbitmq_management
+</code></pre>
+
+<p>And restart rabbitmq server. After restarting, we can access the gui using &#8221;<em>http://ip:55672</em>&#8221;. Login user is &#8221;<em>guest</em>&#8221;, password is &#8221;<em>guest</em>&#8221;. We need to create two exchanges that the mcollective plugin needs. We can use the <code>rabbitmqadmin</code> command as mentioned in the Mcollective <a href="http://docs.puppetlabs.com/mcollective/reference/plugins/connector_rabbitmq.html">Documentation</a> or we can use the Management GUI for that.</p>
+
+<pre><code>$ rabbitmqadmin declare exchange vhost=/mcollective name=mcollective_broadcast type=topic
+
+$ rabbitmqadmin declare exchange vhost=/mcollective name=mcollective_directed type=direct 
+</code></pre>
+
+<h3>Configuring Mcollective</h3>
+
+<p>Now install the mcollective from APT repository. We can use the puppetlabs APT repo for the latest versions.</p>
+
+<pre><code>$ echo "deb http://apt.puppetlabs.com precise main" &gt;&gt; /etc/apt/sources.list
+
+$ wget -o /tmp/pubkey.gpg apt.puppetlabs.com/pubkey.gpg &amp;&amp; apt-key add /tmp/pubkey.gpg
+
+$ apt-get intstall mcollective
+</code></pre>
+
+<p>Now go to &#8221;<em>/etc/mcollective/</em>&#8221; folder and open the <code>server.cfg</code> file and add the below lines to enable the rabbitmq connector.</p>
+
+<pre><code>direct_addressing = 1
+
+connector = rabbitmq
+plugin.rabbitmq.vhost = /mcollective
+plugin.rabbitmq.pool.size = 1       =&gt; increase this value, if you are going to use rabbitmq cluster
+plugin.rabbitmq.pool.1.host = stomp.example.com
+plugin.rabbitmq.pool.1.port = 61613
+plugin.rabbitmq.pool.1.user = mcollective
+plugin.rabbitmq.pool.1.password = marionette
+</code></pre>
+
+<p>And restart the mcollective service, to make the changes to come effect.</p>
+
+<h3>Setting up McoMaster</h3>
+
+<p>Mcomaster is an HTML5 web interface to mcollective, which uses REDIS discovery method. Thanks to <a href="https://github.com/ajf8/mcomaster">@ajf8</a> for such a wonderful project. Clone the repository from <a href="https://github.com/ajf8/mcomaster">github</a>.</p>
+
+<pre><code>$ git clone https//github.com/ajf8/mcomaster.git
+</code></pre>
+
+<p>Now copy the <code>meta.rb</code> registration file to the mcollective extension directory of all the Mcollective servers.</p>
+
+<pre><code>$ cp mcollective/registration/meta.rb /usr/share/mcollective/plugins/mcollective/registration/meta.rb
+</code></pre>
+
+<p>We need to enable the registration agent on ALL nodes with the following server.cfg settings</p>
+
+<pre><code>registerinterval = 300
+registration = Meta
+</code></pre>
+
+<p>Now enable <code>direct addressing</code> by adding the below line in the server.cfg of all the server&#8217;s where we have copied the meta registration plugin.</p>
+
+<pre><code>direct_addressing=1
+</code></pre>
+
+<p>We need one mcollective node which receives the registrations and saves them in redis. Ensure that Redis server is installed on that server. We can use the same server where we are going to install mcomaster.</p>
+
+<pre><code>$ cp mcollective/agent/registration.rb /usr/share/mcollective/plugins/mcollective/agent/
+</code></pre>
+
+<p>Add the redis server details to the server.cfg on the server which receives the registrations.</p>
+
+<pre><code>plugin.redis.host = localhost
+plugin.redis.port = 6379
+plugin.redis.db = 0
+</code></pre>
+
+<p>Install mcollective clinet on the server where we are installing the mcomaster. Then configure the discovery agent, which will query the redis database for discovery data.</p>
+
+<pre><code>$ cp mcollective/discovery/redisdiscovery.* /usr/share/mcollective/plugins/mcollective/discovery/
+</code></pre>
+
+<p>And add the following settings to the <code>client.cfg</code></p>
+
+<pre><code>plugin.redis.host = localhost
+plugin.redis.port = 6379
+plugin.redis.db = 0
+default_discovery_method = redisdiscovery
+direct_addressing = yes
+</code></pre>
+
+<p>Using <code>mco</code> command we can check the node discovery using redisdiscovery method, which is the default mwthod now.. The old <code>mc</code> method will also works.</p>
+
+<pre><code>root@testcloud:~# mco rpc rpcutil ping --dm redisdiscovery -v
+info 2013/05/29 10:08:45: rabbitmq.rb:10:in `on_connecting' TCP Connection attempt 0 to stomp://mcollective@localhost:61613
+info 2013/05/29 10:08:45: rabbitmq.rb:15:in `on_connected' Conncted to stomp://mcollective@localhost:61613
+Discovering hosts using the redisdiscovery method .... 4
+
+ * [ ============================================================&gt; ] 4 / 4
+
+
+deeptest                                : OK
+    {:pong=&gt;1369802330}
+
+ubuntults                               : OK
+    {:pong=&gt;1369802330}
+
+debwheez                                : OK
+    {:pong=&gt;1369802330}
+
+testcloud                               : OK
+    {:pong=&gt;1369802326}
+
+
+
+---- rpcutil#ping call stats ----
+           Nodes: 4 / 4
+     Pass / Fail: 4 / 0
+      Start Time: 2013-05-29 10:08:46 +0530
+  Discovery Time: 30.95ms
+      Agent Time: 85.24ms
+      Total Time: 116.19ms
+info 2013/05/29 10:08:46: rabbitmq.rb:20:in `on_disconnect' Disconnected from stomp://mcollective@localhost:61613
+</code></pre>
+
+<p>Go to McoMaster repo folder, and run <code>bundle install</code> to install all the dependency gems. Copy th existing application.example.yml and create a new <em>application.yml</em> file. Edit this file and fill in the Username, Password, Redis server details etc. Create a new <code>database.yml</code> and fill in the database details. I&#8217;m using MYSQL as the database backend. Below is my config.</p>
+
+<pre><code>production:
+  adapter: mysql
+  database: mcollective
+  username: mcollective
+  password: mcollective
+  host: localhost
+  socket: "/var/run/mysqld/mysqld.sock"
+
+development:
+  adapter: mysql
+  database: mcollective
+  username: mcollective
+  password: mcollective
+  host: localhost
+  socket: "/var/run/mysqld/mysqld.sock"
+</code></pre>
+
+<p>We need to migrate the database,</p>
+
+<pre><code>$ RAILS_ENV=production rake db:reset
+</code></pre>
+
+<p>After that, we need to compile the assets,</p>
+
+<pre><code>$ rake assets:precompile
+</code></pre>
+
+<p>Let&#8217;s start the server,</p>
+
+<pre><code>$ rails server -e production
+</code></pre>
+
+<p>The above command will make the application to listen to default port &#8221;<em>3000</em>&#8221;. Access the McoMaster GUI from the browwser using the username and password added in the &#8221;<em>application.yml</em>&#8221; file. Once we login, we will be able to see the nodes discovered through the redisdiscovery method. If we add the plugins like <em>service</em> and <em>process</em>, we will be able to see the plugins showing up in the mcomaster, and we can also run these plugins with in the McoMaster.</p>
+
+<p>This is a screenshot of the MCoMaster dashboard.</p>
+
+<p><img src="/images/mcomaster.png"></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-05-28T09:46:00+05:30" pubdate data-updated="true">May 28<span>th</span>, 2013</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mcollective/'>Mcollective</a>, <a class='category' href='/blog/categories/redisdiscovery/'>RedisDiscovery</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/" title="Previous Post: Runing MCollective in a Multi-Ruby Environment">&laquo; Runing MCollective in a Multi-Ruby Environment</a>
+    
+    
+      <a class="pull-right" href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/" title="Next Post: Lumberjack - A Light Weight Log shipper for Logstash ">Lumberjack - A Light Weight Log shipper for Logstash  &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - A Light Weight Log shipper for Logstash </a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2013 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>
