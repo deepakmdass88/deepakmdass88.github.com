@@ -97,6 +97,261 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-23T22:20:00+05:30" pubdate data-updated="true">Apr 23<span>rd</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data&#8217;s.</p>
+
+<p> Sensu has <strong>3</strong> operation Mode.</p>
+
+<p> 1) <strong>Request-Reply Mode</strong>, where the server will send a check request to the clients through the RabbitMQ and the clients will reply back the results.</p>
+
+<p> 2) <strong>Standalone Mode</strong>, where the server will not send any check request, instead the client itself will run the checks according to interval mentioned, and sends the results to the sensu master through the Result queue in RabbitMQ.</p>
+
+<p> 3) <strong>Push Mode</strong>, where the client will send out results to a specific handler.</p>
+
+<p>So now we can start installing the dependencies for sensu, ie, RabbitMQ and Redis.</p>
+
+<h3>Setting up RabbitMQ</h3>
+
+<p>Let&#8217;s add the <strong>RabbitMQ</strong> official APT repo.</p>
+
+<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;/etc/apt/sources.list.d/rabbitmq.list
+
+$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+
+$ apt-key add ~/rabbitmq-signing-key-public.asc &amp;&amp; apt-get update
+</code></pre>
+
+<p>Now we can install RabbitMQ</p>
+
+<pre><code>$ apt-get install rabbitmq-server erlang-nox
+</code></pre>
+
+<p>Now we need to generate SSL certificates for RabbitMQ and the sensu clients. We can use RabbitMQ with out ssl also, but it will more secure with SSL, <a href="http://github.com/joemiller">@joemiller</a> has wrote a script to generate the SSL certificates. It&#8217;s avaliable in his GitHub <a href="http://github.com/joemiller/joemiller.me-intro-to-sensu.git">repo</a>. Clone the repo and modify the &#8220;openssl.cnf&#8221; according to our need and then we can go ahead with generating the certificates.</p>
+
+<pre><code>$ git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
+
+$ cd joemiller.me-intro-to-sensu/
+
+$ ./ssl_certs.sh clean &amp;&amp; /ssl_certs.sh generate
+</code></pre>
+
+<p>Now copy the server key and cert files to the RabbitMQ folder in &#8220;/etc/rabbitmq/&#8221;</p>
+
+<pre><code>$ mkdir /etc/rabbitmq/ssl
+
+$ cp server_key.pem /etc/rabbitmq/ssl/
+
+$ cp server_cert.pem /etc/rabbitmq/ssl/
+
+$ cp testca/cacert.pem /etc/rabbitmq/ssl/
+</code></pre>
+
+<p>Now create the RabbitMQ config file, &#8220;/etc/rabbitmq/rabbitmq.config&#8221;, and add the following lines in it.</p>
+
+<pre><code>[
+  {rabbit, [
+      {ssl_listeners, [5671]},
+      {ssl_options, [{cacertfile,"/etc/rabbitmq/ssl/cacert.pem"},
+               {certfile,"/etc/rabbitmq/ssl/server_cert.pem"},
+               {keyfile,"/etc/rabbitmq/ssl/server_key.pem"},
+               {verify,verify_peer},
+               {fail_if_no_peer_cert,true}]}
+    ]}
+].
+</code></pre>
+
+<p>Once the config file is created, restart the RabbitmQ server. Now RabbitMQ has a cool management console, we can enable this by running &#8221;<strong><em>rabbitmq-plugins enable rabbitmq_management</em></strong>&#8221; in console. Once the Management console is enabled, we can access it RabbitMQ Web UI: <strong>Username is &#8220;guest&#8221;, password is &#8220;guest&#8221; - http://SENSU-SERVER:55672</strong>. Protocol amqp should be bound to port 5672 and amqp/ssl on port 5671.</p>
+
+<p>Now let&#8217;s create a vhost and user for Sensu in RabbitMQ.</p>
+
+<pre><code> $ rabbitmqctl add_vhost /sensu
+
+ $ rabbitmqctl add_user sensu mypass
+
+ $ rabbitmqctl set_permissions -p /sensu sensu ".*" ".*" ".*"
+</code></pre>
+
+<h3>Setting up Redis Server</h3>
+
+<p>Now we can set up Redis server. This will used by Sensu for stroring data&#8217;s. Ubuntu&#8217;s Apt repo ships with latest Redis server, so we can directly install it.</p>
+
+<pre><code>$ apt-get install redis-server
+</code></pre>
+
+<h3>Installing Sensu Server</h3>
+
+<p>Sensu has a public repository which can be used to install the necessary sensu packages. First we need to add the repository public key.</p>
+
+<pre><code>$ wget -q http://repos.sensuapp.org/apt/pubkey.gpg -O- | sudo apt-key add -
+</code></pre>
+
+<p>Now add the repo sources in APT</p>
+
+<pre><code>$ echo " deb     http://repos.sensuapp.org/apt sensu main" &gt;&gt; /etc/apt/sources.list &amp;&amp; apt-get update
+
+$ apt-get install sensu
+</code></pre>
+
+<p>Enable the sensu services to start automatically during system startup.</p>
+
+<pre><code>$ update-rc.d sensu-server defaults
+
+$ update-rc.d sensu-api defaults
+
+$ update-rc.d sensu-client defaults
+
+$ update-rc.d sensu-dashboard defaults
+</code></pre>
+
+<p>Copy the client ssl cert and key to <strong>/etc/sensu</strong> folder, say to a subfolder ssl.</p>
+
+<pre><code>$ cp client_key.pem client_cert.pem  /etc/sensu/ssl/
+</code></pre>
+
+<p>Now we need setup the sensu master, create a file &#8221;<strong>/etc/sensu/config.json</strong>&#8221; and add the below lines.</p>
+
+<pre><code>         {
+        "rabbitmq": {
+          "ssl": {
+            "private_key_file": "/etc/sensu/ssl/client_key.pem",
+            "cert_chain_file": "/etc/sensu/ssl/client_cert.pem"
+          },
+          "port": 5671,
+          "host": "localhost",
+          "user": "sensu",
+          "password": "mypass",
+          "vhost": "/sensu"
+        },
+        "redis": {
+          "host": "localhost",
+          "port": 6379
+        },
+        "api": {
+          "host": "localhost",
+          "port": 4567
+        },
+        "dashboard": {
+          "host": "localhost",
+          "port": 8080,
+          "user": "admin",
+          "password": "sensu@123"
+        },
+        "handlers": {
+          "default": {
+            "type": "pipe",
+            "command": "true"
+          }
+        }
+      }
+</code></pre>
+
+<p>By default sensu package comes with all sensu-server,sensu-client,sensu-api and sensu-dashboard., If we dont want to use the current machine as a client, we can stop the sensu-client from running, and do not create the client config. But for testing purpose, i&#8217;m going to add the current machine as client also. Create a file &#8221;<strong>/etc/sensu/conf.d/client.json</strong>&#8221; and add the client configuration in JSON format.</p>
+
+<pre><code>        {
+          "client": {
+          "name": "sensu.test.com",
+          "address": "192.168.1.108",
+          "subscriptions": [ "vmmaster" ]
+         }
+       }
+</code></pre>
+
+<p>Now restart the sensu-client to affect the changes. The logs are recorded at &#8221;<strong>/var/log/sensu/sensu-client.log</strong>&#8221; file. We can access the sensu-dashboard from &#8220;http://SENSU SERVER:8080&#8221;, with the username and password mentioned in the config.json file.</p>
+
+<h3>Setting up a Separate Sensu-Client Node</h3>
+
+<p>If we want to setup sensu-client on a separate node, just dd the Sensu apt repo, and install the sensu package. After that just enable only the sensu-client service and remove all other sesnu-services. Then create a config.json file and add only the rabbitmq server details in it. Now generate a separate SSL certificate for the new client and use that in the config file.</p>
+
+<pre><code>       {
+      "rabbitmq": {
+        "ssl": {
+          "private_key_file": "/etc/sensu/ssl/client1_key.pem",
+          "cert_chain_file": "/etc/sensu/ssl/client1_cert.pem"
+        },
+        "port": 5671,
+        "host": "192.168.1.108",
+        "user": "sensu",
+        "password": "mypass",
+        "vhost": "/sensu"
+      }
+    }
+</code></pre>
+
+<p>Now create the  &#8220;client.json&#8221; in the &#8220;/etc/sensu/conf.d/&#8221; folder.</p>
+
+<pre><code>        {
+              "client": {
+              "name": "client1.test.com",
+              "address": "192.168.1.212",
+              "subscriptions": [ "vmmaster" ]
+             }
+           }
+</code></pre>
+
+<p>Restart the the sensu-clinet, and check the &#8220;/var/log/sensu/sensu-client.log&#8221;, if things goes fine, we can see client connecting to the RabbitMQ server also we can see the config is getting applied.</p>
+
+<pre><code>{"timestamp":"2013-04-23T22:53:27.870728+0530","level":"warn","message":"config file applied changes","config_file":"/etc/sensu/conf.d/client.json","changes":{"client":[null,{"name":"client1.test.        com","address":"192.168.1.212","subscriptions":["vmmaster"]}]}}
+{"timestamp":"2013-04-23T22:53:27.879671+0530","level":"info","message":"loaded extension","type":"mutator","name":"only_check_output","description":"returns check output"}
+{"timestamp":"2013-04-23T22:53:27.883504+0530","level":"info","message":"loaded extension","type":"handler","name":"debug","description":"outputs json event data"}
+</code></pre>
+
+<p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check&#8217;s. One of the best thing of sensu, all the config&#8217;s are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check&#8217;s and how to add these check&#8217;s to various clients, and how to add handler&#8217;s like Email alerts, Sending Metrics to graphite.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/">HARAKA - a NodeJS Based SMTP Server</a></h1>
     
     
@@ -1159,107 +1414,6 @@ smtpd_sender_restrictions=
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/01/21/building-custom-vagrant-boxes/">Building Custom Vagrant Boxes</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-21T16:52:00+05:30" pubdate data-updated="true">Jan 21<span>st</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>Vagrant</code> has become a common tool used by most of the sys admins who play around with computers. It has made virtualization so easy. Seriously it&#8217;s a must have tool. <strong><em>Vagrant</em></strong> supports <strong>Puppet/Chef</strong> provisioning, which makes it even more powerfull. We just need the base boxes to play around with Vagrant. In this blog i will be explaing about creating custom Vagrant Boxes. I work for <a href="http://www.deeproot.in">DeepRootLinux</a>, developers of the deepOfix Mail Server, a Debian based GNU/Linux distribution. I will be using our distribution for creating base box. It will help us to deploy deepOfix VM in a faster way and we it helps us to test our custom puppet modules into our operating system.</p>
-
-<p>SO first we need to create a base VM in the Virtualbox. Ensure that the network controller is set to <strong><em>&#8220;NAT&#8221;</em></strong>. For port forwarding to work properly, NAT must be used. There a few point to remember, As per the Vagrant&#8217;s Documentation, Vagrant makes some assumptions,</p>
-
-<ul>
-<li>The root password is &#8221;<strong><em>Vagrant</em></strong>&#8221;</li>
-<li>One user account &#8221;<strong><em>vagrant</em></strong>&#8221; with password &#8221;<strong><em>vagrant</em></strong>&#8221;.</li>
-<li>Domain is &#8221;<strong><em>vagrantup.com</em></strong>&#8221;</li>
-<li>Hostname is  &#8221;<strong><em>vagrant-[os-name]</em></strong>&#8221;, e.g. vagrant-debian-lenny</li>
-</ul>
-
-
-<p>If any different values are being used, it has to be specified in the <code>Vagrantfile</code>. I&#8217;ve used custom domain name and hostname and i did not mentioned it in my Vagrant file. But it did not created any problem. Anyways Vagrant is using key-based authentication for SSH. So once we SSH into the system, we will login in to the system as the <strong><em>Main user</em></strong>, in our case &#8221;<em>vagrant</em>&#8221; user. So we should make this &#8221;<em>vagrant</em>&#8221; user as a member of the &#8221;<strong><em>sudo (super user doers)</em></strong>&#8221; group, so that we can use &#8220;sudo su&#8221; to switch to the root user.</p>
-
-<p>Normally, using sudo will always prompt for the user password, we can remove this by modifying the <code>/etc/sudoers</code> file. We just need to add one line into the file &#8221;<strong><em>%sudo ALL=NOPASSWD: ALL</em></strong>&#8221;. This will prevent password prompt for the user&#8217;s who are the member&#8217;s of the sudo group. Once the file is edited, we need to do &#8221;<strong><em>/etc/init.d/sudo restart</em></strong>&#8221; to reflect the changes.We can verify that sudo works without a password, but logging into the sudo user account, then sudo which sudo. We should get output similar to &#8220;/usr/bin/sudo&#8221;.</p>
-
-<p>Now we need to setup <em>Virtualbox Guest Additions</em>. So, first we need to build the necessary packages.</p>
-
-<pre><code>apt-get install linux-headers-$(uname -r) build-essential    # for root user
-
-sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo user's
-</code></pre>
-
-<p> We need to insert the guest additions image by using the GUI and clicking on &#8221;<strong><em>Devices</em></strong>&#8221; followed by &#8221;<strong><em>Install Guest Additions</em></strong>&#8221;. And we need to mount the CDROM.</p>
-
-<pre><code>mount /dev/hd0 /media/cdrom     # where /dev/hd0 is the CDROM block device in deepOfix
-</code></pre>
-
-<p>And finally, run the shell <em>script</em> which matches our system.</p>
-
-<pre><code>sh /media/cdrom/VBoxLinuxAdditions.run
-</code></pre>
-
-<p>Since Vagrant only supports <em>key-based authentication for SSH</em>, we must setup the SSH user to use key-based authentication. We need to copy a public key into &#8221;<strong><em>~/.ssh/authorized_keys</em></strong>&#8221; of the &#8221;<em>vagrant</em>&#8221; user. Vagrant provides an &#8221;<em>insecure</em>&#8221; pair of public and private keys which are available <a href="https://github.com/mitchellh/vagrant/tree/master/keys/">here</a>. Once the public key is copied, we can shut down our VM. And we can start building our base box.</p>
-
-<pre><code>vagrant package --base &lt;box_name&gt;
-</code></pre>
-
-<p>If there is any custom option to be set like, using a specific port port forwarding, or a specific SSH keys, we can create a <code>Vagrantfile</code> with all custom options and we can use it during the packaging.</p>
-
-<pre><code>vagrant package --base &lt;bxo_name&gt; --vagrantfile Vagrantfile
-</code></pre>
-
-<p>If everything goes fine, it will generate a base box file. We can use this base box file anywhere with the vagrant.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1287,6 +1441,10 @@ sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo use
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - A Live Tweet Grabber</a>
+        </li>
+      
+        <li>
           <a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB -  A NoSQL DB with a Powerfull Rest API</a>
         </li>
       
@@ -1300,10 +1458,6 @@ sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo use
       
         <li>
           <a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
         </li>
       
     </ul>

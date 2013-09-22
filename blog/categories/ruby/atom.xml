@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Ruby | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T17:26:49+05:30</updated>
+  <updated>2013-09-22T22:19:11+05:30</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,78 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[TweetGrabber - A Live Tweet Grabber]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/"/>
+    <updated>2013-09-22T17:30:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber</id>
+    <content type="html"><![CDATA[<p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info's here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user's comments on their  services/products and they even interacts with user's. Website's like "downrightnow.com", uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site's we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i'm more concerned about the new trends going on in the Twitter.</p>
+
+<p>Since i'm a <em>Rubyist</em>, i decided to build a Ruby app with <strong>Sinatra</strong> web Frontend, one my favourite web frameworks. I'm hard lover of Redis, faster since it runs on ram, and i dont want to keep my old tweets. So, My app is pretty simple, there will a <strong>Feeder</strong> which will talk to Twitter's API and get the Tweet's these tweet's will be then stored in Redis, The Sinatra Fronend will fetch the tweets, and will display it in a scrolling fashion on the front end. Since i'm a CLI junkie, i'm not familiar with HTMLs and UI's, so i decided to go with <em>Twitter Bootstrap</em> to build the HTML pages.</p>
+
+<p>There is a Ruby gem called "<strong>TweetStream</strong>" which works very well with Twitter API v1.1. So i'm going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
+
+<p><img src="/images/tweetgrabber.png"></p>
+
+<p>Let's see each components in detail.</p>
+
+<h3>Feeder</h3>
+
+
+<p><code>Feeder</code> is a ruby script which constantly talks to Twitter API and grabs the latest streaming tweets based on the search keywords. Add all the grabbed tweets are then stored into the Redis database. Since i've to display teets corresponding to each keyword in separate scrolling fashions, i'm using separate redis database for each. So the Feeder has multiple ruby methods, where each method will be used  for each keyword and writes into the corresponding Redis DB. Below is one of the Ruby Method in the Feeder script.</p>
+
+<pre><code>                        #######  FEEDER ####### 
+
+TweetStream.configure do |config|
+  config.consumer_key       = 'xxxxxxxxxxxxxx'          =&gt; All these cosnumerkey,secret and oauth tokens have to be generated from
+  config.consumer_secret    = 'xxxxxxxxxxxxxx'             the Twitter's API site, dev.twitter.com
+  config.oauth_token        = 'xxxxxxxxxxxxxx'
+  config.oauth_token_secret = 'xxxxxxxxxxxxxx'
+  config.auth_method        = :oauth
+end
+
+def tweet_general
+  TweetStream::Client.new.track('opensource') do |status|   =&gt;  Thiss Tweatstream client will keep tracking the keyword "opensource"
+    if ( status.lang == 'en' )
+      push(
+                'id' =&gt; status[:id],
+               'text' =&gt; status.text,
+               'username' =&gt; status.user.screen_name,
+               'userid' =&gt; status.user[:id],
+               'name' =&gt; status.user.name,
+               'profile_image_url' =&gt; status.user.profile_image_url,
+               'received_at' =&gt; Time.new.to_i,
+               'user_link' =&gt; "http://twitter.com/"
+             )
+        end
+  end
+end
+def push(data)
+      @db = Redis.new
+      @db.lpush('tweets_general', data.to_json)         =&gt; LPUSHing Tweets into the RedisDB
+    end
+</code></pre>
+
+<h3>Redis DB</h3>
+
+
+<p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
+
+<p><img src="/images/redis-list.png"></p>
+
+<p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
+
+<h3>Sinatra Frontend</h3>
+
+
+<p>I'm using <strong>SINATRA</strong> for building the frontend. SInce i'm not much familiar with HTML's and UI's, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i've created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
+
+<p><img src="/images/layout.png"></p>
+
+<p>As of now the app is working fine. But i'm planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I'm going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Runing MCollective in a Multi-Ruby Environment]]></title>

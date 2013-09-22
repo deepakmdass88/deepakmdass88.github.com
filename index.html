@@ -97,6 +97,127 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - a Live Tweet Grabber</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-09-22T17:30:00+05:30" pubdate data-updated="true">Sep 22<span>nd</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/sinatra/'>Sinatra</a>, <a class='category' href='/blog/categories/tweetgrabber/'>TweetGrabber</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user&#8217;s comments on their  services/products and they even interacts with user&#8217;s. Website&#8217;s like &#8220;downrightnow.com&#8221;, uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site&#8217;s we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i&#8217;m more concerned about the new trends going on in the Twitter.</p>
+
+<p>Since i&#8217;m a <em>Rubyist</em>, i decided to build a Ruby app with <strong>Sinatra</strong> web Frontend, one my favourite web frameworks. I&#8217;m hard lover of Redis, faster since it runs on ram, and i dont want to keep my old tweets. So, My app is pretty simple, there will a <strong>Feeder</strong> which will talk to Twitter&#8217;s API and get the Tweet&#8217;s these tweet&#8217;s will be then stored in Redis, The Sinatra Fronend will fetch the tweets, and will display it in a scrolling fashion on the front end. Since i&#8217;m a CLI junkie, i&#8217;m not familiar with HTMLs and UI&#8217;s, so i decided to go with <em>Twitter Bootstrap</em> to build the HTML pages.</p>
+
+<p>There is a Ruby gem called &#8221;<strong>TweetStream</strong>&#8221; which works very well with Twitter API v1.1. So i&#8217;m going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
+
+<p><img src="/images/tweetgrabber.png"></p>
+
+<p>Let&#8217;s see each components in detail.</p>
+
+<h3>Feeder</h3>
+
+
+<p><code>Feeder</code> is a ruby script which constantly talks to Twitter API and grabs the latest streaming tweets based on the search keywords. Add all the grabbed tweets are then stored into the Redis database. Since i&#8217;ve to display teets corresponding to each keyword in separate scrolling fashions, i&#8217;m using separate redis database for each. So the Feeder has multiple ruby methods, where each method will be used  for each keyword and writes into the corresponding Redis DB. Below is one of the Ruby Method in the Feeder script.</p>
+
+<pre><code>                        #######  FEEDER ####### 
+
+TweetStream.configure do |config|
+  config.consumer_key       = 'xxxxxxxxxxxxxx'          =&gt; All these cosnumerkey,secret and oauth tokens have to be generated from
+  config.consumer_secret    = 'xxxxxxxxxxxxxx'             the Twitter's API site, dev.twitter.com
+  config.oauth_token        = 'xxxxxxxxxxxxxx'
+  config.oauth_token_secret = 'xxxxxxxxxxxxxx'
+  config.auth_method        = :oauth
+end
+
+def tweet_general
+  TweetStream::Client.new.track('opensource') do |status|   =&gt;  Thiss Tweatstream client will keep tracking the keyword "opensource"
+    if ( status.lang == 'en' )
+      push(
+                'id' =&gt; status[:id],
+               'text' =&gt; status.text,
+               'username' =&gt; status.user.screen_name,
+               'userid' =&gt; status.user[:id],
+               'name' =&gt; status.user.name,
+               'profile_image_url' =&gt; status.user.profile_image_url,
+               'received_at' =&gt; Time.new.to_i,
+               'user_link' =&gt; "http://twitter.com/"
+             )
+        end
+  end
+end
+def push(data)
+      @db = Redis.new
+      @db.lpush('tweets_general', data.to_json)         =&gt; LPUSHing Tweets into the RedisDB
+    end
+</code></pre>
+
+<h3>Redis DB</h3>
+
+
+<p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
+
+<p><img src="/images/redis-list.png"></p>
+
+<p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
+
+<h3>Sinatra Frontend</h3>
+
+
+<p>I&#8217;m using <strong>SINATRA</strong> for building the frontend. SInce i&#8217;m not much familiar with HTML&#8217;s and UI&#8217;s, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i&#8217;ve created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
+
+<p><img src="/images/layout.png"></p>
+
+<p>As of now the app is working fine. But i&#8217;m planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I&#8217;m going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB - a NoSQL DB With a Powerfull Rest API</a></h1>
     
     
@@ -1332,261 +1453,6 @@ wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-communi
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-23T22:20:00+05:30" pubdate data-updated="true">Apr 23<span>rd</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data&#8217;s.</p>
-
-<p> Sensu has <strong>3</strong> operation Mode.</p>
-
-<p> 1) <strong>Request-Reply Mode</strong>, where the server will send a check request to the clients through the RabbitMQ and the clients will reply back the results.</p>
-
-<p> 2) <strong>Standalone Mode</strong>, where the server will not send any check request, instead the client itself will run the checks according to interval mentioned, and sends the results to the sensu master through the Result queue in RabbitMQ.</p>
-
-<p> 3) <strong>Push Mode</strong>, where the client will send out results to a specific handler.</p>
-
-<p>So now we can start installing the dependencies for sensu, ie, RabbitMQ and Redis.</p>
-
-<h3>Setting up RabbitMQ</h3>
-
-<p>Let&#8217;s add the <strong>RabbitMQ</strong> official APT repo.</p>
-
-<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;/etc/apt/sources.list.d/rabbitmq.list
-
-$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
-
-$ apt-key add ~/rabbitmq-signing-key-public.asc &amp;&amp; apt-get update
-</code></pre>
-
-<p>Now we can install RabbitMQ</p>
-
-<pre><code>$ apt-get install rabbitmq-server erlang-nox
-</code></pre>
-
-<p>Now we need to generate SSL certificates for RabbitMQ and the sensu clients. We can use RabbitMQ with out ssl also, but it will more secure with SSL, <a href="http://github.com/joemiller">@joemiller</a> has wrote a script to generate the SSL certificates. It&#8217;s avaliable in his GitHub <a href="http://github.com/joemiller/joemiller.me-intro-to-sensu.git">repo</a>. Clone the repo and modify the &#8220;openssl.cnf&#8221; according to our need and then we can go ahead with generating the certificates.</p>
-
-<pre><code>$ git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
-
-$ cd joemiller.me-intro-to-sensu/
-
-$ ./ssl_certs.sh clean &amp;&amp; /ssl_certs.sh generate
-</code></pre>
-
-<p>Now copy the server key and cert files to the RabbitMQ folder in &#8220;/etc/rabbitmq/&#8221;</p>
-
-<pre><code>$ mkdir /etc/rabbitmq/ssl
-
-$ cp server_key.pem /etc/rabbitmq/ssl/
-
-$ cp server_cert.pem /etc/rabbitmq/ssl/
-
-$ cp testca/cacert.pem /etc/rabbitmq/ssl/
-</code></pre>
-
-<p>Now create the RabbitMQ config file, &#8220;/etc/rabbitmq/rabbitmq.config&#8221;, and add the following lines in it.</p>
-
-<pre><code>[
-  {rabbit, [
-      {ssl_listeners, [5671]},
-      {ssl_options, [{cacertfile,"/etc/rabbitmq/ssl/cacert.pem"},
-               {certfile,"/etc/rabbitmq/ssl/server_cert.pem"},
-               {keyfile,"/etc/rabbitmq/ssl/server_key.pem"},
-               {verify,verify_peer},
-               {fail_if_no_peer_cert,true}]}
-    ]}
-].
-</code></pre>
-
-<p>Once the config file is created, restart the RabbitmQ server. Now RabbitMQ has a cool management console, we can enable this by running &#8221;<strong><em>rabbitmq-plugins enable rabbitmq_management</em></strong>&#8221; in console. Once the Management console is enabled, we can access it RabbitMQ Web UI: <strong>Username is &#8220;guest&#8221;, password is &#8220;guest&#8221; - http://SENSU-SERVER:55672</strong>. Protocol amqp should be bound to port 5672 and amqp/ssl on port 5671.</p>
-
-<p>Now let&#8217;s create a vhost and user for Sensu in RabbitMQ.</p>
-
-<pre><code> $ rabbitmqctl add_vhost /sensu
-
- $ rabbitmqctl add_user sensu mypass
-
- $ rabbitmqctl set_permissions -p /sensu sensu ".*" ".*" ".*"
-</code></pre>
-
-<h3>Setting up Redis Server</h3>
-
-<p>Now we can set up Redis server. This will used by Sensu for stroring data&#8217;s. Ubuntu&#8217;s Apt repo ships with latest Redis server, so we can directly install it.</p>
-
-<pre><code>$ apt-get install redis-server
-</code></pre>
-
-<h3>Installing Sensu Server</h3>
-
-<p>Sensu has a public repository which can be used to install the necessary sensu packages. First we need to add the repository public key.</p>
-
-<pre><code>$ wget -q http://repos.sensuapp.org/apt/pubkey.gpg -O- | sudo apt-key add -
-</code></pre>
-
-<p>Now add the repo sources in APT</p>
-
-<pre><code>$ echo " deb     http://repos.sensuapp.org/apt sensu main" &gt;&gt; /etc/apt/sources.list &amp;&amp; apt-get update
-
-$ apt-get install sensu
-</code></pre>
-
-<p>Enable the sensu services to start automatically during system startup.</p>
-
-<pre><code>$ update-rc.d sensu-server defaults
-
-$ update-rc.d sensu-api defaults
-
-$ update-rc.d sensu-client defaults
-
-$ update-rc.d sensu-dashboard defaults
-</code></pre>
-
-<p>Copy the client ssl cert and key to <strong>/etc/sensu</strong> folder, say to a subfolder ssl.</p>
-
-<pre><code>$ cp client_key.pem client_cert.pem  /etc/sensu/ssl/
-</code></pre>
-
-<p>Now we need setup the sensu master, create a file &#8221;<strong>/etc/sensu/config.json</strong>&#8221; and add the below lines.</p>
-
-<pre><code>         {
-        "rabbitmq": {
-          "ssl": {
-            "private_key_file": "/etc/sensu/ssl/client_key.pem",
-            "cert_chain_file": "/etc/sensu/ssl/client_cert.pem"
-          },
-          "port": 5671,
-          "host": "localhost",
-          "user": "sensu",
-          "password": "mypass",
-          "vhost": "/sensu"
-        },
-        "redis": {
-          "host": "localhost",
-          "port": 6379
-        },
-        "api": {
-          "host": "localhost",
-          "port": 4567
-        },
-        "dashboard": {
-          "host": "localhost",
-          "port": 8080,
-          "user": "admin",
-          "password": "sensu@123"
-        },
-        "handlers": {
-          "default": {
-            "type": "pipe",
-            "command": "true"
-          }
-        }
-      }
-</code></pre>
-
-<p>By default sensu package comes with all sensu-server,sensu-client,sensu-api and sensu-dashboard., If we dont want to use the current machine as a client, we can stop the sensu-client from running, and do not create the client config. But for testing purpose, i&#8217;m going to add the current machine as client also. Create a file &#8221;<strong>/etc/sensu/conf.d/client.json</strong>&#8221; and add the client configuration in JSON format.</p>
-
-<pre><code>        {
-          "client": {
-          "name": "sensu.test.com",
-          "address": "192.168.1.108",
-          "subscriptions": [ "vmmaster" ]
-         }
-       }
-</code></pre>
-
-<p>Now restart the sensu-client to affect the changes. The logs are recorded at &#8221;<strong>/var/log/sensu/sensu-client.log</strong>&#8221; file. We can access the sensu-dashboard from &#8220;http://SENSU SERVER:8080&#8221;, with the username and password mentioned in the config.json file.</p>
-
-<h3>Setting up a Separate Sensu-Client Node</h3>
-
-<p>If we want to setup sensu-client on a separate node, just dd the Sensu apt repo, and install the sensu package. After that just enable only the sensu-client service and remove all other sesnu-services. Then create a config.json file and add only the rabbitmq server details in it. Now generate a separate SSL certificate for the new client and use that in the config file.</p>
-
-<pre><code>       {
-      "rabbitmq": {
-        "ssl": {
-          "private_key_file": "/etc/sensu/ssl/client1_key.pem",
-          "cert_chain_file": "/etc/sensu/ssl/client1_cert.pem"
-        },
-        "port": 5671,
-        "host": "192.168.1.108",
-        "user": "sensu",
-        "password": "mypass",
-        "vhost": "/sensu"
-      }
-    }
-</code></pre>
-
-<p>Now create the  &#8220;client.json&#8221; in the &#8220;/etc/sensu/conf.d/&#8221; folder.</p>
-
-<pre><code>        {
-              "client": {
-              "name": "client1.test.com",
-              "address": "192.168.1.212",
-              "subscriptions": [ "vmmaster" ]
-             }
-           }
-</code></pre>
-
-<p>Restart the the sensu-clinet, and check the &#8220;/var/log/sensu/sensu-client.log&#8221;, if things goes fine, we can see client connecting to the RabbitMQ server also we can see the config is getting applied.</p>
-
-<pre><code>{"timestamp":"2013-04-23T22:53:27.870728+0530","level":"warn","message":"config file applied changes","config_file":"/etc/sensu/conf.d/client.json","changes":{"client":[null,{"name":"client1.test.        com","address":"192.168.1.212","subscriptions":["vmmaster"]}]}}
-{"timestamp":"2013-04-23T22:53:27.879671+0530","level":"info","message":"loaded extension","type":"mutator","name":"only_check_output","description":"returns check output"}
-{"timestamp":"2013-04-23T22:53:27.883504+0530","level":"info","message":"loaded extension","type":"handler","name":"debug","description":"outputs json event data"}
-</code></pre>
-
-<p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check&#8217;s. One of the best thing of sensu, all the config&#8217;s are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check&#8217;s and how to add these check&#8217;s to various clients, and how to add handler&#8217;s like Email alerts, Sending Metrics to graphite.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1610,6 +1476,10 @@ $ update-rc.d sensu-dashboard defaults
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - A Live Tweet Grabber</a>
+        </li>
+      
+        <li>
           <a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB -  A NoSQL DB with a Powerfull Rest API</a>
         </li>
       
@@ -1623,10 +1493,6 @@ $ update-rc.d sensu-dashboard defaults
       
         <li>
           <a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
         </li>
       
     </ul>

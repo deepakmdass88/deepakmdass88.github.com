@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>TweetGrabber - A Live Tweet Grabber - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Twitter has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="TweetGrabber - A Live Tweet Grabber" />
+  <meta name="og:description" content="Twitter has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">
+  
+  <meta name="subject" content="RedisRubySinatraTweetGrabber"/>
+  <meta name="category" content="RedisRubySinatraTweetGrabber"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">TweetGrabber - a Live Tweet Grabber</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-09-22T17:30:00+05:30" pubdate data-updated="true">Sep 22<span>nd</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/sinatra/'>Sinatra</a>, <a class='category' href='/blog/categories/tweetgrabber/'>TweetGrabber</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user&#8217;s comments on their  services/products and they even interacts with user&#8217;s. Website&#8217;s like &#8220;downrightnow.com&#8221;, uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site&#8217;s we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i&#8217;m more concerned about the new trends going on in the Twitter.</p>
+
+<p>Since i&#8217;m a <em>Rubyist</em>, i decided to build a Ruby app with <strong>Sinatra</strong> web Frontend, one my favourite web frameworks. I&#8217;m hard lover of Redis, faster since it runs on ram, and i dont want to keep my old tweets. So, My app is pretty simple, there will a <strong>Feeder</strong> which will talk to Twitter&#8217;s API and get the Tweet&#8217;s these tweet&#8217;s will be then stored in Redis, The Sinatra Fronend will fetch the tweets, and will display it in a scrolling fashion on the front end. Since i&#8217;m a CLI junkie, i&#8217;m not familiar with HTMLs and UI&#8217;s, so i decided to go with <em>Twitter Bootstrap</em> to build the HTML pages.</p>
+
+<p>There is a Ruby gem called &#8221;<strong>TweetStream</strong>&#8221; which works very well with Twitter API v1.1. So i&#8217;m going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
+
+<p><img src="/images/tweetgrabber.png"></p>
+
+<p>Let&#8217;s see each components in detail.</p>
+
+<h3>Feeder</h3>
+
+
+<p><code>Feeder</code> is a ruby script which constantly talks to Twitter API and grabs the latest streaming tweets based on the search keywords. Add all the grabbed tweets are then stored into the Redis database. Since i&#8217;ve to display teets corresponding to each keyword in separate scrolling fashions, i&#8217;m using separate redis database for each. So the Feeder has multiple ruby methods, where each method will be used  for each keyword and writes into the corresponding Redis DB. Below is one of the Ruby Method in the Feeder script.</p>
+
+<pre><code>                        #######  FEEDER ####### 
+
+TweetStream.configure do |config|
+  config.consumer_key       = 'xxxxxxxxxxxxxx'          =&gt; All these cosnumerkey,secret and oauth tokens have to be generated from
+  config.consumer_secret    = 'xxxxxxxxxxxxxx'             the Twitter's API site, dev.twitter.com
+  config.oauth_token        = 'xxxxxxxxxxxxxx'
+  config.oauth_token_secret = 'xxxxxxxxxxxxxx'
+  config.auth_method        = :oauth
+end
+
+def tweet_general
+  TweetStream::Client.new.track('opensource') do |status|   =&gt;  Thiss Tweatstream client will keep tracking the keyword "opensource"
+    if ( status.lang == 'en' )
+      push(
+                'id' =&gt; status[:id],
+               'text' =&gt; status.text,
+               'username' =&gt; status.user.screen_name,
+               'userid' =&gt; status.user[:id],
+               'name' =&gt; status.user.name,
+               'profile_image_url' =&gt; status.user.profile_image_url,
+               'received_at' =&gt; Time.new.to_i,
+               'user_link' =&gt; "http://twitter.com/"
+             )
+        end
+  end
+end
+def push(data)
+      @db = Redis.new
+      @db.lpush('tweets_general', data.to_json)         =&gt; LPUSHing Tweets into the RedisDB
+    end
+</code></pre>
+
+<h3>Redis DB</h3>
+
+
+<p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
+
+<p><img src="/images/redis-list.png"></p>
+
+<p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
+
+<h3>Sinatra Frontend</h3>
+
+
+<p>I&#8217;m using <strong>SINATRA</strong> for building the frontend. SInce i&#8217;m not much familiar with HTML&#8217;s and UI&#8217;s, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i&#8217;ve created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
+
+<p><img src="/images/layout.png"></p>
+
+<p>As of now the app is working fine. But i&#8217;m planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I&#8217;m going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-09-22T17:30:00+05:30" pubdate data-updated="true">Sep 22<span>nd</span>, 2013</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/sinatra/'>Sinatra</a>, <a class='category' href='/blog/categories/tweetgrabber/'>TweetGrabber</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/" title="Previous Post: CouchDB -  A NoSQL DB with a Powerfull Rest API">&laquo; CouchDB -  A NoSQL DB with a Powerfull Rest API</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - A Live Tweet Grabber</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB -  A NoSQL DB with a Powerfull Rest API</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - A Light Weight Log shipper for Logstash </a>
+        </li>
+      
+        <li>
+          <a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2013 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>
