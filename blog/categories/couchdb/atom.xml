@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: CouchDB | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/couchdb/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2013-09-22T17:11:22+05:30</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[CouchDB -  A NoSQL DB with a Powerfull Rest API]]></title>
+    <link href="http://beingasysadmin.com/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/"/>
+    <updated>2013-09-19T21:37:00+05:30</updated>
+    <id>http://beingasysadmin.com/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api</id>
+    <content type="html"><![CDATA[<p><code>CouchDB</code> is an open source <em>NoSQL</em> database, which comes with a powerfull <strong>Rest API</strong>. It stores data in <em>JSON format</em>. uses <em>Javascripts</em> as its query language using <em>MapReduce</em>. JSON data's are very easy to understand and can be parsed very easily. This time i got a requirement to build a commandline utility to display results for an internal monitoring tool. The tool is a bit old, and it does not have any api. And finding latest the result is consuming more time using the front end. But one advantage was the frontend can display results in HTML and XML. So curl was able to query the server using the url and it can display the xml output. The url is unique for each, as it composed of few details like Location, SerialNo, Domain, OS etc, which is unique for each hosts. So i decided to have a local database which contains all these unique host details. For this purpose, i dont need any relational databases, and NoSQL databases are sufficient. So i decided to use CouchDB, because it comes with a wonderfull rest api.</p>
+
+<p>Since i'm a <em>RUBY</em> lover, i decided to use this couchdb ruby <a href="http://wiki.apache.org/couchdb/Getting_started_with_Ruby">wrapper</a>. SInce my requirement with CouchDB was pretty simple, this wrapper itself was sufficient for me. This wrapper can be used to perform any operations like, reading,writing,deleting Documents as well as Databases. This wrapper basically uses the ruby http library to talk to the CouchDB's rest api.  By default couchdb is available in most of the Linux respositories. for windows and mac, the files are available in the CouchDB website itself.</p>
+
+<p>for example, for ubuntu/debian, below command will install couchdb server.</p>
+
+<pre><code>sudo apt-get install couchdb -y
+</code></pre>
+
+<p>By default, the couchDB package comes with a web frontend called "Futon" which can be accessed via browsers ugin the below url,</p>
+
+<pre><code>http://localhost:5984/_utils/
+</code></pre>
+
+<p>Below is the screenshot of the Futon frontend.</p>
+
+<p><img src="/images/futon.png"></p>
+
+<p>We can perform all the operations through this web interface also. So i created a database, and created a document for each host with required fields. Now these documents can be accessed via the rest api in JSON format. so that my ruby script can fetch all the necessary data and can compose the exact url for fetching the check results for corresponding hosts.</p>
+
+<p>Below is a sample read operation that we can perform through our ruby scripts. But before using the operation, we need to include the wrapper into our script. For that we need to add 'require ./couch.rb', we can use both relative or absolute path. once the wrapper is included,we can start performing operations with the CouchDB.</p>
+
+<pre><code>server = Couch::Server.new("localhost", "5984")
+res = server.get("/foo/document_id")
+json = res.body
+puts json
+</code></pre>
+
+<p>The operation will read the document and will convert it into JSON using the json ruby library. Now i can use the JSON data to collect the required fields so that my script can form the exact fetch url for each host and can perform the result fetch.  There is couchdb <a href="https://github.com/phifty/couchdb">gem</a> for ruby, which can perform more operations.</p>
+
+<p>Apart from this, CouchDB has another important feature "<strong>MAPREDUCE</strong>", yes it can perform <strong>MapReduce</strong>, i'm trying to find if mapreduce can help me, so that i can extend my app to do more things. Once if i get any weird idea with MapReduce i will udapte this blog with that also.</p>
+]]></content>
+  </entry>
+  
+</feed>

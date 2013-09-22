@@ -97,6 +97,124 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/">HARAKA - a NodeJS Based SMTP Server</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-14T22:51:00+05:30" pubdate data-updated="true">Apr 14<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>MailServer</a>, <a class='category' href='/blog/categories/nodejs/'>Nodejs</a>, <a class='category' href='/blog/categories/smtp/'>SMTP</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Today i came across a very interesting project in GITHUB. <a href="https://github.com/baudehlo/Haraka.git">HARAKA</a> is an SMTP server written completely in <em>NodeJS</em>. Like the qpsmtpd, apart from the core SMTP features we can improve the functionality using small plugins. There are very good pluginsi for HARAKA, basically in javascripts. Like Postfix,Qmail, we can easily implements all sorts of checks and features with the help of these plugins.</p>
+
+<p>Setting up <code>HARAKA</code> is very simple. In my setup, i will be using HARAKA as my primary smtp server, where i will implement all my filterings and then i will relay to a qmail server for local delivery. There is plugin written by <a href="https://github.com/madeingnecca/haraka-plugins.git">@madeingnecca</a> in github, for directly delivering the mails to user&#8217;s INBOX (mail box should be in <em>MAILDIR</em> format). In the real server&#8217;s we use LDAP backend for storing all the USER databases. So before putting HARAKA into production, i need a to rebuild the auth plugin so that HARAKA can talk to LDAP for user authentication in SMTP.</p>
+
+<p>So first we need to install <strong>NodeJS</strong> and <strong>NPM (Node Package Manager)</strong>. There are several ways for installing NodeJS. We can compile it from the source, or we can use <strong><em>NVM (Node Version Manager)</em></strong>, or we can install the packages from APT in Debian machines. But i prefer source code, because official APT repo has older versions of NodeJS, which will create compatibility issue. Current version is <em>&#8220;v0.10.4&#8221;</em>. Building NodeJS from source is pretty simple.</p>
+
+<p>Just Download the latest source code from <strong>&#8220;http://nodejs.org/download/&#8221;</strong></p>
+
+<pre><code>$ wget http://nodejs.org/dist/v0.10.4/node-v0.10.4.tar.gz
+
+$ tar xvzf node-v0.10.4.tar.gz &amp;&amp; cd node-v0.10.4
+
+$  ./compile 
+
+$ make &amp;&amp; make install
+</code></pre>
+
+<p>Once NodeJS is installed, we can go ahead with <code>HARAKA</code>.</p>
+
+<pre><code>$ git clone https://github.com/baudehlo/Haraka.git
+</code></pre>
+
+<p>Now go inside to the <em>Haraka</em> folder and run the below command. All the dependency packages are mentioned in the <strong>package.json</strong> file.</p>
+
+<pre><code>$ npm install
+</code></pre>
+
+<p>The above command will install all the necessary modules mentioned in the package.json file and will setup HARAKA. Now we can setup a separate service folder for HARAKA.</p>
+
+<pre><code>$ haraka -i /etc/heraka     
+</code></pre>
+
+<p> The above  command will create the heraka folder in <strong>/etc/</strong> and it will create  creates config and plugin directories in there, and automatically sets the host name used by Haraka to the output of the hostname command. Now we need to setup up the <em>port number</em> and <em>ip</em> which HARAKA SMTP service should listen. Go to config folder in the newly created haraka service folder and open the <strong>&#8220;smtp.ini&#8221;</strong> file, and mention the port number and ip.</p>
+
+<p>Now before starting the smtp service, first let&#8217;s disable all the plugins, so that we can go in steps. In the config folder, open the <em>&#8220;plugin&#8221;</em> file, and comment out all the plugins, because by default haraka will not create any plugin scripts, so most of them mentioned in that will not work. So we will start using the plugins, once we have copied the corresponding plugin&#8217;s js files to the plugin directory inside our service directory.</p>
+
+<p>Let&#8217;s try running the <code>HARAKA</code> foreground and see if it starts and listens on the port we mentioned.</p>
+
+<pre><code>$ haraka -c /etc/haraka
+</code></pre>
+
+<p>Once <code>HARAKA</code> SMTP service starts, we can see the line &#8221;<strong>[NOTICE] [-] [core] Listening on :::25</strong>&#8221; in the STDOUT, which means HARAKA is listening on port 25. We can just Telnet to port 25 and see if we are getting SMTP banner.</p>
+
+<p>Now we can try out a plugin. Heraka has a <em>spamassassin</em> plugin. So will try it out. So first install spamassassin and start the spam filtering.</p>
+
+<pre><code>$ apt-get install spamassassin spamc
+</code></pre>
+
+<p>Now from the plugin folder inside the git source folder of HARAKA, copy the <strong>spamassassin.js</strong> and copy it to the plugin folder of our service directory. By default plugin folder is not created inside the service directory, so create it. Now we need to enable the service. Inside the config folder of our service directory, create a config file <strong>&#8220;spamassassin.ini&#8221;</strong>, and inside the file fill in the necessary details like, <strong>&#8220;reject_thresold&#8221;, &#8220;subject_prefix&#8221;, &#8220;spamd_socket&#8221;</strong>. Now before starting the plugin, we need to add it in the plugin, inside the config folder. Once spamassassin plugin is added, we can start the HARAKA smtp service. If the plugin is added properly, then we can see the below lines in the stdout,</p>
+
+<pre><code>[INFO] [-] [core] Loading plugin: spamassassin
+[DEBUG] [-] [core] registered hook data_post to spamassassin.hook_data_post
+</code></pre>
+
+<p>Now using swaks, we can send a test mail see, if spam assassin is putting scores for the emails. Like this we can enable all other plugins, based on our needs.</p>
+
+<p>Since i&#8217;m going to relay the mails, i need to make HARAKA to accept mails for all my domains. For that i need to define all my domains on HARAKA. In the config folder, open the file <strong>&#8220;host_list&#8221;</strong>, and add all the domains for which HARAKA should accept mails. There also a regular expression option available for, which can be done in <strong>&#8220;host_list_regex&#8221;</strong> file.</p>
+
+<p>Now we need to add, smtp relay, for that edit the <em>&#8220;smtp_forward.ini&#8221;</em> file and mention the relay host ip, port number and auth details(if required). Now we can restart the <code>HARAKA</code> service and we can check SMTP relay by sending test mails using swaks.</p>
+
+<p>I haven&#8217;t tried the Auth plugin yet, but soon i will be trying it. If possible, i will try to use LDAP backend for authentication, so that HARAKA can be used a full fledged SMTP service. More developments are happening in this, hope it wil become a good competitor &#8230;</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/11/monitoring-with-zenoss/">Monitoring With ZENOSS</a></h1>
     
     
@@ -1142,93 +1260,6 @@ sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo use
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster With Qmail and Dovecot Proxy</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-20T16:50:00+05:30" pubdate data-updated="true">Jan 20<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/cluster/'>Cluster</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/qmail/'>Qmail</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>This New year started with a new requirement, one of our client wanted a Mail cluster with 3 nodes, one node in US, a VPS, and the rest two in INDIA. Their primary server is one of the server in india. They have 3 category of USERS, all abroad user&#8217;s Mailboxes will be hosted in the VPS. For the rest, one set will be in one server and the rest in other. They want all the users to access directly the primary server not their respective server&#8217;s. I guess their Admins dont want to work much. Anyways, We decided to go ahead with it.</p>
-
-<p>Since we are Qmail lover&#8217;s, we decided to ue the Qmail clustering by using DJB&#8217;s <strong><em>qmqpd</em></strong> protocol. In the LDAP, each user will have an attribute called &#8221;<code>mailHost</code>&#8221;, whose value will be the FQDN of the server where their mailboxes are hosted. so the <strong><em>qmqpd</em></strong> will use this, <code>mailHost</code> attribute and transfers the mails between nodes to user&#8217;s corresponding  mailboxes. We use&#8217;s Qmail with LDAP patch. In all the 3 nodes, LDAP will be synchronising all the time.Once we have the normal qmail setup running, in order to make cluster we need mainly 3 things.</p>
-
-<p>1) We need to setup the <strong><em>qmqpd</em></strong> service in all the nodes.</p>
-
-<p>2) We need to enable LDAP cluster. This can be done by creating a file <code>ldapcluster</code> in &#8221;<strong><em>/var/qmail/control</em></strong>&#8221; folder. If the content of the file is &#8221;<strong><em>1</em></strong>&#8221;, then it means cluster is active, &#8221;<strong><em>0</em></strong>&#8221; cluster is deactive.</p>
-
-<p>3) We need a dns server that can resolve all the 3 mailhost&#8217;s FQDN&#8217;s. We usually run DJB&#8217;s <code>Tinydns</code> in all our Mail server&#8217;s.</p>
-
-<p>Once all the above 3 steps are done, we have a working Qmail Cluster. Mails will be delivered to each user according to the <code>mailHost</code> attribute mentioned in the LDAP.</p>
-
-<p>Next Major thing is IMAP/POP3 services. Since all user&#8217;s will be be using the primary server as their incoming server in their MUA like outook,thunderbird, and even webmail user&#8217;s will also access the primary server, we decided to use the Dovecot&#8217;s Proxy feature, which can proxy the request&#8217;s based on the &#8221;<code>mailHost</code>&#8221; attribute. When ever a user&#8217;s login request comes, Dovecot will check for the user&#8217;s &#8221;<code>mailHost</code>&#8221; attribute from the LDAP. The dovecot will then proxy pass the request to the corresponding server.</p>
-
-<p>Enabling Proxy in Dovecot is very simple. We need to add the <code>host</code> as well as the <code>proxy</code> variable in the dovecot-ldap userdb and passdb config file. Below is the content of our <code>dovecot-ldap.conf</code>.</p>
-
-<pre><code>hosts = localhost
-dn =  uid=dummyuser,ou=People,dc=example,dc=com
-dnpass = dummy_password
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = dc=example,dc=com
-auth_bind = yes
-pass_attrs = uid=user,`mailHost`=host,qmailUID=proxy_maybe
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=dirsize:storage,`mailHost`=host,qmailUID=proxy_maybe
-</code></pre>
-
-<p>This proxy is working perfectly in dovecot2.0 onwards. But in dovecot1.2, the proxy fails, when the <code>mailHost</code> attributes has a FQDN value. But if we mention ip instead of the FQDN, proxy seems to we working. But some times <strong><em>qmqpd</em></strong> will not work properly. That is because the dovecot is expecting values as ip, but we are supplying a FQDN. But in dovecot2.0 onwards, they have added a dnslookup function. But there is <a href="http://www.mail-archive.com/dovecot@dovecot.org/msg26781.html">patch</a>. We haven&#8217;t tested this patch, as we are using dovecot2.0</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1256,6 +1287,10 @@ user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB -  A NoSQL DB with a Powerfull Rest API</a>
+        </li>
+      
+        <li>
           <a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite</a>
         </li>
       
@@ -1269,10 +1304,6 @@ user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=
       
         <li>
           <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
         </li>
       
     </ul>

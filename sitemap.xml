@@ -115,11 +115,17 @@
         <lastmod>2013-06-27T22:51:43+05:30</lastmod>
     </url>
     <url>
+        <loc>
+            http://beingasysadmin.com/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/
+        </loc>
+        <lastmod>2013-09-22T17:11:01+05:30</lastmod>
+    </url>
+    <url>
         <loc>http://beingasysadmin.com/blog/archives/</loc>
-        <lastmod>2013-06-27T22:51:43+05:30</lastmod>
+        <lastmod>2013-09-22T17:11:01+05:30</lastmod>
     </url>
     <url>
         <loc>http://beingasysadmin.com/</loc>
-        <lastmod>2013-06-27T22:51:43+05:30</lastmod>
+        <lastmod>2013-09-22T17:11:01+05:30</lastmod>
     </url>
 </urlset>

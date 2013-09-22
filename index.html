@@ -97,6 +97,94 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB - a NoSQL DB With a Powerfull Rest API</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-09-19T21:37:00+05:30" pubdate data-updated="true">Sep 19<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/couchdb/'>CouchDB</a>, <a class='category' href='/blog/categories/nosql/'>NOSQL</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>CouchDB</code> is an open source <em>NoSQL</em> database, which comes with a powerfull <strong>Rest API</strong>. It stores data in <em>JSON format</em>. uses <em>Javascripts</em> as its query language using <em>MapReduce</em>. JSON data&#8217;s are very easy to understand and can be parsed very easily. This time i got a requirement to build a commandline utility to display results for an internal monitoring tool. The tool is a bit old, and it does not have any api. And finding latest the result is consuming more time using the front end. But one advantage was the frontend can display results in HTML and XML. So curl was able to query the server using the url and it can display the xml output. The url is unique for each, as it composed of few details like Location, SerialNo, Domain, OS etc, which is unique for each hosts. So i decided to have a local database which contains all these unique host details. For this purpose, i dont need any relational databases, and NoSQL databases are sufficient. So i decided to use CouchDB, because it comes with a wonderfull rest api.</p>
+
+<p>Since i&#8217;m a <em>RUBY</em> lover, i decided to use this couchdb ruby <a href="http://wiki.apache.org/couchdb/Getting_started_with_Ruby">wrapper</a>. SInce my requirement with CouchDB was pretty simple, this wrapper itself was sufficient for me. This wrapper can be used to perform any operations like, reading,writing,deleting Documents as well as Databases. This wrapper basically uses the ruby http library to talk to the CouchDB&#8217;s rest api.  By default couchdb is available in most of the Linux respositories. for windows and mac, the files are available in the CouchDB website itself.</p>
+
+<p>for example, for ubuntu/debian, below command will install couchdb server.</p>
+
+<pre><code>sudo apt-get install couchdb -y
+</code></pre>
+
+<p>By default, the couchDB package comes with a web frontend called &#8220;Futon&#8221; which can be accessed via browsers ugin the below url,</p>
+
+<pre><code>http://localhost:5984/_utils/
+</code></pre>
+
+<p>Below is the screenshot of the Futon frontend.</p>
+
+<p><img src="/images/futon.png"></p>
+
+<p>We can perform all the operations through this web interface also. So i created a database, and created a document for each host with required fields. Now these documents can be accessed via the rest api in JSON format. so that my ruby script can fetch all the necessary data and can compose the exact url for fetching the check results for corresponding hosts.</p>
+
+<p>Below is a sample read operation that we can perform through our ruby scripts. But before using the operation, we need to include the wrapper into our script. For that we need to add &#8216;require ./couch.rb&#8217;, we can use both relative or absolute path. once the wrapper is included,we can start performing operations with the CouchDB.</p>
+
+<pre><code>server = Couch::Server.new("localhost", "5984")
+res = server.get("/foo/document_id")
+json = res.body
+puts json
+</code></pre>
+
+<p>The operation will read the document and will convert it into JSON using the json ruby library. Now i can use the JSON data to collect the required fields so that my script can form the exact fetch url for each host and can perform the result fetch.  There is couchdb <a href="https://github.com/phifty/couchdb">gem</a> for ruby, which can perform more operations.</p>
+
+<p>Apart from this, CouchDB has another important feature &#8221;<strong>MAPREDUCE</strong>&#8221;, yes it can perform <strong>MapReduce</strong>, i&#8217;m trying to find if mapreduce can help me, so that i can extend my app to do more things. Once if i get any weird idea with MapReduce i will udapte this blog with that also.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring Using Lumberjack-Logstash-Statsd-Graphite</a></h1>
     
     
@@ -1499,124 +1587,6 @@ $ update-rc.d sensu-dashboard defaults
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/">HARAKA - a NodeJS Based SMTP Server</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-14T22:51:00+05:30" pubdate data-updated="true">Apr 14<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>MailServer</a>, <a class='category' href='/blog/categories/nodejs/'>Nodejs</a>, <a class='category' href='/blog/categories/smtp/'>SMTP</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Today i came across a very interesting project in GITHUB. <a href="https://github.com/baudehlo/Haraka.git">HARAKA</a> is an SMTP server written completely in <em>NodeJS</em>. Like the qpsmtpd, apart from the core SMTP features we can improve the functionality using small plugins. There are very good pluginsi for HARAKA, basically in javascripts. Like Postfix,Qmail, we can easily implements all sorts of checks and features with the help of these plugins.</p>
-
-<p>Setting up <code>HARAKA</code> is very simple. In my setup, i will be using HARAKA as my primary smtp server, where i will implement all my filterings and then i will relay to a qmail server for local delivery. There is plugin written by <a href="https://github.com/madeingnecca/haraka-plugins.git">@madeingnecca</a> in github, for directly delivering the mails to user&#8217;s INBOX (mail box should be in <em>MAILDIR</em> format). In the real server&#8217;s we use LDAP backend for storing all the USER databases. So before putting HARAKA into production, i need a to rebuild the auth plugin so that HARAKA can talk to LDAP for user authentication in SMTP.</p>
-
-<p>So first we need to install <strong>NodeJS</strong> and <strong>NPM (Node Package Manager)</strong>. There are several ways for installing NodeJS. We can compile it from the source, or we can use <strong><em>NVM (Node Version Manager)</em></strong>, or we can install the packages from APT in Debian machines. But i prefer source code, because official APT repo has older versions of NodeJS, which will create compatibility issue. Current version is <em>&#8220;v0.10.4&#8221;</em>. Building NodeJS from source is pretty simple.</p>
-
-<p>Just Download the latest source code from <strong>&#8220;http://nodejs.org/download/&#8221;</strong></p>
-
-<pre><code>$ wget http://nodejs.org/dist/v0.10.4/node-v0.10.4.tar.gz
-
-$ tar xvzf node-v0.10.4.tar.gz &amp;&amp; cd node-v0.10.4
-
-$  ./compile 
-
-$ make &amp;&amp; make install
-</code></pre>
-
-<p>Once NodeJS is installed, we can go ahead with <code>HARAKA</code>.</p>
-
-<pre><code>$ git clone https://github.com/baudehlo/Haraka.git
-</code></pre>
-
-<p>Now go inside to the <em>Haraka</em> folder and run the below command. All the dependency packages are mentioned in the <strong>package.json</strong> file.</p>
-
-<pre><code>$ npm install
-</code></pre>
-
-<p>The above command will install all the necessary modules mentioned in the package.json file and will setup HARAKA. Now we can setup a separate service folder for HARAKA.</p>
-
-<pre><code>$ haraka -i /etc/heraka     
-</code></pre>
-
-<p> The above  command will create the heraka folder in <strong>/etc/</strong> and it will create  creates config and plugin directories in there, and automatically sets the host name used by Haraka to the output of the hostname command. Now we need to setup up the <em>port number</em> and <em>ip</em> which HARAKA SMTP service should listen. Go to config folder in the newly created haraka service folder and open the <strong>&#8220;smtp.ini&#8221;</strong> file, and mention the port number and ip.</p>
-
-<p>Now before starting the smtp service, first let&#8217;s disable all the plugins, so that we can go in steps. In the config folder, open the <em>&#8220;plugin&#8221;</em> file, and comment out all the plugins, because by default haraka will not create any plugin scripts, so most of them mentioned in that will not work. So we will start using the plugins, once we have copied the corresponding plugin&#8217;s js files to the plugin directory inside our service directory.</p>
-
-<p>Let&#8217;s try running the <code>HARAKA</code> foreground and see if it starts and listens on the port we mentioned.</p>
-
-<pre><code>$ haraka -c /etc/haraka
-</code></pre>
-
-<p>Once <code>HARAKA</code> SMTP service starts, we can see the line &#8221;<strong>[NOTICE] [-] [core] Listening on :::25</strong>&#8221; in the STDOUT, which means HARAKA is listening on port 25. We can just Telnet to port 25 and see if we are getting SMTP banner.</p>
-
-<p>Now we can try out a plugin. Heraka has a <em>spamassassin</em> plugin. So will try it out. So first install spamassassin and start the spam filtering.</p>
-
-<pre><code>$ apt-get install spamassassin spamc
-</code></pre>
-
-<p>Now from the plugin folder inside the git source folder of HARAKA, copy the <strong>spamassassin.js</strong> and copy it to the plugin folder of our service directory. By default plugin folder is not created inside the service directory, so create it. Now we need to enable the service. Inside the config folder of our service directory, create a config file <strong>&#8220;spamassassin.ini&#8221;</strong>, and inside the file fill in the necessary details like, <strong>&#8220;reject_thresold&#8221;, &#8220;subject_prefix&#8221;, &#8220;spamd_socket&#8221;</strong>. Now before starting the plugin, we need to add it in the plugin, inside the config folder. Once spamassassin plugin is added, we can start the HARAKA smtp service. If the plugin is added properly, then we can see the below lines in the stdout,</p>
-
-<pre><code>[INFO] [-] [core] Loading plugin: spamassassin
-[DEBUG] [-] [core] registered hook data_post to spamassassin.hook_data_post
-</code></pre>
-
-<p>Now using swaks, we can send a test mail see, if spam assassin is putting scores for the emails. Like this we can enable all other plugins, based on our needs.</p>
-
-<p>Since i&#8217;m going to relay the mails, i need to make HARAKA to accept mails for all my domains. For that i need to define all my domains on HARAKA. In the config folder, open the file <strong>&#8220;host_list&#8221;</strong>, and add all the domains for which HARAKA should accept mails. There also a regular expression option available for, which can be done in <strong>&#8220;host_list_regex&#8221;</strong> file.</p>
-
-<p>Now we need to add, smtp relay, for that edit the <em>&#8220;smtp_forward.ini&#8221;</em> file and mention the relay host ip, port number and auth details(if required). Now we can restart the <code>HARAKA</code> service and we can check SMTP relay by sending test mails using swaks.</p>
-
-<p>I haven&#8217;t tried the Auth plugin yet, but soon i will be trying it. If possible, i will try to use LDAP backend for authentication, so that HARAKA can be used a full fledged SMTP service. More developments are happening in this, hope it wil become a good competitor &#8230;</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1640,6 +1610,10 @@ $ make &amp;&amp; make install
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB -  A NoSQL DB with a Powerfull Rest API</a>
+        </li>
+      
+        <li>
           <a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite</a>
         </li>
       
@@ -1653,10 +1627,6 @@ $ make &amp;&amp; make install
       
         <li>
           <a href="/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/">Runing MCollective in a Multi-Ruby Environment</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/">Plugging QPSMTPD Service with QMAIL</a>
         </li>
       
     </ul>
