@@ -1,0 +1,324 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Event Monitoring using Logstash + StatsD + Riemann - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Being an OPS guy, i love Logs a lot. Logs contains lots of sensitive events recorded in it. Though a lot of people rely on monitoring tools, there &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Event Monitoring using Logstash + StatsD + Riemann" />
+  <meta name="og:description" content="Being an OPS guy, i love Logs a lot. Logs contains lots of sensitive events recorded in it. Though a lot of people rely on monitoring tools, there &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">
+  
+  <meta name="subject" content="logstashriemannstatsd"/>
+  <meta name="category" content="logstashriemannstatsd"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Event Monitoring Using Logstash + StatsD + Riemann</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-03-30T14:48:00+00:00" pubdate data-updated="true">Mar 30<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/logstash/'>logstash</a>, <a class='category' href='/blog/categories/riemann/'>riemann</a>, <a class='category' href='/blog/categories/statsd/'>statsd</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Being an OPS guy, i love Logs a lot. Logs contains lots of sensitive events recorded in it. Though a lot of people rely on monitoring tools, there are a lot of scenario where we still can&#8217;t rely on monitoring. In such scenarios, logs are the best sources to identify those events in a near real time fashion. A common scenario is Web Operations, where we need to count the the various 4xx, 5xx, Auth errors experienced by the user&#8217;s. I had a simliar requirement where i need to identify the 4xx, 5xx, 6xx errors and other similar failures on various SIP server&#8217;s. But apart from just visualising these error&#8217;s i also wanted a notification system which can notify me when the value crosses the threshold.</p>
+
+<p><code>Logstash</code> and <code>StasD</code> is a perfect combination for aggregating events from the logs. StatsD has a Graphite backend, where it sends the aggreagated metric values for visualizing. But when we have large number graphs, and offcourse when being a multi tasking Ops guy, it&#8217;s not possible to sit and watch all these graphs. So we need a notification system which alert&#8217;s us when things starts breaking. Here comes <a href="http://riemann.io/">RIEMANN</a>. Riemann aggregates events from your servers and applications with a powerful stream processing language. Riemann is pretty light weight, easy to configure monitoring framework. Logstash sents the filtered events from the logs to StatsD output plugin. Based on the flushInterval, statsD iterates through the received events sents the aggregated metric values to the Graphite. There is also a Riemann output plugin for Logstash, but we need to pass the state/metric to the plugin. In my case, logstash filters the event from the log, so i need to converts these events to time based metric values. Since statsD already has these events converted into time series metrics, i decided to write a small backend for statsD that can send these aggregated metrics to Riemann.</p>
+
+<p>The StatsD backend basically requires to main functions, one is &#8221;<em>flush_stats</em>&#8221; which will get invoked once the flush interval is reached. This function then iterates over the received metrics and passes these aggregated metrics to another function called &#8221;<em>post_stats</em>&#8221;, which sends the metrics to the corresponding aplications. In our case, we need to send the metrics to Riemann. There is a Riemann-Node plugin, which we can utilize here for sending the metrics to Riemann server. Below is the content for the &#8221;<em>flush_stats</em>&#8221; and &#8221;<em>post_stats</em>&#8221; functions. Currently i&#8217;ve added support only for counters. Soo i&#8217;ll be adding support for Counters and Timers also.</p>
+
+<pre><code>flush_stats function
+--------------------
+
+var flush_stats = function riemann_flush(ts, metrics) {
+var statString = '';
+var numStats = 0;
+var key;
+
+var counters = metrics.counters;
+var gauges = metrics.gauges;
+var timers = metrics.timers;
+var pctThreshold = metrics.pctThreshold;
+
+for (key in counters) {
+    var value = counters[key];
+    var valuePerSecond = value / (flushInterval / 1000); // calculate "per second" rate
+
+    statsString = value;
+    service = key;
+    time_stamp = ts;
+    post_stats(statString, service_name, time_stamp);
+}
+}; 
+
+
+post_stats function
+-------------------
+
+var post_stats = function riemann_post_metrics(statString, service_name, time_stamp) {
+
+riemannStats.last_exception = Math.round(new Date().getTime() / 1000);
+
+client.send(client.Event({
+  service: service_name,
+  metric:  statsString,
+  time: time_stamp
+}));
+};
+</code></pre>
+
+<p>So here i&#8217;m not gonna send the per second metrics. I&#8217;m using the default 10 sec flushInterval. So every seconds StatsD will send the incremented metrics to Riemann. The namespace, sender etc are defined in the logstash conf itself. The full plugin file is available in <a href="https://gist.github.com/deepakmdass88/9851437">here</a></p>
+
+<p>To use this Riemann backend, first we need to copy this file into the backend folder of the StatsD repo folder. Then we need to enable this plugin in the StatsD config file. Below is a sample config file which uses both graphite and Riemann backends.</p>
+
+<pre><code>{
+  riemannPort: 5555
+, riemannHost: "localhost"
+, graphitePort: 2003
+, graphiteHost: "localhost"
+, port: 8125
+, backends: [ "./backends/riemann", "./backends/graphite" ]
+}
+</code></pre>
+
+<p>So now StatsD will send out the incremented and the per second metric to Graphite and the Riemann backend will send the incremented metric to the Rieman server. No we can define the metric threshold and the notification method on the reimann config file. Below is my reimann metric threshold and notification.</p>
+
+<pre><code>(streams
+      (where (&gt;= metric 10)
+        (where (service #"SIP")
+          (email "deepakmdass88@gmail.com")))))
+</code></pre>
+
+<p>So whenever the recived metric value is beyond 10, Riemann will notify the same to my Email. I&#8217;ve done some dry testing with this setup. So far this setup never turned me down. Though there are some tweaks to be done, but this setup really suited to my requirement. being an OPS guy, my primary focus is to detect the outages at a very early stages to minimize the impact. Hope this guy will be an added defence layer for the same.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-03-30T14:48:00+00:00" pubdate data-updated="true">Mar 30<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/logstash/'>logstash</a>, <a class='category' href='/blog/categories/riemann/'>riemann</a>, <a class='category' href='/blog/categories/statsd/'>statsd</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/02/23/building-im-server-using-kamailio/" title="Previous Post: Building IM Server using Kamailio">&laquo; Building IM Server using Kamailio</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text To Speech Calls from Hip Chat</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,349 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>SIP Trunking with PLIVO and FreeSwitch - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="It&#8217;s more than a month since i joined the DevOps family at Plivo, since i&#8217;m pretty new to the Telecom Technology, i was digging more &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="SIP Trunking with PLIVO and FreeSwitch" />
+  <meta name="og:description" content="It&#8217;s more than a month since i joined the DevOps family at Plivo, since i&#8217;m pretty new to the Telecom Technology, i was digging more &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">
+  
+  <meta name="subject" content="FreeSwitchPlivoSIPTrunking"/>
+  <meta name="category" content="FreeSwitchPlivoSIPTrunking"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">SIP Trunking With PLIVO and FreeSwitch</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-14T15:05:00+00:00" pubdate data-updated="true">Feb 14<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/freeswitch/'>FreeSwitch</a>, <a class='category' href='/blog/categories/plivo/'>Plivo</a>, <a class='category' href='/blog/categories/siptrunking/'>SIPTrunking</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s more than a month since i joined the DevOps family at <strong>Plivo</strong>, since i&#8217;m pretty new to the Telecom Technology, i was digging more around it. This time i decided to play around with <strong>FreeSwitch</strong>, a free and open source communications software for the creation of voice and messaging products. Thanks to <a href="http://www.linkedin.com/pub/anthony-minessale-ii/3a/403/942">Anthony Minessale</a> for designing and opensourcing such a powerfull powerfull application. FreeSwitch is well documented and there are pretty good blogs also available on how to setup a PBX using FreeSwitch. This time i&#8217;m going to explain on how to make a private Freeswitch server to use Plivo as a <em>SIP Trunking</em> service.</p>
+
+<p>A bit about <a href="plivo.com">Plivo</a>. Plivo is a cloud based API Platform for building <em>Voice</em> and <em>SMS</em> enabled Applications. Plivo provides <strong>Application Programming Interfaces</strong> (APIs) to <em>make and receive calls, send SMS, make a conference call</em>, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. We can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>First we need a valid Plivo account. Once we have the Plivo account, we can log into the Plivo Cloud service. Now go to the &#8221;<strong>Endpoints</strong>&#8221; tab and create a SIP endpoint and attach a DirectDial app to it. Once this is done we can go ahead and start setting up the FreeSwitch instance.</p>
+
+<h3>Installing FreeSwitch</h3>
+
+<p>Clone the Official FreeSwitch Github and Repo and compile from the source.</p>
+
+<pre><code>$ git clone git://git.freeswitch.org/freeswitch.git &amp;&amp; cd freeswitch
+
+$ ./bootstrap.sh &amp;&amp; ./configure --prefix=/usr/local/freeswitch
+
+$ make &amp;&amp; make install
+
+$  make all cd-sounds-install cd-moh-install    # optional, run this if you want IVR and Music on Hold features
+</code></pre>
+
+<p>Now if we have more than one ip address on the machine, and if we want to bind to a particular ip, we need to modify two files &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external.xml</em>&#8221; and &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/internal.xml</em>&#8221;. In both the files, change the parameters &#8221;<strong>name=&#8221;rtp-ip&#8221;</strong>&#8221; and &#8221;<strong>param name=&#8221;sip-ip&#8221;</strong>&#8221; with the <em>bind ip</em> as the values.</p>
+
+<p>By default, Freeswitch will create a set of users, which includes numerical usernames ie, 1000-1019. So we can test the basic connectivity between user&#8217;s by making a call between two user accounts. We can register two of the accounts in two SoftPhones and we can make a test call and make sure that FreeSwitch is working fine. We can use the FS binary file to start FreeSwitch service in forground.</p>
+
+<pre><code>$ /usr/local/freeswitch/bin/freeswitch
+</code></pre>
+
+<h3>Configuring Gateway</h3>
+
+<p>Once the FreeSwitch is working fine, we can start configuring the SIP trunking via Plivo. So first we need to create an external gateway to connect to Plivo. I&#8217;m going to use the SIP endpoint created on the Plivo Cloud to initiate the connection. The SIP domain for Plivo is &#8221;<strong>phone.plivo.com</strong>&#8221;. We need to create a gateway config. Go to &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external/</em>&#8221;, here we can create an XML gateway config file. My config file name is <strong>plivo</strong>. Below is the content for the same.</p>
+
+<pre><code>&lt;include&gt;
+  &lt;gateway name="plivo"&gt;
+  &lt;param name="realm" value="phone.plivo.com" /&gt;
+  &lt;param name="username" value="test88140105181635" /&gt;
+  &lt;param name="password" value="secret" /&gt;
+  &lt;param name="register" value="false" /&gt;
+  &lt;param name="ping" value="5" /&gt;
+  &lt;param name="ping-max" value="3" /&gt;
+  &lt;param name="retry-seconds" value="5" /&gt;
+  &lt;param name="expire-seconds" value="60" /&gt;
+  &lt;variables&gt;
+        &lt;variable name="verbose_sdp" value="true"/&gt;
+  &lt;/variables&gt;
+  &lt;/gateway&gt;
+&lt;/include&gt;
+</code></pre>
+
+<p>There are a lot of other parameters which we can add it here, like caller id etc. Replace the username and password with the Plivo endpoint credentials. If we want to keep this endpoint registered, we can set the register param as true and we can set the expiry time at expire-seconds, so that the Fs will keep on registering the Endpoint with Plivo&#8217;s Registrar server. once the gateway file is created, we can either restart the service or we can run &#8220;reload mod_sofia&#8221; on the FScli. If the FreeSwitch service si started in foreground, we will get the FScli, so we can run the reload command directly on it.</p>
+
+<h3>Setting up Dialplan</h3>
+
+<p>Now we have the Gateway added. Now we need to the setup the Dial Plan to route the outgoing calls through Plivo. Go to &#8221;<em>/usr/local/freeswitch/conf/dialplan/</em>&#8221; folder and add an extension on the &#8221;<strong>public.xml</strong>&#8221; file. Below is a sample extension config.</p>
+
+<pre><code>&lt;extension name="Calls to Plivo"&gt;
+      &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
+        &lt;action application="transfer" data="$1 XML default"/&gt;
+      &lt;/condition&gt;
+&lt;/extension&gt;
+</code></pre>
+
+<p>So now all calls matching to the Regex will be transferred to the default dial plan. Now on the the default dial plan, i&#8217;m creating an exntension and will use the FreeSwitch&#8217;s &#8221;<em>bridge</em>&#8221; application to brdige the call with Plivo using the Plivo Gateway. So on the &#8221;<em>default.xml</em>&#8221; add the below extension.</p>
+
+<pre><code>   &lt;extension name="Dial through Plivo"&gt;
+         &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
+           &lt;action application="bridge" data="sofia/gateway/plivo/$1"/&gt;
+         &lt;/condition&gt;
+       &lt;/extension&gt;
+</code></pre>
+
+<p>Now we can restart the FS service or we can reload &#8220;mod_dialplan_xml&#8221; from the FScli. Once the changes are into effect, we can test whether the call is getting routed via Plivo. Configure a soft phone with a default FS user and make an outbound call which matches the regex that we have mentioned for routing to Plivo. Now if all works we should get a call on the destination number. We can check the FS logs at &#8221;<em>/usr/local/freeswitch/log/freeswitch.log</em>&#8221;.</p>
+
+<p>If the Regex is matched, we can see the below lines in the log.</p>
+
+<pre><code>1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 parsing [public-&gt;Calls from BoxB] continue=false
+1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 transfer(xxxxxxxxxxxx XML default)
+1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Regex (PASS) [Dial through Plivo] destination_number(xxxxxxxxxxxx) =~ /^(xxxxxxxxxxxx)$/ break=on-false
+1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Action bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)   
+1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)
+1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4499 [zrtp_passthru] Setting a-leg inherit_codec=true
+1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4502 [zrtp_passthru] Setting b-leg absolute_codec_string=GSM@8000h@20i@13200b,PCMA@8000h@20i@64000b,PCMU@8000h@20i@64000b
+</code></pre>
+
+<p>We can also mention the CallerID on the Direct Dial app which we have mapped to the SIP endpoint. Now for Incoming calls, create a app that can forward the calls to one of the user&#8217;s present in the FreeSwitch, using the Plivo&#8217;s Dial XML. So the XML should look something like below. I will be writing a more detailed blog about Inbound calls once i&#8217;ve have tested it out completely.</p>
+
+<pre><code>&lt;Response&gt;
+  &lt;Dial&gt;
+    &lt;User&gt;FSuser@FSserverIP&lt;/User&gt;
+  &lt;/Dial&gt;
+&lt;/Response&gt;
+</code></pre>
+
+<p>But for security, we need to allow connections from Plivo server. So we need to allow those IP&#8217;s on the FS acl. We can allow the IP&#8217;s in the &#8221;<strong>acl.conf.xml</strong>&#8221; file at &#8221;<em>/usr/local/freeswitch/conf/autoload_configs</em>&#8221;. And make sure that the FS server is accessible via a public ip atleast for the Plivo server&#8217;s which will forward the calls.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-14T15:05:00+00:00" pubdate data-updated="true">Feb 14<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/freeswitch/'>FreeSwitch</a>, <a class='category' href='/blog/categories/plivo/'>Plivo</a>, <a class='category' href='/blog/categories/siptrunking/'>SIPTrunking</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/" title="Previous Post: Make Text To Speech Calls from Hip Chat">&laquo; Make Text To Speech Calls from Hip Chat</a>
+    
+    
+      <a class="pull-right" href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/" title="Next Post: Integrating Kamailio with FreeSwitch">Integrating Kamailio with FreeSwitch &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text To Speech Calls from Hip Chat</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

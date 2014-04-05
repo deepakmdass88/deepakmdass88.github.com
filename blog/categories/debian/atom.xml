@@ -4,7 +4,7 @@
   <title><![CDATA[Category: debian | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/debian/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Virtualization using Linux Containers]]></title>
     <link href="http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers/"/>
-    <updated>2013-03-19T23:18:00+05:30</updated>
+    <updated>2013-03-19T23:18:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers</id>
     <content type="html"><![CDATA[<p><strong>LXC</strong> or <strong>Linux Continers</strong> is is an operating system-level virtualization, using which we can run multiple isolated Linux systems on a single host.  LXC relies on the <a href="http://en.wikipedia.org/wiki/Cgroups">cgroups</a> functionality of the Linux Kernels. <em>Cgroups (control groups)</em> is a Linux kernel feature to limit, account and isolate resource usage (CPU, memory, disk I/O, etc.) of process groups. LXC does not provide a virtual machine, but rather provides a virtual environment that has its own process and network space. It is similar to a chroot, but offers much more isolation.</p>
 
@@ -89,7 +89,7 @@ post-up echo 1 &gt; /proc/sys/net/ipv4/ip_forward
   <entry>
     <title type="html"><![CDATA[Using Foreman with Puppet and Libvirt]]></title>
     <link href="http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt/"/>
-    <updated>2013-03-07T09:39:00+05:30</updated>
+    <updated>2013-03-07T09:39:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt</id>
     <content type="html"><![CDATA[<p><em>TheForeman</em> is one of the best provisioning tools available. It's purely open-sourced. And it natively supports <strong><em>puppet</em></strong> for provisioning the nodes. Foreman can talk to <strong>libvirt</strong> also, which makes us easy to create a VM and provision it on the way. In this blog i will be explaining on how to install Foreman from the source, how to integrate it with puppet to receive the logs and facts and make Foreman to use Libvirt for building VM's.</p>
 
@@ -155,7 +155,7 @@ $ cp config/database.yml.example config/database.yml
   <entry>
     <title type="html"><![CDATA[Using SNMP with Icinga]]></title>
     <link href="http://beingasysadmin.com/blog/2013/02/26/using-snmp-with-icinga/"/>
-    <updated>2013-02-26T21:55:00+05:30</updated>
+    <updated>2013-02-26T21:55:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/02/26/using-snmp-with-icinga</id>
     <content type="html"><![CDATA[<p>In my previous i explained how to set up the Icinga monitoring system on Debian based machine. In this i will be explaining on how to use SNMP with icinga. Using SNMP we can get various info from a remote machine which can be used to icinga.</p>
 
@@ -177,7 +177,7 @@ $ cp config/database.yml.example config/database.yml
   <entry>
     <title type="html"><![CDATA[Monitoring server's using Icinga]]></title>
     <link href="http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga/"/>
-    <updated>2013-02-25T21:44:00+05:30</updated>
+    <updated>2013-02-25T21:44:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga</id>
     <content type="html"><![CDATA[<p>Last week we had severe outage in our US vps. The <em>load</em> was getting too high in the server, since it's a hosting server, and so many of our clients are hosting their DNS, website and mail server in it. So i decided to implement a monitoring system. And i decided it to extend it to all of our client server's so that we can have a fully fledged monitoring system in our company. I'm a great fan of Sensu and i play with it regularly, but this time i decided to setup <a href="http://icinga.org">Icinga</a> monitoring system, which can be used any System admin very easily. In this post i will be explaining on how to setup the <strong><em>icinga</em></strong> with it's newest web interface called icinga-web. This setup works perfectly in <em>Debian</em> based OS. In my next post, i will be explaining on how to setup <em>SNMP</em> to work with icinga.</p>
 

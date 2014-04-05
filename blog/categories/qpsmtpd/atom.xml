@@ -4,7 +4,7 @@
   <title><![CDATA[Category: QPSMTPD | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/qpsmtpd/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Plugging QPSMTPD Service with QMAIL]]></title>
     <link href="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/"/>
-    <updated>2013-05-01T15:26:00+05:30</updated>
+    <updated>2013-05-01T15:26:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL</id>
     <content type="html"><![CDATA[<p><em>QPSMTPD</em> is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small <em>extension plugins</em> using the easy to use object oriented plugin API. Basically I uses Qmail Based mail server's with a custom <em>qmailqueue</em>. We uses the <em>tcpsvd (TCP/IP Service Daemon)</em> for the smtp service and the mails are passed to a custom <em>qmailqueue</em> which is basically a perl script with custom filters for filtering out the mails. <em>QPSMTPD</em> has a verity of custom plugins which includes <em>SPF</em> check, <em>DKIM</em> check and even for <em>DMARC</em> also. If you are a Perl guy, then you can build custom plugins. The main reason why i got attracted to QPSMTPD was because of its plugin nature.</p>
 

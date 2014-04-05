@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Hiera | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/hiera/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Hiera-Http And Riak]]></title>
     <link href="http://beingasysadmin.com/blog/2012/11/24/hiear-http-and-riak-vagrant/"/>
-    <updated>2012-11-24T23:48:00+05:30</updated>
+    <updated>2012-11-24T23:48:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2012/11/24/hiear-http-and-riak-vagrant</id>
     <content type="html"><![CDATA[<p>For the past few days, i was playing with <code>hiera-puppet</code>. I strongly wanted to use <code>hiera</code> in my puppet modules. Yesterday i was going through <a href="http://www.craigdunn.org">craigdunn's</a> blog, there i saw his new blog post about the <code>hiera-http</code>,a Hiera back end to connect to any HTTP RESTful API and return data based on a lookup. <code>hiera-http</code> is available as a rubygem or from <a href="http://github.com/crayfishx/hiera-http">craigdunn's</a> Github page. In his blog he has clearly explained how he uses <code>hiera-http</code> to query data from <code>couchdb</code>. Since i'm a fan of Riak, i wanted to try the same from Riak.</p>
 

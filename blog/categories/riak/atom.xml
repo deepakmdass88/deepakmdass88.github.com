@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Riak | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/riak/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Using Riak With Logstash]]></title>
     <link href="http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash/"/>
-    <updated>2012-11-25T20:34:00+05:30</updated>
+    <updated>2012-11-25T20:34:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2012/11/25/using-riak-with-logstash</id>
     <content type="html"><![CDATA[<p>For the last few days i was playing around with <code>Riak</code>, a distributed database. It's very simple to configure and use and offcourse it supports MapReduce. I wanted to try out the <strong><em>map reduce</em></strong>, and since <strong><em>Logstash</em></strong> has a plugin to write data into riak, i decided to use it with logstash on an Ubuntu 12.04 machine.</p>
 

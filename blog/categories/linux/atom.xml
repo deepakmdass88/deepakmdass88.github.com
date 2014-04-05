@@ -4,7 +4,7 @@
   <title><![CDATA[Category: linux | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/linux/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Virtualization using Linux Containers]]></title>
     <link href="http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers/"/>
-    <updated>2013-03-19T23:18:00+05:30</updated>
+    <updated>2013-03-19T23:18:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers</id>
     <content type="html"><![CDATA[<p><strong>LXC</strong> or <strong>Linux Continers</strong> is is an operating system-level virtualization, using which we can run multiple isolated Linux systems on a single host.  LXC relies on the <a href="http://en.wikipedia.org/wiki/Cgroups">cgroups</a> functionality of the Linux Kernels. <em>Cgroups (control groups)</em> is a Linux kernel feature to limit, account and isolate resource usage (CPU, memory, disk I/O, etc.) of process groups. LXC does not provide a virtual machine, but rather provides a virtual environment that has its own process and network space. It is similar to a chroot, but offers much more isolation.</p>
 

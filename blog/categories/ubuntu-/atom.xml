@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Ubuntu, | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/ubuntu-/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Setting Up Apache CloudStack]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/"/>
-    <updated>2013-04-07T22:16:00+05:30</updated>
+    <updated>2013-04-07T22:16:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack</id>
     <content type="html"><![CDATA[<p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It's almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform's available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
 
@@ -86,7 +86,7 @@ $ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
   <entry>
     <title type="html"><![CDATA[WebVirtManager and Libvirt-KVM]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/07/webvirtmanager-and-libvirt-kvm/"/>
-    <updated>2013-04-07T13:49:00+05:30</updated>
+    <updated>2013-04-07T13:49:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/07/webvirtmanager-and-libvirt-kvm</id>
     <content type="html"><![CDATA[<p>It's been almost two years since i've started using <em>KVM</em> and <em>Libvirt</em> for creating Virtual machines. All our production server's are VM's, so far KVM has never let us down. The <code>Virt Manager</code> is a wonderful tool taht can installed in most of the linux distributions. But when i switched to ma new MacAir, i could not find a similar tool, so i decided to use a web based tool, so that it can be used from anywhere irrespective of devices. I came across this <a href="https://www.webvirtmgr.net/">WebVirtManager</a>, a python and django based web app, which is very active in development, so i decided to give it a try. In my libvirt setup, i'm using LVM as my storage pooli for my VM's, so the main thing which i wanted to check was, whether the <code>WebVirtManager</code> is able to create LVM's, so that it can be used as the <strong><em>HDD image</em></strong> for my new VM's from the WebInterface.</p>
 

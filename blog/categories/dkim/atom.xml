@@ -4,7 +4,7 @@
   <title><![CDATA[Category: DKIM | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/dkim/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[DKIM Signing in QMAIL]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail/"/>
-    <updated>2013-04-30T11:19:00+05:30</updated>
+    <updated>2013-04-30T11:19:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail</id>
     <content type="html"><![CDATA[<p><em>DKIM</em> and <em>SPF</em> are becoming most commonly adopted methods for email validation. Even if we want to use the DMARC (<em>Domain-based Message Authentication, Reporting &amp; Conformance</em>), we need to configure  SPF and DKIM first. DMARC acts as a layer above the SPF and DKIM. DMARC allows the receiever's mail server to check if the Email is aligned properly as per the DMARC policy, and it queries the sender's DNS server for the DMARC action, ie, whether to reject or quarantine if alignment fails. The action will be mentioned in the TXT record on the Sender's DNS server. There is a good collection of DMARC training videos available in <a href="http://www.maawg.org/activities/training/dmarc-video-1">MAAWG site</a>. We will get a clear idea on how DMARC works from those videos.</p>
 

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Ruby | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[TweetGrabber - A Live Tweet Grabber]]></title>
     <link href="http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/"/>
-    <updated>2013-09-22T17:30:00+05:30</updated>
+    <updated>2013-09-22T17:30:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber</id>
     <content type="html"><![CDATA[<p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info's here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user's comments on their  services/products and they even interacts with user's. Website's like "downrightnow.com", uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site's we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i'm more concerned about the new trends going on in the Twitter.</p>
 
@@ -88,7 +88,7 @@ def push(data)
   <entry>
     <title type="html"><![CDATA[Runing MCollective in a Multi-Ruby Environment]]></title>
     <link href="http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/"/>
-    <updated>2013-05-28T09:34:00+05:30</updated>
+    <updated>2013-05-28T09:34:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment</id>
     <content type="html"><![CDATA[<p>Mcollective one of the best open sourced orchestration tools. It's build on Ruby and depends on Ruby1.8. But now a days most of the Ruby apps are build on Ruby1.9+, so the default Ruby versions will be 1.9+. This ususally causes problem for Mcollective to run. By default when we install Mcollective from APT, it will install Ruby1.8 also. So the best hack to make Mcollective run under such Multi-Ruby setup is edit the <code>/usr/sbin/mcollectived</code> file,</p>
 

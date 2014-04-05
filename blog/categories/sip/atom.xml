@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: SIP | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/sip/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-04-05T05:40:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Building IM Server using Kamailio]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/02/23/building-im-server-using-kamailio/"/>
+    <updated>2014-02-23T14:59:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/02/23/building-im-server-using-kamailio</id>
+    <content type="html"><![CDATA[<p>Instant messaging (IM) is a type of online chat which offers real-time text transmission over the Internet. Like XMPP, we can also use SIP for real-time text transmission. The Kamailio PRESENCE module helps us built the same locally. We can convert a simple Kamailio server into a full fledged IM server.</p>
+
+<p>By default, all the registered endpoints will send a "PUBLISH" requests to the Presence server with their status and Presence server stores the status. Also the endpoints will send a "SUBSCRIBE" to other user's status. For each "SUBSCRIBE" request, the Presence server will sent a "NOTIFY" request back with status of the user. This is how our UserAgent keeps track of each user's status. Below is simple flow diagram for the same.</p>
+
+<p><img src="http://beingasysadmin.files.wordpress.com/2014/02/screen-shot-2014-02-23-at-4-34-59-pm.png" alt="Alt text" /></p>
+
+<h3>Setting up Kamailio</h3>
+
+<p>In my <a href="" title="http://beingasysadmin.wordpress.com/2014/02/23/integrating-kamailio-with-freeswitch/">previous blog</a>, i've explained how to install Kamailio from source. The only difference is we need to enable two more modules "<strong>presence</strong>" and "<strong>presence_xml</strong>". If Kamailio is already installed, we need to add these two modules into <code>modules.lst</code> at the "<strong>include_modules</strong>" line. Once the module names are added, we need to run "<strong>make install</strong>" to install the two new modules. Once the module is added, we need to enable the module.</p>
+
+<p>Add "#!define WITH_PRESENCE" into the "kamailio.cfg" file. Then check if there is route logic defined for the "PRESENCE" module. By default there is a PRESENCE route defined in the default "kamailio.cfg" file. If it's not there below is the route logic. Also we need to add "*route(PRESENCE)<strong>" in the "</strong>request_route**" section.</p>
+
+<pre><code># Presence server route
+route[PRESENCE] {
+        if(!is_method("PUBLISH|SUBSCRIBE"))
+                return;
+
+        if(is_method("SUBSCRIBE") &amp;&amp; $hdr(Event)=="message-summary") {
+                route(TOVOICEMAIL);
+                # returns here if no voicemail server is configured
+                sl_send_reply("404", "No voicemail service");
+                exit;
+        }
+
+#!ifdef WITH_PRESENCE
+        if (!t_newtran())
+        {
+                sl_reply_error();
+                exit;
+        }
+
+        if(is_method("PUBLISH"))
+        {
+                handle_publish();
+                t_release();
+        } else if(is_method("SUBSCRIBE")) {
+                handle_subscribe();
+                t_release();
+        }
+        exit;
+#!endif
+
+        # if presence enabled, this part will not be executed
+        if (is_method("PUBLISH") || $rU==$null)
+        {
+                xlog("@ 404 here 3");
+                sl_send_reply("404", "Not here");
+                exit;
+        }
+        return;
+}
+</code></pre>
+
+<p>Now start the Kamailio server. Now we need to add some users. For that we can use "<strong>kamctl</strong>" binary.</p>
+
+<pre><code>$ kamctl add user1@192.168.56.100 user1
+
+$ kamctl add user2@192.168.56.100 user2
+</code></pre>
+
+<p>Let's go ahead and test the settings. For testing we need some IM clients. In my testing, i've used <strong>Jitsi</strong> and <strong>adium</strong> IM clients. Once the accounts are configured on the clients, it's better to start a packet capture using wireshark, so that we can see these <strong>PUBLISH</strong>, <strong>SUBSCRIBE</strong> and <strong>NOTIFY</strong> requests between the clients and the Kamailio server. If you are using <strong>Adium</strong>, go to account options and check the "Publish Status to Everyone" so that it will start sending <strong>PUBLISH</strong> request to the Kamailio server. Now add the accounts to the Contact lists on the IM clients and then we will be able to see the users status (ONline/OFFline). Now we can start the chat conversation between the user's.</p>
+]]></content>
+  </entry>
+  
+</feed>

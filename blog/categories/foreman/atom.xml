@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Foreman | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/foreman/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Using Foreman with Puppet and Libvirt]]></title>
     <link href="http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt/"/>
-    <updated>2013-03-07T09:39:00+05:30</updated>
+    <updated>2013-03-07T09:39:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt</id>
     <content type="html"><![CDATA[<p><em>TheForeman</em> is one of the best provisioning tools available. It's purely open-sourced. And it natively supports <strong><em>puppet</em></strong> for provisioning the nodes. Foreman can talk to <strong>libvirt</strong> also, which makes us easy to create a VM and provision it on the way. In this blog i will be explaining on how to install Foreman from the source, how to integrate it with puppet to receive the logs and facts and make Foreman to use Libvirt for building VM's.</p>
 

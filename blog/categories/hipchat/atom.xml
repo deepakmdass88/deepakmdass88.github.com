@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: hipchat | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/hipchat/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-04-05T05:40:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Make Text To Speech Calls from Hip Chat]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/"/>
+    <updated>2014-01-23T16:18:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat</id>
+    <content type="html"><![CDATA[<p>I've been using <code>HipChat</code> for the last one month. Before that it was IRC always. But when i joined <em>Plivo's</em> <strong>DevOps</strong> family, i've got a lot of places to integrate plivo to automate a lot of stuffs. This i was planning to do some thing with Hipchat. There are a couple of HipChat bot's available, i decided to use '<strong>robut</strong>', as it is simple, written in Ruby and easy to write plugins also. Robut need only one "Chatfile" as its config file. All the Hip Chat account and room details are mentioned in this file. The Plugins are enabled in this file.</p>
+
+<p>First we need to clone the repository.</p>
+
+<pre><code>$ git clone https://github.com/justinweiss/robut.git
+</code></pre>
+
+<p>Now i need '<strong>redis</strong>' and '<strong>plivo</strong>' gems for my new plugin. So need to add the same in the Gemfile. Once the gems are added in to the Gemfile, we need to do a "<strong>bundle install</strong>" to install all the necessary gems. The path for the <code>Chatfile</code> can be mentioned in  "<strong>bin/robut</strong>" file. Now before starting <strong>robut</strong> we need to add the basic HipChat settings ie, <em>jabberid, nick, password and room</em>. Now wen eed to create a plugin to use with robut. The default plugins are available in "<em>lib/robut/plugin/</em>" folder. Below is the plugin which i created for making  Text To Speech calls.</p>
+
+<pre><code>require 'json'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+
+class Robut::Plugin::Call
+  include Robut::Plugin
+
+  def usage
+    "#{at_nick} call &lt;number&gt; &lt;message&gt; "
+  end
+
+  def handle(time, sender_nick, message)
+    new_msg = message.split(' ')
+    if sent_to_me?(message) &amp;&amp; new_msg[1] == 'call'
+    num = new_msg[2]
+    textt = message.split(' ').drop(3).join(' ')
+      begin
+    reply("Calling #{num}")
+    plivo_auth_id = "XXXXXXXXXXXXXXXXX"
+    plivo_auth_token = "XXXXXXXXXXXXXXXXX"
+    uuid = SecureRandom.hex
+        r = Redis.new(:host =&gt; "redis_host", :port =&gt; redis_port, :password =&gt; "redis_port")
+        temp = {
+               'text' =&gt; "#{textt}"
+               }
+    plivo_number = "plivo_number"
+        to_number = "#{num}"
+        answer_url = "http://polar-everglades-1062.herokuapp.com/#{uuid}"
+
+        call_params = {
+                      'from' =&gt; plivo_number,
+                      'to' =&gt; to_number,
+                      'answer_url' =&gt; answer_url,
+                      'answer_method' =&gt; 'GET'
+                      }
+        r.set "#{uuid}", temp.to_json
+        r.expire "#{uuid}", 3000
+        sleep 5
+        puts "Initiating plivo call"
+    p = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+        details = p.make_call(call_params)
+    reply("Summary #{details}")
+      rescue
+        reply("Can't calculate that.")
+      end
+    end
+  end
+end
+</code></pre>
+]]></content>
+  </entry>
+  
+</feed>

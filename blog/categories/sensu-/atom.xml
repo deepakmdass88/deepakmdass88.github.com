@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Sensu, | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/sensu-/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-04-05T05:40:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Phone Call Notification for Sensu using Plivo]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo/"/>
+    <updated>2014-01-12T19:02:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo</id>
+    <content type="html"><![CDATA[<p>It's almost 2 weeks since i've joined <a href="http://plivo.com/">Plivo's</a> DevOps family. I was spending a lot of time on understanding their API's as i'm new to telephony. Plivo's <a href="http://plivo.com/docs/api/">API</a> made telephony so easy that even a person with basic programming language can built powerfull telephony apps to suit to their infrastructure. So when i started playing around with the API, i decided to take it to a different level. I'm strong lover of Sensu Monitoring tool, so i decided to integrate <em>Plivo</em> with <em>Sensu</em> to built a new Notification system using the Phone call. Many people rely on Pagerduty for the same feature. But that part is completly managed by PagerDuty, where in for the alerts which we sent to PagerDuty, they will notify us via phone call to the phone numbers mentioned on Pager Duty. So i decided to built a similar Handler to Sensu, so that we can have a similar feature on Sensu. In this blog i will explain how i achieved the same with Plivo Framework.</p>
+
+<p><code>Plivo</code> provides Application Programming Interfaces (APIs) to make and receive calls, send SMS, make a conference call, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. Developers can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>Here the Sensu will be initiating outbound calls using Plivo's <a href="http://plivo.com/docs/api/">Call</a> API, to the required numbers and will read out the Alert using Plivo's Text to Speech Engine. First we need an account on Plivo Cloud, we can go to <a href="https://manage.plivo.com/accounts/register/">SignUP</a> page, and need to create an account. By using the default, we can make test calls. But for longer usage, i will suggest to buy some credits for using the service extensively. Once we login with credentials, at the dashboard we can see <strong><em>Plivo AuthID</em></strong> and <strong><em>Plivo AuthToken</em></strong>, which is required to access Plivo's API. Now for making out bound calls, we need to use the <a href="http://plivo.com/docs/api/call/">Call</a> API. We also need to provide an "<strong>answer_url</strong>" which contains XML instructions to direct the progress of the call. Plivo will fetch the "<strong>answer_url</strong>" and executes te XML instructions. So here i will be using <em>Sinatra</em> to create a web app that will returns the XML.  The main challenge is the text to be mentioned in the XML need to retrieved from the alert. So we cannot predefine the text as well as the request url, because it will be in dynamic in nature.</p>
+
+<p><code>Solution</code> :- Here i'm going to use a publically accessible <em>Redis</em> server which is protected with a password. When Sensu handler receives the alert, it will create a hash from the alert received with a random UUID as the name of the hash. And the same UUID will be used as the request path for the answer_url. And when sinatra recieves a request, by default the requested path wont be existing in the sinatra's config file, as it's a dynamically generated. So by default Sinatra will return a 404 response. But in Sinatra, there is an option called "<strong><em>not_found</em></strong>", where we can customize the response instead of returning 404 directly. So i will be using the "not_found" option and instead of directly returing a 404, i will make sinatra to talk to my redis server. Since the UUID can be fetched from the request URL, and the same is used in the redis as the name of the Hash, Sinatra can get the details of the alert from the Redis. These details are then used to create the XML and will be returned as the response to Plivo. It will be better to go through Plivo's API documentation to understand more about the XML responses and outbound calls.</p>
+
+<p>For those who don't have a dedicated server to host the Sinatra app and Redis server, <a href="https://devcenter.heroku.com/articles/getting-started-with-ruby">heroku</a> can be used to host the Sinatra app. We can also use the redis addon availabe at the Heroku for our usage.</p>
+
+<h2>Sinatra App</h2>
+
+<p>Below is the code for the Sinatra app. The "<strong><em>not_found</em></strong>" option is the one which performs the connection with the Redis.</p>
+
+<pre><code>require 'plivo'
+require 'sinatra'
+require 'redis'
+require 'rest_client'
+
+get '/' do
+  play_loop = 1
+  lang = "en-US"
+  voice = "WOMAN"
+  text = "Congratulations! You just made a text to speech app on Plivo cloud!"
+  @path = request.path
+  puts @path
+  speak_params = {
+                     'loop' =&gt; play_loop,
+                     'language' =&gt; lang,
+                     'voice' =&gt; voice,
+                     }
+
+  plivo = Plivo::Speak.new(text, speak_params)
+
+  response = Plivo::Response.new()
+  response.add(p)
+  return response.to_xml
+end
+
+not_found do
+  @path = request.path
+  keyword = @path[1..-1]
+  response = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+  data_red = response.get("#{keyword}")
+  if data_red == nil
+         return "404 Not Found"
+  else
+         data = JSON.parse(response.get("#{keyword}"))
+         text = data["text"]
+         play_loop = 1
+         lang = "en-US"
+         voice = "WOMAN"
+         speak_params = {
+                        'loop' =&gt; play_loop,
+                        'language' =&gt; lang,
+                        'voice' =&gt; voice,
+                        }
+
+         plivo = Plivo::Speak.new(text, speak_params)
+
+         response = Plivo::Response.new()
+         response.add(p)
+         return r.to_xml
+   end
+end
+</code></pre>
+
+<p>The above app will redirect all the non found requests and make a requests to the Redis server using the request.path as the name of the hash. If there is a valid hash table, it will generate a Plivo XML else it will return "404 Not Found".</p>
+
+<h2>Plivo Handler</h2>
+
+<p>Below is the Plivo Handler code. this is the Initial code, need to be tweaked to suit to the Sensu's coding standard. Also the settings option need to be added so that all the parameters can be provided in the JSON file of the Handler. But as of now, this handler has been tested with Sensu and it is working perfectly fine.</p>
+
+<pre><code>require 'rubygems'
+require 'sensu-handler'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+require 'timeout'
+
+
+class PLIVO &lt; Sensu::Handler
+
+  def short_name
+    @event['client']['name'] + '/' + @event['check']['name']
+  end
+
+  def action_to_string
+    @event['action'].eql?('resolve') ? "RESOLVED" : "ALERT"
+  end
+
+  def handle
+    plivo_auth_id = "XXXXXXXXXXXXXXXX"          # =&gt; available at the plivo dashboard
+    plivo_auth_token = "XXXXXXXXXXXXXXXX"       # =&gt; available at the plivo dashboard
+    body = &lt;&lt;-BODY.gsub(/^ {14}/, '')
+            #{@event['check']['output']}
+            Host: #{@event['client']['name']}
+           BODY
+    uuid = SecureRandom.hex
+    r = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+    temp = {
+            'text' =&gt; "#{body}"
+            }
+    plivo_number = "&lt;YOUR PLIVO NUMBER"
+    to_number = "&lt;DESTINATION NUMBER&gt;"
+    answer_url = "&lt;YOUR HEROKU APP URL&gt;/#{uuid}"
+    call_params = {
+                     'from' =&gt; plivo_number,
+                     'to' =&gt; to_number,
+                     'answer_url' =&gt; answer_url,
+                     'answer_method' =&gt; 'GET'
+                     }
+         r.set "#{uuid}", temp.to_json
+         r.expire "#{uuid}", &lt;EXPIRY TTL&gt;
+         sleep 5
+     begin
+       timeout 10 do
+         puts "Connecting to Plivo Cloud.."
+         plivo = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+     details = plivo.make_call(call_params)
+       end
+       rescue Timeout::Error
+       puts "timed out while attempting to contact Plivo Cloud"
+         end
+  end
+end
+</code></pre>
+
+<p>The above handler will make an outbound call to the Destination number and plivo's text to speech engine will read out the Alert summary on the call. Now If you want to call multiple user's, simply create an array or hash with the contact numbers and iterate over it.</p>
+
+<p>This handler will give us the same feature of Phone Call notification similar to Pager Duty. We just need to pay for the phone call usage. Dedicated to all those who wants an affordable yet a good notification system with Sensu. I will be merging out my code soon to the  sensu-community repository.</p>
+]]></content>
+  </entry>
+  
+</feed>

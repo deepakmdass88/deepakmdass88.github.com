@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: riemann | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/riemann/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-04-05T05:40:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Event Monitoring using Logstash + StatsD + Riemann]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/"/>
+    <updated>2014-03-30T14:48:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann</id>
+    <content type="html"><![CDATA[<p>Being an OPS guy, i love Logs a lot. Logs contains lots of sensitive events recorded in it. Though a lot of people rely on monitoring tools, there are a lot of scenario where we still can't rely on monitoring. In such scenarios, logs are the best sources to identify those events in a near real time fashion. A common scenario is Web Operations, where we need to count the the various 4xx, 5xx, Auth errors experienced by the user's. I had a simliar requirement where i need to identify the 4xx, 5xx, 6xx errors and other similar failures on various SIP server's. But apart from just visualising these error's i also wanted a notification system which can notify me when the value crosses the threshold.</p>
+
+<p><code>Logstash</code> and <code>StasD</code> is a perfect combination for aggregating events from the logs. StatsD has a Graphite backend, where it sends the aggreagated metric values for visualizing. But when we have large number graphs, and offcourse when being a multi tasking Ops guy, it's not possible to sit and watch all these graphs. So we need a notification system which alert's us when things starts breaking. Here comes <a href="http://riemann.io/">RIEMANN</a>. Riemann aggregates events from your servers and applications with a powerful stream processing language. Riemann is pretty light weight, easy to configure monitoring framework. Logstash sents the filtered events from the logs to StatsD output plugin. Based on the flushInterval, statsD iterates through the received events sents the aggregated metric values to the Graphite. There is also a Riemann output plugin for Logstash, but we need to pass the state/metric to the plugin. In my case, logstash filters the event from the log, so i need to converts these events to time based metric values. Since statsD already has these events converted into time series metrics, i decided to write a small backend for statsD that can send these aggregated metrics to Riemann.</p>
+
+<p>The StatsD backend basically requires to main functions, one is "<em>flush_stats</em>" which will get invoked once the flush interval is reached. This function then iterates over the received metrics and passes these aggregated metrics to another function called "<em>post_stats</em>", which sends the metrics to the corresponding aplications. In our case, we need to send the metrics to Riemann. There is a Riemann-Node plugin, which we can utilize here for sending the metrics to Riemann server. Below is the content for the "<em>flush_stats</em>" and "<em>post_stats</em>" functions. Currently i've added support only for counters. Soo i'll be adding support for Counters and Timers also.</p>
+
+<pre><code>flush_stats function
+--------------------
+
+var flush_stats = function riemann_flush(ts, metrics) {
+var statString = '';
+var numStats = 0;
+var key;
+
+var counters = metrics.counters;
+var gauges = metrics.gauges;
+var timers = metrics.timers;
+var pctThreshold = metrics.pctThreshold;
+
+for (key in counters) {
+    var value = counters[key];
+    var valuePerSecond = value / (flushInterval / 1000); // calculate "per second" rate
+
+    statsString = value;
+    service = key;
+    time_stamp = ts;
+    post_stats(statString, service_name, time_stamp);
+}
+}; 
+
+
+post_stats function
+-------------------
+
+var post_stats = function riemann_post_metrics(statString, service_name, time_stamp) {
+
+riemannStats.last_exception = Math.round(new Date().getTime() / 1000);
+
+client.send(client.Event({
+  service: service_name,
+  metric:  statsString,
+  time: time_stamp
+}));
+};
+</code></pre>
+
+<p>So here i'm not gonna send the per second metrics. I'm using the default 10 sec flushInterval. So every seconds StatsD will send the incremented metrics to Riemann. The namespace, sender etc are defined in the logstash conf itself. The full plugin file is available in <a href="https://gist.github.com/deepakmdass88/9851437">here</a></p>
+
+<p>To use this Riemann backend, first we need to copy this file into the backend folder of the StatsD repo folder. Then we need to enable this plugin in the StatsD config file. Below is a sample config file which uses both graphite and Riemann backends.</p>
+
+<pre><code>{
+  riemannPort: 5555
+, riemannHost: "localhost"
+, graphitePort: 2003
+, graphiteHost: "localhost"
+, port: 8125
+, backends: [ "./backends/riemann", "./backends/graphite" ]
+}
+</code></pre>
+
+<p>So now StatsD will send out the incremented and the per second metric to Graphite and the Riemann backend will send the incremented metric to the Rieman server. No we can define the metric threshold and the notification method on the reimann config file. Below is my reimann metric threshold and notification.</p>
+
+<pre><code>(streams
+      (where (&gt;= metric 10)
+        (where (service #"SIP")
+          (email "deepakmdass88@gmail.com")))))
+</code></pre>
+
+<p>So whenever the recived metric value is beyond 10, Riemann will notify the same to my Email. I've done some dry testing with this setup. So far this setup never turned me down. Though there are some tweaks to be done, but this setup really suited to my requirement. being an OPS guy, my primary focus is to detect the outages at a very early stages to minimize the impact. Hope this guy will be an added defence layer for the same.</p>
+]]></content>
+  </entry>
+  
+</feed>

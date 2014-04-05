@@ -1,0 +1,441 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Integrating Kamailio with FreeSwitch - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Kamailio aka OpenSER is one of the most powerfull and popular Open Source SIP server. It can be used as SIP Proxy/Registrar/LB/Router etc. It also &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Integrating Kamailio with FreeSwitch" />
+  <meta name="og:description" content="Kamailio aka OpenSER is one of the most powerfull and popular Open Source SIP server. It can be used as SIP Proxy/Registrar/LB/Router etc. It also &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch/">
+  
+  <meta name="subject" content="KamailioOPENSERfreeswitchvoip"/>
+  <meta name="category" content="KamailioOPENSERfreeswitchvoip"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Integrating Kamailio With FreeSwitch</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-23T11:05:00+00:00" pubdate data-updated="true">Feb 23<span>rd</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/kamailio/'>Kamailio</a>, <a class='category' href='/blog/categories/openser/'>OPENSER</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>, <a class='category' href='/blog/categories/voip/'>voip</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Kamailio</code> aka <code>OpenSER</code> is one of the most powerfull and popular Open Source SIP server. It can be used as <strong>SIP Proxy/Registrar/LB/Router</strong> etc. It also provides a lot of features <em>like WebSocket support for WebRTC, ; SIMPLE instant messaging and presence with embedded XCAP server and MSRP relay,IMS extensions,ENUM and offcourse AAA (accounting, authentication and authorization)</em> also. Kamailio is a modular system, ie, it has lot of modules which corresponds to particular functions. These modules can be easily installed and can be used easily in Kamailio. In this blog i&#8217;m going to use Kamailio as a proxy server. All the user&#8217;s are created in the Kamailio and FreeSwitch will be acting as a relay server for outbound calls. So Kamailio performs authentication and all the outbound calls wil be relayed to FreeSwitch.</p>
+
+<h3>Installing Kamailio</h3>
+
+<p>Lets download the latest version of Kamailio, now it&#8217;s 4.1</p>
+
+<pre><code>$ wget http://www.Kamailio.org/pub/Kamailio/latest/src/Kamailio-4.1.1_src.tar.gz
+
+$ tar xvzf Kamailio-4.1.1_src.tar.gz &amp;&amp; cd Kamailio-4.1.1
+</code></pre>
+
+<p>Before we start the build we need to install the basic dependencies.</p>
+
+<pre><code>$ apt-get install gcc flex bison libmysqlclient-dev make libxml2-dev libssl-dev
+</code></pre>
+
+<p>Now we have the dependencies installed, we can go ahead with the build.</p>
+
+<pre><code>$ make cfg      # generates config files for build system
+</code></pre>
+
+<p>Now open <code>modules.lst</code> and add the modules to be installed in &#8221;<strong>include_modules</strong>&#8221; section. In my case i&#8217;m going to use MySQL backend so it will be &#8221;<strong>include_modules= db_mysql</strong>&#8221; and then we can run the &#8221;<em>make all</em>&#8221;. The other way is we can mention the modules directly while running the &#8220;make&#8221; rather editing the modules.lst file.</p>
+
+<pre><code>$ make include_modules="db_mysql" cfg
+</code></pre>
+
+<p>Now we can install,</p>
+
+<pre><code>$ make install
+</code></pre>
+
+<p>The above command will install Kamailio to our system. There are four main binaries for Kamailio,</p>
+
+<pre><code>Kamailio - Kamailio SIP server
+kamdbctl - script to create and manage the Databases
+kamctl - script to manage and control Kamailio SIP server
+kamcmd - CLI - command line tool to interface with Kamailio SIP server
+</code></pre>
+
+<p>There is also one configuration file called &#8220;Kamailio.cfg&#8221; which is available by default at <code>/usr/local/etc/Kamailio/Kamailio.cfg</code></p>
+
+<p>Let&#8217;s go ahead with setting up MySQL server for Kamailio.</p>
+
+<pre><code>$ apt-get install mysql-server
+</code></pre>
+
+<p>Now edit the <code>/usr/local/etc/Kamailio/kamctlrc</code> Locate DBENGINE variable and set it to MYSQL by making &#8221;<strong>DBENGINE=MYSQL</strong>&#8221;. Now we can use the &#8220;kamdbctl&#8221; binary to craete the default tables and users.</p>
+
+<pre><code>$ /usr/local/sbin/kamdbctl create
+</code></pre>
+
+<p>The script will add two users in MySQL:</p>
+
+<ul>
+<li><p>Kamailio - (with default password &#8216;Kamailiorw&#8217;) - user which has full access rights to &#8216;Kamailio&#8217; database</p></li>
+<li><p>Kamailioro - (with default password &#8216;Kamailioro&#8217;) - user which has read-only access rights to &#8216;Kamailio&#8217; database</p></li>
+</ul>
+
+
+<p>There is a sample init.d script available along with Kamailio, which we can use it. We need to copy the sample init.d file to our system&#8217;s init.d folder. And the same for the system default file.</p>
+
+<pre><code>$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.init /etc/init.d/Kamailio
+
+$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.default /etc/default/Kamailio
+
+$ chmod 755 /etc/init.d/Kamailio 
+</code></pre>
+
+<p>Edit the new init file and modify the $DAEMON and $CFGFILE values.</p>
+
+<pre><code>DAEMON=/usr/local/sbin/Kamailio
+CFGFILE=/usr/local/etc/Kamailio/Kamailio.cfg
+
+$ mkdir -p /var/run/Kamailio    # Directory for the pid file
+</code></pre>
+
+<p>Default setting is to run Kamailio as user &#8221;<em>Kamailio</em>&#8221; and group &#8221;<em>Kamailio</em>&#8221;. For that we need to create the user:</p>
+
+<pre><code>$ adduser --quiet --system --group --disabled-password \
+      --shell /bin/false --gecos "Kamailio" \
+      --home /var/run/Kamailio Kamailio
+
+$ chown Kamailio:Kamailio /var/run/Kamailio
+</code></pre>
+
+<h3>Setting up Kamailio</h3>
+
+<p>All the Kamailio configurations are mentioned in only one single file <code>/usr/local/etc/Kamailio/Kamailio.cfg</code>. All the logics are defined in this file, and Kamailio blindly executes this logics and perform the actions. It&#8217;s very important that the logics defined in the config should suit to our VOIP platform requirement.</p>
+
+<p>First we need to enable the modules and the necessary features, so add the below lines in the Kamailio.cfg</p>
+
+<pre><code>#!define WITH_MYSQL
+#!define WITH_AUTH
+#!define WITH_USRLOCDB
+#!define WITH_FREESWITCH
+</code></pre>
+
+<p>We need to define the FreeSwitch server IP and port, for that we can add the below parameters in the &#8220;Custom Parameters&#8221; section.</p>
+
+<pre><code>#!ifdef WITH_FREESWITCH
+freeswitch.bindip = "192.168.56.100" desc "FreeSWITCH IP Address"
+freeswitch.bindport = "5090" desc "FreeSWITCH Port"
+#!endif
+</code></pre>
+
+<p>Now we can go ahead to the &#8221;<strong>request_route</strong>&#8221; section which performs the routing logic. Here i&#8217;m going to add two more routing logic for the FreeSwitch relay. After the &#8221;<strong>request_route</strong>&#8221; section, we can see the definition for each routing options. Below that we need to add our new route definitions.</p>
+
+<pre><code>route[FSDISPATCH] {
+        # dial number selection
+        route(FSRELAY);
+        exit;
+}
+
+route[FSRELAY] {
+        $du = "sip:" + $sel(cfg_get.freeswitch.bindip) + ":" + $sel(cfg_get.freeswitch.bindport);
+        if($var(newbranch)==1)
+        {
+                append_branch();
+                $var(newbranch) = 0;
+        }
+        route(RELAY);
+        exit;
+}
+</code></pre>
+
+<p>By default, all the routes mentioned in the &#8220;request_route&#8221; will be executed line by line. There is a default route called &#8221;<strong>Location</strong>&#8221;, which splits the user part from the request URI and verifies if the user exists in the location table. But when we dial an outside number/user, this location check will fail, so i&#8217;m going to add a condition which checks if the user in the request URI contains a number with a length 9-15 will be relayed to the FreeSwitch. Again this is just a simple condition, we can create a more complex condition, like check the domain part, if the domain part contains a domain which doesnot belong to our Domain list, we can either decline the request, or we can relay to FreeSwitch or we can make DNS query and we can make Kamailio to process the request to that domain&#8217;s Proxy server. Like this we can define our own conditions in the config file, and Kamailio will execute it line by line.</p>
+
+<p>I&#8217;m going to add my check condition on the &#8221;<strong>LOCATION</strong>&#8221; route definition.</p>
+
+<pre><code>route[LOCATION] {
+
+    #!ifdef WITH_SPEEDDIAL
+        # search for short dialing - 2-digit extension
+        if($rU=~"^[0-9][0-9]$")
+                if(sd_lookup("speed_dial"))
+                        route(SIPOUT);
+    #!endif
+        if($rU=~"^[0-9]{9,15}$")        # checking for numbers in the Request URI
+                route(FSDISPATCH);
+    #!ifdef WITH_ALIASDB
+        # search in DB-based aliases
+        if(alias_db_lookup("dbaliases"))
+                route(SIPOUT);
+    #!endif
+        $avp(oexten) = $rU;
+        if (!lookup("location")) {
+                xlog("L_INFO", "CALL $rm $ci lookup here\n");
+                xlog("L_INFO", "$fU@$fd - Lookup contact location for $rm\n");
+                xlog("L_INFO", "rc is $var(rc)");
+                switch ($rc) {
+                        case -1:
+                        case -3:
+                                xlog("L_ERR", "$fU@$fd - No contact found\n");
+                                send_reply("404", "Not Found here");
+                                exit;
+                        case -2:
+                                send_reply("405", "Method Not Allowed");
+                                exit;
+                }
+        }
+
+        # when routing via usrloc, log the missed calls also
+        if (is_method("INVITE"))
+        {
+                setflag(FLT_ACCMISSED);
+        }
+        xlog("L_INFO", "CALL $rm $ci relay\n");
+        xlog("L_INFO", "$fU@$fd - Relaying $rm\n");
+            route(RELAY);
+        exit;
+}
+</code></pre>
+
+<p>So now all the calls coming with numbers of length 9-15 in the Request URI will be relayed to the FreeSwitch, and FreeSwitch will process the call based on the DialPlan configured in the FreeSwitch. Since i&#8217;m going to use IP authentication, i need to whitelist the Kamailio ip in &#8220;acl_conf.xml&#8221; file in the FreeSwitch autload conf directory, so that FreeSwitch will accept the invites from Kamailio. Again i&#8217;m not defining any Voicemail options here. If we have a Voice mail server, then we can create another route option and when the caller doesn&#8217;t pick the call we can route the call to the Voice Mail server.
+For example the below condition will route the failures to FreeSwitch Voice Mailbox.</p>
+
+<pre><code>if(is_method("INVITE"))
+        {
+            # in case of failure - re-route to FreeSWITCH VoiceMail
+            t_on_failure("FAIL_FSVBOX");        # where FSVBOX is a route definition
+        }
+</code></pre>
+
+<p>Kamailio has a lot of modules which really comes in handy. For example we can use LDAP module to use LDAP as a backend. There is a PRESENCE module which helps us to setup an Instant Messaging server using Kamailio. I&#8217;ll be writing a blog on how to use Kamailio as an IM server soon. One of the main advantage of Kamailio over OpenSIP is the WebSocket support. This just a basic configuration, but we can design much complex system using Kamailio. We can even remove the default route logics, and we can use our own routing logics. Kamailio doesnot depend on default routing logics, it blindly reads the route and executes it for each incoming connections.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-23T11:05:00+00:00" pubdate data-updated="true">Feb 23<span>rd</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/kamailio/'>Kamailio</a>, <a class='category' href='/blog/categories/openser/'>OPENSER</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>, <a class='category' href='/blog/categories/voip/'>voip</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/" title="Previous Post: SIP Trunking with PLIVO and FreeSwitch">&laquo; SIP Trunking with PLIVO and FreeSwitch</a>
+    
+    
+      <a class="pull-right" href="/blog/2014/02/23/building-im-server-using-kamailio/" title="Next Post: Building IM Server using Kamailio">Building IM Server using Kamailio &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text To Speech Calls from Hip Chat</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

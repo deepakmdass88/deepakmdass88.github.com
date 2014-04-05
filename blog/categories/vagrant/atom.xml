@@ -4,7 +4,7 @@
   <title><![CDATA[Category: vagrant | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/vagrant/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Building Custom Vagrant Boxes]]></title>
     <link href="http://beingasysadmin.com/blog/2013/01/21/building-custom-vagrant-boxes/"/>
-    <updated>2013-01-21T16:52:00+05:30</updated>
+    <updated>2013-01-21T16:52:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/01/21/building-custom-vagrant-boxes</id>
     <content type="html"><![CDATA[<p><code>Vagrant</code> has become a common tool used by most of the sys admins who play around with computers. It has made virtualization so easy. Seriously it's a must have tool. <strong><em>Vagrant</em></strong> supports <strong>Puppet/Chef</strong> provisioning, which makes it even more powerfull. We just need the base boxes to play around with Vagrant. In this blog i will be explaing about creating custom Vagrant Boxes. I work for <a href="http://www.deeproot.in">DeepRootLinux</a>, developers of the deepOfix Mail Server, a Debian based GNU/Linux distribution. I will be using our distribution for creating base box. It will help us to deploy deepOfix VM in a faster way and we it helps us to test our custom puppet modules into our operating system.</p>
 
@@ -68,7 +68,7 @@ sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo use
   <entry>
     <title type="html"><![CDATA[Vagrant: Make Virtualization Easier]]></title>
     <link href="http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier/"/>
-    <updated>2012-11-26T18:21:00+05:30</updated>
+    <updated>2012-11-26T18:21:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2012/11/26/vagrant-make-virtualization-easier</id>
     <content type="html"><![CDATA[<p><strong><em>Vagrant</em></strong> is a light weight virtualization tool, build over Oracle's <code>VirtualBox</code>. It's completely written in ruby and it's very easy to install and configure. The only dependency is <code>VirtualBox</code>. Once VirtualBox is installed, we can either use <code>RubyGems</code> to install <code>Vagrant</code> or we can get the installer from <a href="http://downloads.vagrantup.com/">Vagrant</a>.</p>
 

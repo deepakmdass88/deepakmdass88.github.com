@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Centos | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/centos/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Monitoring with ZENOSS]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss/"/>
-    <updated>2013-04-11T17:03:00+05:30</updated>
+    <updated>2013-04-11T17:03:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss</id>
     <content type="html"><![CDATA[<p>It's being a year since i have really played with Centos or any Redhat based Distro's. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar's, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
 

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Sensu | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/sensu/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Sensu Admin - A GUI for Sensu API]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/"/>
-    <updated>2013-04-28T18:50:00+05:30</updated>
+    <updated>2013-04-28T18:50:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api</id>
     <content type="html"><![CDATA[<p>In my previous post's, i've explained on How to setup Sensu server and setting up check's and handler's. The default dashboard is very simple with limited options, but for those who wants a full fledged dashboard, there is a Rails project in Github <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. So let's try setting it up.</p>
 
@@ -50,7 +50,7 @@ production:
   <entry>
     <title type="html"><![CDATA[Sensu - Setting up Check's and Handler's]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/25/sensu-setting-up-checks-and-handlers/"/>
-    <updated>2013-04-25T12:26:00+05:30</updated>
+    <updated>2013-04-25T12:26:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/25/sensu-setting-up-checks-and-handlers</id>
     <content type="html"><![CDATA[<p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i've explained on how to setup Sensu Server and Client. Now i'm going to explain how to setup Check's and Handler's in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
 
@@ -139,7 +139,7 @@ wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-communi
   <entry>
     <title type="html"><![CDATA[Sensu - Cloud Monitoring Tool]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/"/>
-    <updated>2013-04-23T22:20:00+05:30</updated>
+    <updated>2013-04-23T22:20:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool</id>
     <content type="html"><![CDATA[<p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data's.</p>
 

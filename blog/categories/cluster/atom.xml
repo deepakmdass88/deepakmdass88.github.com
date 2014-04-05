@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Cluster | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/cluster/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -16,7 +16,7 @@
   <entry>
     <title type="html"><![CDATA[Mail Cluster with Qmail and Dovecot Proxy]]></title>
     <link href="http://beingasysadmin.com/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/"/>
-    <updated>2013-01-20T16:50:00+05:30</updated>
+    <updated>2013-01-20T16:50:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy</id>
     <content type="html"><![CDATA[<p>This New year started with a new requirement, one of our client wanted a Mail cluster with 3 nodes, one node in US, a VPS, and the rest two in INDIA. Their primary server is one of the server in india. They have 3 category of USERS, all abroad user's Mailboxes will be hosted in the VPS. For the rest, one set will be in one server and the rest in other. They want all the users to access directly the primary server not their respective server's. I guess their Admins dont want to work much. Anyways, We decided to go ahead with it.</p>
 

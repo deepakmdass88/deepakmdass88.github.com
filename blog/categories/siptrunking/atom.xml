@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: SIPTrunking | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/siptrunking/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-04-05T05:40:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[SIP Trunking with PLIVO and FreeSwitch]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/"/>
+    <updated>2014-02-14T15:05:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch</id>
+    <content type="html"><![CDATA[<p>It's more than a month since i joined the DevOps family at <strong>Plivo</strong>, since i'm pretty new to the Telecom Technology, i was digging more around it. This time i decided to play around with <strong>FreeSwitch</strong>, a free and open source communications software for the creation of voice and messaging products. Thanks to <a href="http://www.linkedin.com/pub/anthony-minessale-ii/3a/403/942">Anthony Minessale</a> for designing and opensourcing such a powerfull powerfull application. FreeSwitch is well documented and there are pretty good blogs also available on how to setup a PBX using FreeSwitch. This time i'm going to explain on how to make a private Freeswitch server to use Plivo as a <em>SIP Trunking</em> service.</p>
+
+<p>A bit about <a href="plivo.com">Plivo</a>. Plivo is a cloud based API Platform for building <em>Voice</em> and <em>SMS</em> enabled Applications. Plivo provides <strong>Application Programming Interfaces</strong> (APIs) to <em>make and receive calls, send SMS, make a conference call</em>, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. We can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>First we need a valid Plivo account. Once we have the Plivo account, we can log into the Plivo Cloud service. Now go to the "<strong>Endpoints</strong>" tab and create a SIP endpoint and attach a DirectDial app to it. Once this is done we can go ahead and start setting up the FreeSwitch instance.</p>
+
+<h3>Installing FreeSwitch</h3>
+
+<p>Clone the Official FreeSwitch Github and Repo and compile from the source.</p>
+
+<pre><code>$ git clone git://git.freeswitch.org/freeswitch.git &amp;&amp; cd freeswitch
+
+$ ./bootstrap.sh &amp;&amp; ./configure --prefix=/usr/local/freeswitch
+
+$ make &amp;&amp; make install
+
+$  make all cd-sounds-install cd-moh-install    # optional, run this if you want IVR and Music on Hold features
+</code></pre>
+
+<p>Now if we have more than one ip address on the machine, and if we want to bind to a particular ip, we need to modify two files "<em>/usr/local/freeswitch/conf/sip_profiles/external.xml</em>" and "<em>/usr/local/freeswitch/conf/sip_profiles/internal.xml</em>". In both the files, change the parameters "<strong>name="rtp-ip"</strong>" and "<strong>param name="sip-ip"</strong>" with the <em>bind ip</em> as the values.</p>
+
+<p>By default, Freeswitch will create a set of users, which includes numerical usernames ie, 1000-1019. So we can test the basic connectivity between user's by making a call between two user accounts. We can register two of the accounts in two SoftPhones and we can make a test call and make sure that FreeSwitch is working fine. We can use the FS binary file to start FreeSwitch service in forground.</p>
+
+<pre><code>$ /usr/local/freeswitch/bin/freeswitch
+</code></pre>
+
+<h3>Configuring Gateway</h3>
+
+<p>Once the FreeSwitch is working fine, we can start configuring the SIP trunking via Plivo. So first we need to create an external gateway to connect to Plivo. I'm going to use the SIP endpoint created on the Plivo Cloud to initiate the connection. The SIP domain for Plivo is "<strong>phone.plivo.com</strong>". We need to create a gateway config. Go to "<em>/usr/local/freeswitch/conf/sip_profiles/external/</em>", here we can create an XML gateway config file. My config file name is <strong>plivo</strong>. Below is the content for the same.</p>
+
+<pre><code>&lt;include&gt;
+  &lt;gateway name="plivo"&gt;
+  &lt;param name="realm" value="phone.plivo.com" /&gt;
+  &lt;param name="username" value="test88140105181635" /&gt;
+  &lt;param name="password" value="secret" /&gt;
+  &lt;param name="register" value="false" /&gt;
+  &lt;param name="ping" value="5" /&gt;
+  &lt;param name="ping-max" value="3" /&gt;
+  &lt;param name="retry-seconds" value="5" /&gt;
+  &lt;param name="expire-seconds" value="60" /&gt;
+  &lt;variables&gt;
+        &lt;variable name="verbose_sdp" value="true"/&gt;
+  &lt;/variables&gt;
+  &lt;/gateway&gt;
+&lt;/include&gt;
+</code></pre>
+
+<p>There are a lot of other parameters which we can add it here, like caller id etc. Replace the username and password with the Plivo endpoint credentials. If we want to keep this endpoint registered, we can set the register param as true and we can set the expiry time at expire-seconds, so that the Fs will keep on registering the Endpoint with Plivo's Registrar server. once the gateway file is created, we can either restart the service or we can run "reload mod_sofia" on the FScli. If the FreeSwitch service si started in foreground, we will get the FScli, so we can run the reload command directly on it.</p>
+
+<h3>Setting up Dialplan</h3>
+
+<p>Now we have the Gateway added. Now we need to the setup the Dial Plan to route the outgoing calls through Plivo. Go to "<em>/usr/local/freeswitch/conf/dialplan/</em>" folder and add an extension on the "<strong>public.xml</strong>" file. Below is a sample extension config.</p>
+
+<pre><code>&lt;extension name="Calls to Plivo"&gt;
+      &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
+        &lt;action application="transfer" data="$1 XML default"/&gt;
+      &lt;/condition&gt;
+&lt;/extension&gt;
+</code></pre>
+
+<p>So now all calls matching to the Regex will be transferred to the default dial plan. Now on the the default dial plan, i'm creating an exntension and will use the FreeSwitch's "<em>bridge</em>" application to brdige the call with Plivo using the Plivo Gateway. So on the "<em>default.xml</em>" add the below extension.</p>
+
+<pre><code>   &lt;extension name="Dial through Plivo"&gt;
+         &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
+           &lt;action application="bridge" data="sofia/gateway/plivo/$1"/&gt;
+         &lt;/condition&gt;
+       &lt;/extension&gt;
+</code></pre>
+
+<p>Now we can restart the FS service or we can reload "mod_dialplan_xml" from the FScli. Once the changes are into effect, we can test whether the call is getting routed via Plivo. Configure a soft phone with a default FS user and make an outbound call which matches the regex that we have mentioned for routing to Plivo. Now if all works we should get a call on the destination number. We can check the FS logs at "<em>/usr/local/freeswitch/log/freeswitch.log</em>".</p>
+
+<p>If the Regex is matched, we can see the below lines in the log.</p>
+
+<pre><code>1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 parsing [public-&gt;Calls from BoxB] continue=false
+1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 transfer(xxxxxxxxxxxx XML default)
+1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Regex (PASS) [Dial through Plivo] destination_number(xxxxxxxxxxxx) =~ /^(xxxxxxxxxxxx)$/ break=on-false
+1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Action bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)   
+1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)
+1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4499 [zrtp_passthru] Setting a-leg inherit_codec=true
+1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4502 [zrtp_passthru] Setting b-leg absolute_codec_string=GSM@8000h@20i@13200b,PCMA@8000h@20i@64000b,PCMU@8000h@20i@64000b
+</code></pre>
+
+<p>We can also mention the CallerID on the Direct Dial app which we have mapped to the SIP endpoint. Now for Incoming calls, create a app that can forward the calls to one of the user's present in the FreeSwitch, using the Plivo's Dial XML. So the XML should look something like below. I will be writing a more detailed blog about Inbound calls once i've have tested it out completely.</p>
+
+<pre><code>&lt;Response&gt;
+  &lt;Dial&gt;
+    &lt;User&gt;FSuser@FSserverIP&lt;/User&gt;
+  &lt;/Dial&gt;
+&lt;/Response&gt;
+</code></pre>
+
+<p>But for security, we need to allow connections from Plivo server. So we need to allow those IP's on the FS acl. We can allow the IP's in the "<strong>acl.conf.xml</strong>" file at "<em>/usr/local/freeswitch/conf/autoload_configs</em>". And make sure that the FS server is accessible via a public ip atleast for the Plivo server's which will forward the calls.</p>
+]]></content>
+  </entry>
+  
+</feed>

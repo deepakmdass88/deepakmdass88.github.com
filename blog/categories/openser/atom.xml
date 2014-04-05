@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: OPENSER | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/openser/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-04-05T05:40:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Integrating Kamailio with FreeSwitch]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch/"/>
+    <updated>2014-02-23T11:05:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch</id>
+    <content type="html"><![CDATA[<p><code>Kamailio</code> aka <code>OpenSER</code> is one of the most powerfull and popular Open Source SIP server. It can be used as <strong>SIP Proxy/Registrar/LB/Router</strong> etc. It also provides a lot of features <em>like WebSocket support for WebRTC, ; SIMPLE instant messaging and presence with embedded XCAP server and MSRP relay,IMS extensions,ENUM and offcourse AAA (accounting, authentication and authorization)</em> also. Kamailio is a modular system, ie, it has lot of modules which corresponds to particular functions. These modules can be easily installed and can be used easily in Kamailio. In this blog i'm going to use Kamailio as a proxy server. All the user's are created in the Kamailio and FreeSwitch will be acting as a relay server for outbound calls. So Kamailio performs authentication and all the outbound calls wil be relayed to FreeSwitch.</p>
+
+<h3>Installing Kamailio</h3>
+
+<p>Lets download the latest version of Kamailio, now it's 4.1</p>
+
+<pre><code>$ wget http://www.Kamailio.org/pub/Kamailio/latest/src/Kamailio-4.1.1_src.tar.gz
+
+$ tar xvzf Kamailio-4.1.1_src.tar.gz &amp;&amp; cd Kamailio-4.1.1
+</code></pre>
+
+<p>Before we start the build we need to install the basic dependencies.</p>
+
+<pre><code>$ apt-get install gcc flex bison libmysqlclient-dev make libxml2-dev libssl-dev
+</code></pre>
+
+<p>Now we have the dependencies installed, we can go ahead with the build.</p>
+
+<pre><code>$ make cfg      # generates config files for build system
+</code></pre>
+
+<p>Now open <code>modules.lst</code> and add the modules to be installed in "<strong>include_modules</strong>" section. In my case i'm going to use MySQL backend so it will be "<strong>include_modules= db_mysql</strong>" and then we can run the "<em>make all</em>". The other way is we can mention the modules directly while running the "make" rather editing the modules.lst file.</p>
+
+<pre><code>$ make include_modules="db_mysql" cfg
+</code></pre>
+
+<p>Now we can install,</p>
+
+<pre><code>$ make install
+</code></pre>
+
+<p>The above command will install Kamailio to our system. There are four main binaries for Kamailio,</p>
+
+<pre><code>Kamailio - Kamailio SIP server
+kamdbctl - script to create and manage the Databases
+kamctl - script to manage and control Kamailio SIP server
+kamcmd - CLI - command line tool to interface with Kamailio SIP server
+</code></pre>
+
+<p>There is also one configuration file called "Kamailio.cfg" which is available by default at <code>/usr/local/etc/Kamailio/Kamailio.cfg</code></p>
+
+<p>Let's go ahead with setting up MySQL server for Kamailio.</p>
+
+<pre><code>$ apt-get install mysql-server
+</code></pre>
+
+<p>Now edit the <code>/usr/local/etc/Kamailio/kamctlrc</code> Locate DBENGINE variable and set it to MYSQL by making "<strong>DBENGINE=MYSQL</strong>". Now we can use the "kamdbctl" binary to craete the default tables and users.</p>
+
+<pre><code>$ /usr/local/sbin/kamdbctl create
+</code></pre>
+
+<p>The script will add two users in MySQL:</p>
+
+<ul>
+<li><p>Kamailio - (with default password 'Kamailiorw') - user which has full access rights to 'Kamailio' database</p></li>
+<li><p>Kamailioro - (with default password 'Kamailioro') - user which has read-only access rights to 'Kamailio' database</p></li>
+</ul>
+
+
+<p>There is a sample init.d script available along with Kamailio, which we can use it. We need to copy the sample init.d file to our system's init.d folder. And the same for the system default file.</p>
+
+<pre><code>$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.init /etc/init.d/Kamailio
+
+$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.default /etc/default/Kamailio
+
+$ chmod 755 /etc/init.d/Kamailio 
+</code></pre>
+
+<p>Edit the new init file and modify the $DAEMON and $CFGFILE values.</p>
+
+<pre><code>DAEMON=/usr/local/sbin/Kamailio
+CFGFILE=/usr/local/etc/Kamailio/Kamailio.cfg
+
+$ mkdir -p /var/run/Kamailio    # Directory for the pid file
+</code></pre>
+
+<p>Default setting is to run Kamailio as user "<em>Kamailio</em>" and group "<em>Kamailio</em>". For that we need to create the user:</p>
+
+<pre><code>$ adduser --quiet --system --group --disabled-password \
+      --shell /bin/false --gecos "Kamailio" \
+      --home /var/run/Kamailio Kamailio
+
+$ chown Kamailio:Kamailio /var/run/Kamailio
+</code></pre>
+
+<h3>Setting up Kamailio</h3>
+
+<p>All the Kamailio configurations are mentioned in only one single file <code>/usr/local/etc/Kamailio/Kamailio.cfg</code>. All the logics are defined in this file, and Kamailio blindly executes this logics and perform the actions. It's very important that the logics defined in the config should suit to our VOIP platform requirement.</p>
+
+<p>First we need to enable the modules and the necessary features, so add the below lines in the Kamailio.cfg</p>
+
+<pre><code>#!define WITH_MYSQL
+#!define WITH_AUTH
+#!define WITH_USRLOCDB
+#!define WITH_FREESWITCH
+</code></pre>
+
+<p>We need to define the FreeSwitch server IP and port, for that we can add the below parameters in the "Custom Parameters" section.</p>
+
+<pre><code>#!ifdef WITH_FREESWITCH
+freeswitch.bindip = "192.168.56.100" desc "FreeSWITCH IP Address"
+freeswitch.bindport = "5090" desc "FreeSWITCH Port"
+#!endif
+</code></pre>
+
+<p>Now we can go ahead to the "<strong>request_route</strong>" section which performs the routing logic. Here i'm going to add two more routing logic for the FreeSwitch relay. After the "<strong>request_route</strong>" section, we can see the definition for each routing options. Below that we need to add our new route definitions.</p>
+
+<pre><code>route[FSDISPATCH] {
+        # dial number selection
+        route(FSRELAY);
+        exit;
+}
+
+route[FSRELAY] {
+        $du = "sip:" + $sel(cfg_get.freeswitch.bindip) + ":" + $sel(cfg_get.freeswitch.bindport);
+        if($var(newbranch)==1)
+        {
+                append_branch();
+                $var(newbranch) = 0;
+        }
+        route(RELAY);
+        exit;
+}
+</code></pre>
+
+<p>By default, all the routes mentioned in the "request_route" will be executed line by line. There is a default route called "<strong>Location</strong>", which splits the user part from the request URI and verifies if the user exists in the location table. But when we dial an outside number/user, this location check will fail, so i'm going to add a condition which checks if the user in the request URI contains a number with a length 9-15 will be relayed to the FreeSwitch. Again this is just a simple condition, we can create a more complex condition, like check the domain part, if the domain part contains a domain which doesnot belong to our Domain list, we can either decline the request, or we can relay to FreeSwitch or we can make DNS query and we can make Kamailio to process the request to that domain's Proxy server. Like this we can define our own conditions in the config file, and Kamailio will execute it line by line.</p>
+
+<p>I'm going to add my check condition on the "<strong>LOCATION</strong>" route definition.</p>
+
+<pre><code>route[LOCATION] {
+
+    #!ifdef WITH_SPEEDDIAL
+        # search for short dialing - 2-digit extension
+        if($rU=~"^[0-9][0-9]$")
+                if(sd_lookup("speed_dial"))
+                        route(SIPOUT);
+    #!endif
+        if($rU=~"^[0-9]{9,15}$")        # checking for numbers in the Request URI
+                route(FSDISPATCH);
+    #!ifdef WITH_ALIASDB
+        # search in DB-based aliases
+        if(alias_db_lookup("dbaliases"))
+                route(SIPOUT);
+    #!endif
+        $avp(oexten) = $rU;
+        if (!lookup("location")) {
+                xlog("L_INFO", "CALL $rm $ci lookup here\n");
+                xlog("L_INFO", "$fU@$fd - Lookup contact location for $rm\n");
+                xlog("L_INFO", "rc is $var(rc)");
+                switch ($rc) {
+                        case -1:
+                        case -3:
+                                xlog("L_ERR", "$fU@$fd - No contact found\n");
+                                send_reply("404", "Not Found here");
+                                exit;
+                        case -2:
+                                send_reply("405", "Method Not Allowed");
+                                exit;
+                }
+        }
+
+        # when routing via usrloc, log the missed calls also
+        if (is_method("INVITE"))
+        {
+                setflag(FLT_ACCMISSED);
+        }
+        xlog("L_INFO", "CALL $rm $ci relay\n");
+        xlog("L_INFO", "$fU@$fd - Relaying $rm\n");
+            route(RELAY);
+        exit;
+}
+</code></pre>
+
+<p>So now all the calls coming with numbers of length 9-15 in the Request URI will be relayed to the FreeSwitch, and FreeSwitch will process the call based on the DialPlan configured in the FreeSwitch. Since i'm going to use IP authentication, i need to whitelist the Kamailio ip in "acl_conf.xml" file in the FreeSwitch autload conf directory, so that FreeSwitch will accept the invites from Kamailio. Again i'm not defining any Voicemail options here. If we have a Voice mail server, then we can create another route option and when the caller doesn't pick the call we can route the call to the Voice Mail server.
+For example the below condition will route the failures to FreeSwitch Voice Mailbox.</p>
+
+<pre><code>if(is_method("INVITE"))
+        {
+            # in case of failure - re-route to FreeSWITCH VoiceMail
+            t_on_failure("FAIL_FSVBOX");        # where FSVBOX is a route definition
+        }
+</code></pre>
+
+<p>Kamailio has a lot of modules which really comes in handy. For example we can use LDAP module to use LDAP as a backend. There is a PRESENCE module which helps us to setup an Instant Messaging server using Kamailio. I'll be writing a blog on how to use Kamailio as an IM server soon. One of the main advantage of Kamailio over OpenSIP is the WebSocket support. This just a basic configuration, but we can design much complex system using Kamailio. We can even remove the default route logics, and we can use our own routing logics. Kamailio doesnot depend on default routing logics, it blindly reads the route and executes it for each incoming connections.</p>
+]]></content>
+  </entry>
+  
+</feed>

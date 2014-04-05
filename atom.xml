@@ -4,7 +4,7 @@
   <title><![CDATA[Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2013-09-22T22:19:11+05:30</updated>
+  <updated>2014-04-05T05:40:05+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -14,9 +14,655 @@
 
   
   <entry>
+    <title type="html"><![CDATA[Event Monitoring using Logstash + StatsD + Riemann]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/"/>
+    <updated>2014-03-30T14:48:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann</id>
+    <content type="html"><![CDATA[<p>Being an OPS guy, i love Logs a lot. Logs contains lots of sensitive events recorded in it. Though a lot of people rely on monitoring tools, there are a lot of scenario where we still can&#8217;t rely on monitoring. In such scenarios, logs are the best sources to identify those events in a near real time fashion. A common scenario is Web Operations, where we need to count the the various 4xx, 5xx, Auth errors experienced by the user&#8217;s. I had a simliar requirement where i need to identify the 4xx, 5xx, 6xx errors and other similar failures on various SIP server&#8217;s. But apart from just visualising these error&#8217;s i also wanted a notification system which can notify me when the value crosses the threshold.</p>
+
+<p><code>Logstash</code> and <code>StasD</code> is a perfect combination for aggregating events from the logs. StatsD has a Graphite backend, where it sends the aggreagated metric values for visualizing. But when we have large number graphs, and offcourse when being a multi tasking Ops guy, it&#8217;s not possible to sit and watch all these graphs. So we need a notification system which alert&#8217;s us when things starts breaking. Here comes <a href="http://riemann.io/">RIEMANN</a>. Riemann aggregates events from your servers and applications with a powerful stream processing language. Riemann is pretty light weight, easy to configure monitoring framework. Logstash sents the filtered events from the logs to StatsD output plugin. Based on the flushInterval, statsD iterates through the received events sents the aggregated metric values to the Graphite. There is also a Riemann output plugin for Logstash, but we need to pass the state/metric to the plugin. In my case, logstash filters the event from the log, so i need to converts these events to time based metric values. Since statsD already has these events converted into time series metrics, i decided to write a small backend for statsD that can send these aggregated metrics to Riemann.</p>
+
+<p>The StatsD backend basically requires to main functions, one is &#8221;<em>flush_stats</em>&#8221; which will get invoked once the flush interval is reached. This function then iterates over the received metrics and passes these aggregated metrics to another function called &#8221;<em>post_stats</em>&#8221;, which sends the metrics to the corresponding aplications. In our case, we need to send the metrics to Riemann. There is a Riemann-Node plugin, which we can utilize here for sending the metrics to Riemann server. Below is the content for the &#8221;<em>flush_stats</em>&#8221; and &#8221;<em>post_stats</em>&#8221; functions. Currently i&#8217;ve added support only for counters. Soo i&#8217;ll be adding support for Counters and Timers also.</p>
+
+<pre><code>flush_stats function
+--------------------
+
+var flush_stats = function riemann_flush(ts, metrics) {
+var statString = '';
+var numStats = 0;
+var key;
+
+var counters = metrics.counters;
+var gauges = metrics.gauges;
+var timers = metrics.timers;
+var pctThreshold = metrics.pctThreshold;
+
+for (key in counters) {
+    var value = counters[key];
+    var valuePerSecond = value / (flushInterval / 1000); // calculate "per second" rate
+
+    statsString = value;
+    service = key;
+    time_stamp = ts;
+    post_stats(statString, service_name, time_stamp);
+}
+}; 
+
+
+post_stats function
+-------------------
+
+var post_stats = function riemann_post_metrics(statString, service_name, time_stamp) {
+
+riemannStats.last_exception = Math.round(new Date().getTime() / 1000);
+
+client.send(client.Event({
+  service: service_name,
+  metric:  statsString,
+  time: time_stamp
+}));
+};
+</code></pre>
+
+<p>So here i&#8217;m not gonna send the per second metrics. I&#8217;m using the default 10 sec flushInterval. So every seconds StatsD will send the incremented metrics to Riemann. The namespace, sender etc are defined in the logstash conf itself. The full plugin file is available in <a href="https://gist.github.com/deepakmdass88/9851437">here</a></p>
+
+<p>To use this Riemann backend, first we need to copy this file into the backend folder of the StatsD repo folder. Then we need to enable this plugin in the StatsD config file. Below is a sample config file which uses both graphite and Riemann backends.</p>
+
+<pre><code>{
+  riemannPort: 5555
+, riemannHost: "localhost"
+, graphitePort: 2003
+, graphiteHost: "localhost"
+, port: 8125
+, backends: [ "./backends/riemann", "./backends/graphite" ]
+}
+</code></pre>
+
+<p>So now StatsD will send out the incremented and the per second metric to Graphite and the Riemann backend will send the incremented metric to the Rieman server. No we can define the metric threshold and the notification method on the reimann config file. Below is my reimann metric threshold and notification.</p>
+
+<pre><code>(streams
+      (where (&gt;= metric 10)
+        (where (service #"SIP")
+          (email "deepakmdass88@gmail.com")))))
+</code></pre>
+
+<p>So whenever the recived metric value is beyond 10, Riemann will notify the same to my Email. I&#8217;ve done some dry testing with this setup. So far this setup never turned me down. Though there are some tweaks to be done, but this setup really suited to my requirement. being an OPS guy, my primary focus is to detect the outages at a very early stages to minimize the impact. Hope this guy will be an added defence layer for the same.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Building IM Server using Kamailio]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/02/23/building-im-server-using-kamailio/"/>
+    <updated>2014-02-23T14:59:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/02/23/building-im-server-using-kamailio</id>
+    <content type="html"><![CDATA[<p>Instant messaging (IM) is a type of online chat which offers real-time text transmission over the Internet. Like XMPP, we can also use SIP for real-time text transmission. The Kamailio PRESENCE module helps us built the same locally. We can convert a simple Kamailio server into a full fledged IM server.</p>
+
+<p>By default, all the registered endpoints will send a &#8220;PUBLISH&#8221; requests to the Presence server with their status and Presence server stores the status. Also the endpoints will send a &#8220;SUBSCRIBE&#8221; to other user&#8217;s status. For each &#8220;SUBSCRIBE&#8221; request, the Presence server will sent a &#8220;NOTIFY&#8221; request back with status of the user. This is how our UserAgent keeps track of each user&#8217;s status. Below is simple flow diagram for the same.</p>
+
+<p><img src="http://beingasysadmin.files.wordpress.com/2014/02/screen-shot-2014-02-23-at-4-34-59-pm.png" alt="Alt text" /></p>
+
+<h3>Setting up Kamailio</h3>
+
+<p>In my <a href="" title="http://beingasysadmin.wordpress.com/2014/02/23/integrating-kamailio-with-freeswitch/">previous blog</a>, i&#8217;ve explained how to install Kamailio from source. The only difference is we need to enable two more modules &#8221;<strong>presence</strong>&#8221; and &#8221;<strong>presence_xml</strong>&#8221;. If Kamailio is already installed, we need to add these two modules into <code>modules.lst</code> at the &#8221;<strong>include_modules</strong>&#8221; line. Once the module names are added, we need to run &#8221;<strong>make install</strong>&#8221; to install the two new modules. Once the module is added, we need to enable the module.</p>
+
+<p>Add &#8220;#!define WITH_PRESENCE&#8221; into the &#8220;kamailio.cfg&#8221; file. Then check if there is route logic defined for the &#8220;PRESENCE&#8221; module. By default there is a PRESENCE route defined in the default &#8220;kamailio.cfg&#8221; file. If it&#8217;s not there below is the route logic. Also we need to add &#8220;*route(PRESENCE)<strong>&#8221; in the &#8221;</strong>request_route**&#8221; section.</p>
+
+<pre><code># Presence server route
+route[PRESENCE] {
+        if(!is_method("PUBLISH|SUBSCRIBE"))
+                return;
+
+        if(is_method("SUBSCRIBE") &amp;&amp; $hdr(Event)=="message-summary") {
+                route(TOVOICEMAIL);
+                # returns here if no voicemail server is configured
+                sl_send_reply("404", "No voicemail service");
+                exit;
+        }
+
+#!ifdef WITH_PRESENCE
+        if (!t_newtran())
+        {
+                sl_reply_error();
+                exit;
+        }
+
+        if(is_method("PUBLISH"))
+        {
+                handle_publish();
+                t_release();
+        } else if(is_method("SUBSCRIBE")) {
+                handle_subscribe();
+                t_release();
+        }
+        exit;
+#!endif
+
+        # if presence enabled, this part will not be executed
+        if (is_method("PUBLISH") || $rU==$null)
+        {
+                xlog("@ 404 here 3");
+                sl_send_reply("404", "Not here");
+                exit;
+        }
+        return;
+}
+</code></pre>
+
+<p>Now start the Kamailio server. Now we need to add some users. For that we can use &#8221;<strong>kamctl</strong>&#8221; binary.</p>
+
+<pre><code>$ kamctl add user1@192.168.56.100 user1
+
+$ kamctl add user2@192.168.56.100 user2
+</code></pre>
+
+<p>Let&#8217;s go ahead and test the settings. For testing we need some IM clients. In my testing, i&#8217;ve used <strong>Jitsi</strong> and <strong>adium</strong> IM clients. Once the accounts are configured on the clients, it&#8217;s better to start a packet capture using wireshark, so that we can see these <strong>PUBLISH</strong>, <strong>SUBSCRIBE</strong> and <strong>NOTIFY</strong> requests between the clients and the Kamailio server. If you are using <strong>Adium</strong>, go to account options and check the &#8220;Publish Status to Everyone&#8221; so that it will start sending <strong>PUBLISH</strong> request to the Kamailio server. Now add the accounts to the Contact lists on the IM clients and then we will be able to see the users status (ONline/OFFline). Now we can start the chat conversation between the user&#8217;s.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Integrating Kamailio with FreeSwitch]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch/"/>
+    <updated>2014-02-23T11:05:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/02/23/integrating-kamailio-with-freeswitch</id>
+    <content type="html"><![CDATA[<p><code>Kamailio</code> aka <code>OpenSER</code> is one of the most powerfull and popular Open Source SIP server. It can be used as <strong>SIP Proxy/Registrar/LB/Router</strong> etc. It also provides a lot of features <em>like WebSocket support for WebRTC, ; SIMPLE instant messaging and presence with embedded XCAP server and MSRP relay,IMS extensions,ENUM and offcourse AAA (accounting, authentication and authorization)</em> also. Kamailio is a modular system, ie, it has lot of modules which corresponds to particular functions. These modules can be easily installed and can be used easily in Kamailio. In this blog i&#8217;m going to use Kamailio as a proxy server. All the user&#8217;s are created in the Kamailio and FreeSwitch will be acting as a relay server for outbound calls. So Kamailio performs authentication and all the outbound calls wil be relayed to FreeSwitch.</p>
+
+<h3>Installing Kamailio</h3>
+
+<p>Lets download the latest version of Kamailio, now it&#8217;s 4.1</p>
+
+<pre><code>$ wget http://www.Kamailio.org/pub/Kamailio/latest/src/Kamailio-4.1.1_src.tar.gz
+
+$ tar xvzf Kamailio-4.1.1_src.tar.gz &amp;&amp; cd Kamailio-4.1.1
+</code></pre>
+
+<p>Before we start the build we need to install the basic dependencies.</p>
+
+<pre><code>$ apt-get install gcc flex bison libmysqlclient-dev make libxml2-dev libssl-dev
+</code></pre>
+
+<p>Now we have the dependencies installed, we can go ahead with the build.</p>
+
+<pre><code>$ make cfg      # generates config files for build system
+</code></pre>
+
+<p>Now open <code>modules.lst</code> and add the modules to be installed in &#8221;<strong>include_modules</strong>&#8221; section. In my case i&#8217;m going to use MySQL backend so it will be &#8221;<strong>include_modules= db_mysql</strong>&#8221; and then we can run the &#8221;<em>make all</em>&#8221;. The other way is we can mention the modules directly while running the &#8220;make&#8221; rather editing the modules.lst file.</p>
+
+<pre><code>$ make include_modules="db_mysql" cfg
+</code></pre>
+
+<p>Now we can install,</p>
+
+<pre><code>$ make install
+</code></pre>
+
+<p>The above command will install Kamailio to our system. There are four main binaries for Kamailio,</p>
+
+<pre><code>Kamailio - Kamailio SIP server
+kamdbctl - script to create and manage the Databases
+kamctl - script to manage and control Kamailio SIP server
+kamcmd - CLI - command line tool to interface with Kamailio SIP server
+</code></pre>
+
+<p>There is also one configuration file called &#8220;Kamailio.cfg&#8221; which is available by default at <code>/usr/local/etc/Kamailio/Kamailio.cfg</code></p>
+
+<p>Let&#8217;s go ahead with setting up MySQL server for Kamailio.</p>
+
+<pre><code>$ apt-get install mysql-server
+</code></pre>
+
+<p>Now edit the <code>/usr/local/etc/Kamailio/kamctlrc</code> Locate DBENGINE variable and set it to MYSQL by making &#8221;<strong>DBENGINE=MYSQL</strong>&#8221;. Now we can use the &#8220;kamdbctl&#8221; binary to craete the default tables and users.</p>
+
+<pre><code>$ /usr/local/sbin/kamdbctl create
+</code></pre>
+
+<p>The script will add two users in MySQL:</p>
+
+<ul>
+<li><p>Kamailio - (with default password &#8216;Kamailiorw&#8217;) - user which has full access rights to &#8216;Kamailio&#8217; database</p></li>
+<li><p>Kamailioro - (with default password &#8216;Kamailioro&#8217;) - user which has read-only access rights to &#8216;Kamailio&#8217; database</p></li>
+</ul>
+
+
+<p>There is a sample init.d script available along with Kamailio, which we can use it. We need to copy the sample init.d file to our system&#8217;s init.d folder. And the same for the system default file.</p>
+
+<pre><code>$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.init /etc/init.d/Kamailio
+
+$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.default /etc/default/Kamailio
+
+$ chmod 755 /etc/init.d/Kamailio 
+</code></pre>
+
+<p>Edit the new init file and modify the $DAEMON and $CFGFILE values.</p>
+
+<pre><code>DAEMON=/usr/local/sbin/Kamailio
+CFGFILE=/usr/local/etc/Kamailio/Kamailio.cfg
+
+$ mkdir -p /var/run/Kamailio    # Directory for the pid file
+</code></pre>
+
+<p>Default setting is to run Kamailio as user &#8221;<em>Kamailio</em>&#8221; and group &#8221;<em>Kamailio</em>&#8221;. For that we need to create the user:</p>
+
+<pre><code>$ adduser --quiet --system --group --disabled-password \
+      --shell /bin/false --gecos "Kamailio" \
+      --home /var/run/Kamailio Kamailio
+
+$ chown Kamailio:Kamailio /var/run/Kamailio
+</code></pre>
+
+<h3>Setting up Kamailio</h3>
+
+<p>All the Kamailio configurations are mentioned in only one single file <code>/usr/local/etc/Kamailio/Kamailio.cfg</code>. All the logics are defined in this file, and Kamailio blindly executes this logics and perform the actions. It&#8217;s very important that the logics defined in the config should suit to our VOIP platform requirement.</p>
+
+<p>First we need to enable the modules and the necessary features, so add the below lines in the Kamailio.cfg</p>
+
+<pre><code>#!define WITH_MYSQL
+#!define WITH_AUTH
+#!define WITH_USRLOCDB
+#!define WITH_FREESWITCH
+</code></pre>
+
+<p>We need to define the FreeSwitch server IP and port, for that we can add the below parameters in the &#8220;Custom Parameters&#8221; section.</p>
+
+<pre><code>#!ifdef WITH_FREESWITCH
+freeswitch.bindip = "192.168.56.100" desc "FreeSWITCH IP Address"
+freeswitch.bindport = "5090" desc "FreeSWITCH Port"
+#!endif
+</code></pre>
+
+<p>Now we can go ahead to the &#8221;<strong>request_route</strong>&#8221; section which performs the routing logic. Here i&#8217;m going to add two more routing logic for the FreeSwitch relay. After the &#8221;<strong>request_route</strong>&#8221; section, we can see the definition for each routing options. Below that we need to add our new route definitions.</p>
+
+<pre><code>route[FSDISPATCH] {
+        # dial number selection
+        route(FSRELAY);
+        exit;
+}
+
+route[FSRELAY] {
+        $du = "sip:" + $sel(cfg_get.freeswitch.bindip) + ":" + $sel(cfg_get.freeswitch.bindport);
+        if($var(newbranch)==1)
+        {
+                append_branch();
+                $var(newbranch) = 0;
+        }
+        route(RELAY);
+        exit;
+}
+</code></pre>
+
+<p>By default, all the routes mentioned in the &#8220;request_route&#8221; will be executed line by line. There is a default route called &#8221;<strong>Location</strong>&#8221;, which splits the user part from the request URI and verifies if the user exists in the location table. But when we dial an outside number/user, this location check will fail, so i&#8217;m going to add a condition which checks if the user in the request URI contains a number with a length 9-15 will be relayed to the FreeSwitch. Again this is just a simple condition, we can create a more complex condition, like check the domain part, if the domain part contains a domain which doesnot belong to our Domain list, we can either decline the request, or we can relay to FreeSwitch or we can make DNS query and we can make Kamailio to process the request to that domain&#8217;s Proxy server. Like this we can define our own conditions in the config file, and Kamailio will execute it line by line.</p>
+
+<p>I&#8217;m going to add my check condition on the &#8221;<strong>LOCATION</strong>&#8221; route definition.</p>
+
+<pre><code>route[LOCATION] {
+
+    #!ifdef WITH_SPEEDDIAL
+        # search for short dialing - 2-digit extension
+        if($rU=~"^[0-9][0-9]$")
+                if(sd_lookup("speed_dial"))
+                        route(SIPOUT);
+    #!endif
+        if($rU=~"^[0-9]{9,15}$")        # checking for numbers in the Request URI
+                route(FSDISPATCH);
+    #!ifdef WITH_ALIASDB
+        # search in DB-based aliases
+        if(alias_db_lookup("dbaliases"))
+                route(SIPOUT);
+    #!endif
+        $avp(oexten) = $rU;
+        if (!lookup("location")) {
+                xlog("L_INFO", "CALL $rm $ci lookup here\n");
+                xlog("L_INFO", "$fU@$fd - Lookup contact location for $rm\n");
+                xlog("L_INFO", "rc is $var(rc)");
+                switch ($rc) {
+                        case -1:
+                        case -3:
+                                xlog("L_ERR", "$fU@$fd - No contact found\n");
+                                send_reply("404", "Not Found here");
+                                exit;
+                        case -2:
+                                send_reply("405", "Method Not Allowed");
+                                exit;
+                }
+        }
+
+        # when routing via usrloc, log the missed calls also
+        if (is_method("INVITE"))
+        {
+                setflag(FLT_ACCMISSED);
+        }
+        xlog("L_INFO", "CALL $rm $ci relay\n");
+        xlog("L_INFO", "$fU@$fd - Relaying $rm\n");
+            route(RELAY);
+        exit;
+}
+</code></pre>
+
+<p>So now all the calls coming with numbers of length 9-15 in the Request URI will be relayed to the FreeSwitch, and FreeSwitch will process the call based on the DialPlan configured in the FreeSwitch. Since i&#8217;m going to use IP authentication, i need to whitelist the Kamailio ip in &#8220;acl_conf.xml&#8221; file in the FreeSwitch autload conf directory, so that FreeSwitch will accept the invites from Kamailio. Again i&#8217;m not defining any Voicemail options here. If we have a Voice mail server, then we can create another route option and when the caller doesn&#8217;t pick the call we can route the call to the Voice Mail server.
+For example the below condition will route the failures to FreeSwitch Voice Mailbox.</p>
+
+<pre><code>if(is_method("INVITE"))
+        {
+            # in case of failure - re-route to FreeSWITCH VoiceMail
+            t_on_failure("FAIL_FSVBOX");        # where FSVBOX is a route definition
+        }
+</code></pre>
+
+<p>Kamailio has a lot of modules which really comes in handy. For example we can use LDAP module to use LDAP as a backend. There is a PRESENCE module which helps us to setup an Instant Messaging server using Kamailio. I&#8217;ll be writing a blog on how to use Kamailio as an IM server soon. One of the main advantage of Kamailio over OpenSIP is the WebSocket support. This just a basic configuration, but we can design much complex system using Kamailio. We can even remove the default route logics, and we can use our own routing logics. Kamailio doesnot depend on default routing logics, it blindly reads the route and executes it for each incoming connections.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[SIP Trunking with PLIVO and FreeSwitch]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/"/>
+    <updated>2014-02-14T15:05:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch</id>
+    <content type="html"><![CDATA[<p>It&#8217;s more than a month since i joined the DevOps family at <strong>Plivo</strong>, since i&#8217;m pretty new to the Telecom Technology, i was digging more around it. This time i decided to play around with <strong>FreeSwitch</strong>, a free and open source communications software for the creation of voice and messaging products. Thanks to <a href="http://www.linkedin.com/pub/anthony-minessale-ii/3a/403/942">Anthony Minessale</a> for designing and opensourcing such a powerfull powerfull application. FreeSwitch is well documented and there are pretty good blogs also available on how to setup a PBX using FreeSwitch. This time i&#8217;m going to explain on how to make a private Freeswitch server to use Plivo as a <em>SIP Trunking</em> service.</p>
+
+<p>A bit about <a href="plivo.com">Plivo</a>. Plivo is a cloud based API Platform for building <em>Voice</em> and <em>SMS</em> enabled Applications. Plivo provides <strong>Application Programming Interfaces</strong> (APIs) to <em>make and receive calls, send SMS, make a conference call</em>, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. We can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>First we need a valid Plivo account. Once we have the Plivo account, we can log into the Plivo Cloud service. Now go to the &#8221;<strong>Endpoints</strong>&#8221; tab and create a SIP endpoint and attach a DirectDial app to it. Once this is done we can go ahead and start setting up the FreeSwitch instance.</p>
+
+<h3>Installing FreeSwitch</h3>
+
+<p>Clone the Official FreeSwitch Github and Repo and compile from the source.</p>
+
+<pre><code>$ git clone git://git.freeswitch.org/freeswitch.git &amp;&amp; cd freeswitch
+
+$ ./bootstrap.sh &amp;&amp; ./configure --prefix=/usr/local/freeswitch
+
+$ make &amp;&amp; make install
+
+$  make all cd-sounds-install cd-moh-install    # optional, run this if you want IVR and Music on Hold features
+</code></pre>
+
+<p>Now if we have more than one ip address on the machine, and if we want to bind to a particular ip, we need to modify two files &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external.xml</em>&#8221; and &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/internal.xml</em>&#8221;. In both the files, change the parameters &#8221;<strong>name=&#8221;rtp-ip&#8221;</strong>&#8221; and &#8221;<strong>param name=&#8221;sip-ip&#8221;</strong>&#8221; with the <em>bind ip</em> as the values.</p>
+
+<p>By default, Freeswitch will create a set of users, which includes numerical usernames ie, 1000-1019. So we can test the basic connectivity between user&#8217;s by making a call between two user accounts. We can register two of the accounts in two SoftPhones and we can make a test call and make sure that FreeSwitch is working fine. We can use the FS binary file to start FreeSwitch service in forground.</p>
+
+<pre><code>$ /usr/local/freeswitch/bin/freeswitch
+</code></pre>
+
+<h3>Configuring Gateway</h3>
+
+<p>Once the FreeSwitch is working fine, we can start configuring the SIP trunking via Plivo. So first we need to create an external gateway to connect to Plivo. I&#8217;m going to use the SIP endpoint created on the Plivo Cloud to initiate the connection. The SIP domain for Plivo is &#8221;<strong>phone.plivo.com</strong>&#8221;. We need to create a gateway config. Go to &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external/</em>&#8221;, here we can create an XML gateway config file. My config file name is <strong>plivo</strong>. Below is the content for the same.</p>
+
+<pre><code>&lt;include&gt;
+  &lt;gateway name="plivo"&gt;
+  &lt;param name="realm" value="phone.plivo.com" /&gt;
+  &lt;param name="username" value="test88140105181635" /&gt;
+  &lt;param name="password" value="secret" /&gt;
+  &lt;param name="register" value="false" /&gt;
+  &lt;param name="ping" value="5" /&gt;
+  &lt;param name="ping-max" value="3" /&gt;
+  &lt;param name="retry-seconds" value="5" /&gt;
+  &lt;param name="expire-seconds" value="60" /&gt;
+  &lt;variables&gt;
+        &lt;variable name="verbose_sdp" value="true"/&gt;
+  &lt;/variables&gt;
+  &lt;/gateway&gt;
+&lt;/include&gt;
+</code></pre>
+
+<p>There are a lot of other parameters which we can add it here, like caller id etc. Replace the username and password with the Plivo endpoint credentials. If we want to keep this endpoint registered, we can set the register param as true and we can set the expiry time at expire-seconds, so that the Fs will keep on registering the Endpoint with Plivo&#8217;s Registrar server. once the gateway file is created, we can either restart the service or we can run &#8220;reload mod_sofia&#8221; on the FScli. If the FreeSwitch service si started in foreground, we will get the FScli, so we can run the reload command directly on it.</p>
+
+<h3>Setting up Dialplan</h3>
+
+<p>Now we have the Gateway added. Now we need to the setup the Dial Plan to route the outgoing calls through Plivo. Go to &#8221;<em>/usr/local/freeswitch/conf/dialplan/</em>&#8221; folder and add an extension on the &#8221;<strong>public.xml</strong>&#8221; file. Below is a sample extension config.</p>
+
+<pre><code>&lt;extension name="Calls to Plivo"&gt;
+      &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
+        &lt;action application="transfer" data="$1 XML default"/&gt;
+      &lt;/condition&gt;
+&lt;/extension&gt;
+</code></pre>
+
+<p>So now all calls matching to the Regex will be transferred to the default dial plan. Now on the the default dial plan, i&#8217;m creating an exntension and will use the FreeSwitch&#8217;s &#8221;<em>bridge</em>&#8221; application to brdige the call with Plivo using the Plivo Gateway. So on the &#8221;<em>default.xml</em>&#8221; add the below extension.</p>
+
+<pre><code>   &lt;extension name="Dial through Plivo"&gt;
+         &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
+           &lt;action application="bridge" data="sofia/gateway/plivo/$1"/&gt;
+         &lt;/condition&gt;
+       &lt;/extension&gt;
+</code></pre>
+
+<p>Now we can restart the FS service or we can reload &#8220;mod_dialplan_xml&#8221; from the FScli. Once the changes are into effect, we can test whether the call is getting routed via Plivo. Configure a soft phone with a default FS user and make an outbound call which matches the regex that we have mentioned for routing to Plivo. Now if all works we should get a call on the destination number. We can check the FS logs at &#8221;<em>/usr/local/freeswitch/log/freeswitch.log</em>&#8221;.</p>
+
+<p>If the Regex is matched, we can see the below lines in the log.</p>
+
+<pre><code>1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 parsing [public-&gt;Calls from BoxB] continue=false
+1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 transfer(xxxxxxxxxxxx XML default)
+1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Regex (PASS) [Dial through Plivo] destination_number(xxxxxxxxxxxx) =~ /^(xxxxxxxxxxxx)$/ break=on-false
+1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Action bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)   
+1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)
+1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4499 [zrtp_passthru] Setting a-leg inherit_codec=true
+1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4502 [zrtp_passthru] Setting b-leg absolute_codec_string=GSM@8000h@20i@13200b,PCMA@8000h@20i@64000b,PCMU@8000h@20i@64000b
+</code></pre>
+
+<p>We can also mention the CallerID on the Direct Dial app which we have mapped to the SIP endpoint. Now for Incoming calls, create a app that can forward the calls to one of the user&#8217;s present in the FreeSwitch, using the Plivo&#8217;s Dial XML. So the XML should look something like below. I will be writing a more detailed blog about Inbound calls once i&#8217;ve have tested it out completely.</p>
+
+<pre><code>&lt;Response&gt;
+  &lt;Dial&gt;
+    &lt;User&gt;FSuser@FSserverIP&lt;/User&gt;
+  &lt;/Dial&gt;
+&lt;/Response&gt;
+</code></pre>
+
+<p>But for security, we need to allow connections from Plivo server. So we need to allow those IP&#8217;s on the FS acl. We can allow the IP&#8217;s in the &#8221;<strong>acl.conf.xml</strong>&#8221; file at &#8221;<em>/usr/local/freeswitch/conf/autoload_configs</em>&#8221;. And make sure that the FS server is accessible via a public ip atleast for the Plivo server&#8217;s which will forward the calls.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Make Text To Speech Calls from Hip Chat]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/"/>
+    <updated>2014-01-23T16:18:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat</id>
+    <content type="html"><![CDATA[<p>I&#8217;ve been using <code>HipChat</code> for the last one month. Before that it was IRC always. But when i joined <em>Plivo&#8217;s</em> <strong>DevOps</strong> family, i&#8217;ve got a lot of places to integrate plivo to automate a lot of stuffs. This i was planning to do some thing with Hipchat. There are a couple of HipChat bot&#8217;s available, i decided to use &#8217;<strong>robut</strong>&#8217;, as it is simple, written in Ruby and easy to write plugins also. Robut need only one &#8220;Chatfile&#8221; as its config file. All the Hip Chat account and room details are mentioned in this file. The Plugins are enabled in this file.</p>
+
+<p>First we need to clone the repository.</p>
+
+<pre><code>$ git clone https://github.com/justinweiss/robut.git
+</code></pre>
+
+<p>Now i need &#8217;<strong>redis</strong>&#8217; and &#8217;<strong>plivo</strong>&#8217; gems for my new plugin. So need to add the same in the Gemfile. Once the gems are added in to the Gemfile, we need to do a &#8221;<strong>bundle install</strong>&#8221; to install all the necessary gems. The path for the <code>Chatfile</code> can be mentioned in  &#8221;<strong>bin/robut</strong>&#8221; file. Now before starting <strong>robut</strong> we need to add the basic HipChat settings ie, <em>jabberid, nick, password and room</em>. Now wen eed to create a plugin to use with robut. The default plugins are available in &#8221;<em>lib/robut/plugin/</em>&#8221; folder. Below is the plugin which i created for making  Text To Speech calls.</p>
+
+<pre><code>require 'json'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+
+class Robut::Plugin::Call
+  include Robut::Plugin
+
+  def usage
+    "#{at_nick} call &lt;number&gt; &lt;message&gt; "
+  end
+
+  def handle(time, sender_nick, message)
+    new_msg = message.split(' ')
+    if sent_to_me?(message) &amp;&amp; new_msg[1] == 'call'
+    num = new_msg[2]
+    textt = message.split(' ').drop(3).join(' ')
+      begin
+    reply("Calling #{num}")
+    plivo_auth_id = "XXXXXXXXXXXXXXXXX"
+    plivo_auth_token = "XXXXXXXXXXXXXXXXX"
+    uuid = SecureRandom.hex
+        r = Redis.new(:host =&gt; "redis_host", :port =&gt; redis_port, :password =&gt; "redis_port")
+        temp = {
+               'text' =&gt; "#{textt}"
+               }
+    plivo_number = "plivo_number"
+        to_number = "#{num}"
+        answer_url = "http://polar-everglades-1062.herokuapp.com/#{uuid}"
+
+        call_params = {
+                      'from' =&gt; plivo_number,
+                      'to' =&gt; to_number,
+                      'answer_url' =&gt; answer_url,
+                      'answer_method' =&gt; 'GET'
+                      }
+        r.set "#{uuid}", temp.to_json
+        r.expire "#{uuid}", 3000
+        sleep 5
+        puts "Initiating plivo call"
+    p = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+        details = p.make_call(call_params)
+    reply("Summary #{details}")
+      rescue
+        reply("Can't calculate that.")
+      end
+    end
+  end
+end
+</code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Phone Call Notification for Sensu using Plivo]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo/"/>
+    <updated>2014-01-12T19:02:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo</id>
+    <content type="html"><![CDATA[<p>It&#8217;s almost 2 weeks since i&#8217;ve joined <a href="http://plivo.com/">Plivo&#8217;s</a> DevOps family. I was spending a lot of time on understanding their API&#8217;s as i&#8217;m new to telephony. Plivo&#8217;s <a href="http://plivo.com/docs/api/">API</a> made telephony so easy that even a person with basic programming language can built powerfull telephony apps to suit to their infrastructure. So when i started playing around with the API, i decided to take it to a different level. I&#8217;m strong lover of Sensu Monitoring tool, so i decided to integrate <em>Plivo</em> with <em>Sensu</em> to built a new Notification system using the Phone call. Many people rely on Pagerduty for the same feature. But that part is completly managed by PagerDuty, where in for the alerts which we sent to PagerDuty, they will notify us via phone call to the phone numbers mentioned on Pager Duty. So i decided to built a similar Handler to Sensu, so that we can have a similar feature on Sensu. In this blog i will explain how i achieved the same with Plivo Framework.</p>
+
+<p><code>Plivo</code> provides Application Programming Interfaces (APIs) to make and receive calls, send SMS, make a conference call, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. Developers can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>Here the Sensu will be initiating outbound calls using Plivo&#8217;s <a href="http://plivo.com/docs/api/">Call</a> API, to the required numbers and will read out the Alert using Plivo&#8217;s Text to Speech Engine. First we need an account on Plivo Cloud, we can go to <a href="https://manage.plivo.com/accounts/register/">SignUP</a> page, and need to create an account. By using the default, we can make test calls. But for longer usage, i will suggest to buy some credits for using the service extensively. Once we login with credentials, at the dashboard we can see <strong><em>Plivo AuthID</em></strong> and <strong><em>Plivo AuthToken</em></strong>, which is required to access Plivo&#8217;s API. Now for making out bound calls, we need to use the <a href="http://plivo.com/docs/api/call/">Call</a> API. We also need to provide an &#8221;<strong>answer_url</strong>&#8221; which contains XML instructions to direct the progress of the call. Plivo will fetch the &#8221;<strong>answer_url</strong>&#8221; and executes te XML instructions. So here i will be using <em>Sinatra</em> to create a web app that will returns the XML.  The main challenge is the text to be mentioned in the XML need to retrieved from the alert. So we cannot predefine the text as well as the request url, because it will be in dynamic in nature.</p>
+
+<p><code>Solution</code> :- Here i&#8217;m going to use a publically accessible <em>Redis</em> server which is protected with a password. When Sensu handler receives the alert, it will create a hash from the alert received with a random UUID as the name of the hash. And the same UUID will be used as the request path for the answer_url. And when sinatra recieves a request, by default the requested path wont be existing in the sinatra&#8217;s config file, as it&#8217;s a dynamically generated. So by default Sinatra will return a 404 response. But in Sinatra, there is an option called &#8221;<strong><em>not_found</em></strong>&#8221;, where we can customize the response instead of returning 404 directly. So i will be using the &#8220;not_found&#8221; option and instead of directly returing a 404, i will make sinatra to talk to my redis server. Since the UUID can be fetched from the request URL, and the same is used in the redis as the name of the Hash, Sinatra can get the details of the alert from the Redis. These details are then used to create the XML and will be returned as the response to Plivo. It will be better to go through Plivo&#8217;s API documentation to understand more about the XML responses and outbound calls.</p>
+
+<p>For those who don&#8217;t have a dedicated server to host the Sinatra app and Redis server, <a href="https://devcenter.heroku.com/articles/getting-started-with-ruby">heroku</a> can be used to host the Sinatra app. We can also use the redis addon availabe at the Heroku for our usage.</p>
+
+<h2>Sinatra App</h2>
+
+<p>Below is the code for the Sinatra app. The &#8221;<strong><em>not_found</em></strong>&#8221; option is the one which performs the connection with the Redis.</p>
+
+<pre><code>require 'plivo'
+require 'sinatra'
+require 'redis'
+require 'rest_client'
+
+get '/' do
+  play_loop = 1
+  lang = "en-US"
+  voice = "WOMAN"
+  text = "Congratulations! You just made a text to speech app on Plivo cloud!"
+  @path = request.path
+  puts @path
+  speak_params = {
+                     'loop' =&gt; play_loop,
+                     'language' =&gt; lang,
+                     'voice' =&gt; voice,
+                     }
+
+  plivo = Plivo::Speak.new(text, speak_params)
+
+  response = Plivo::Response.new()
+  response.add(p)
+  return response.to_xml
+end
+
+not_found do
+  @path = request.path
+  keyword = @path[1..-1]
+  response = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+  data_red = response.get("#{keyword}")
+  if data_red == nil
+         return "404 Not Found"
+  else
+         data = JSON.parse(response.get("#{keyword}"))
+         text = data["text"]
+         play_loop = 1
+         lang = "en-US"
+         voice = "WOMAN"
+         speak_params = {
+                        'loop' =&gt; play_loop,
+                        'language' =&gt; lang,
+                        'voice' =&gt; voice,
+                        }
+
+         plivo = Plivo::Speak.new(text, speak_params)
+
+         response = Plivo::Response.new()
+         response.add(p)
+         return r.to_xml
+   end
+end
+</code></pre>
+
+<p>The above app will redirect all the non found requests and make a requests to the Redis server using the request.path as the name of the hash. If there is a valid hash table, it will generate a Plivo XML else it will return &#8220;404 Not Found&#8221;.</p>
+
+<h2>Plivo Handler</h2>
+
+<p>Below is the Plivo Handler code. this is the Initial code, need to be tweaked to suit to the Sensu&#8217;s coding standard. Also the settings option need to be added so that all the parameters can be provided in the JSON file of the Handler. But as of now, this handler has been tested with Sensu and it is working perfectly fine.</p>
+
+<pre><code>require 'rubygems'
+require 'sensu-handler'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+require 'timeout'
+
+
+class PLIVO &lt; Sensu::Handler
+
+  def short_name
+    @event['client']['name'] + '/' + @event['check']['name']
+  end
+
+  def action_to_string
+    @event['action'].eql?('resolve') ? "RESOLVED" : "ALERT"
+  end
+
+  def handle
+    plivo_auth_id = "XXXXXXXXXXXXXXXX"          # =&gt; available at the plivo dashboard
+    plivo_auth_token = "XXXXXXXXXXXXXXXX"       # =&gt; available at the plivo dashboard
+    body = &lt;&lt;-BODY.gsub(/^ {14}/, '')
+            #{@event['check']['output']}
+            Host: #{@event['client']['name']}
+           BODY
+    uuid = SecureRandom.hex
+    r = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+    temp = {
+            'text' =&gt; "#{body}"
+            }
+    plivo_number = "&lt;YOUR PLIVO NUMBER"
+    to_number = "&lt;DESTINATION NUMBER&gt;"
+    answer_url = "&lt;YOUR HEROKU APP URL&gt;/#{uuid}"
+    call_params = {
+                     'from' =&gt; plivo_number,
+                     'to' =&gt; to_number,
+                     'answer_url' =&gt; answer_url,
+                     'answer_method' =&gt; 'GET'
+                     }
+         r.set "#{uuid}", temp.to_json
+         r.expire "#{uuid}", &lt;EXPIRY TTL&gt;
+         sleep 5
+     begin
+       timeout 10 do
+         puts "Connecting to Plivo Cloud.."
+         plivo = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+     details = plivo.make_call(call_params)
+       end
+       rescue Timeout::Error
+       puts "timed out while attempting to contact Plivo Cloud"
+         end
+  end
+end
+</code></pre>
+
+<p>The above handler will make an outbound call to the Destination number and plivo&#8217;s text to speech engine will read out the Alert summary on the call. Now If you want to call multiple user&#8217;s, simply create an array or hash with the contact numbers and iterate over it.</p>
+
+<p>This handler will give us the same feature of Phone Call notification similar to Pager Duty. We just need to pay for the phone call usage. Dedicated to all those who wants an affordable yet a good notification system with Sensu. I will be merging out my code soon to the  sensu-community repository.</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[TweetGrabber - A Live Tweet Grabber]]></title>
     <link href="http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/"/>
-    <updated>2013-09-22T17:30:00+05:30</updated>
+    <updated>2013-09-22T17:30:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber</id>
     <content type="html"><![CDATA[<p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user&#8217;s comments on their  services/products and they even interacts with user&#8217;s. Website&#8217;s like &#8220;downrightnow.com&#8221;, uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site&#8217;s we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i&#8217;m more concerned about the new trends going on in the Twitter.</p>
 
@@ -88,7 +734,7 @@ def push(data)
   <entry>
     <title type="html"><![CDATA[CouchDB -  A NoSQL DB with a Powerfull Rest API]]></title>
     <link href="http://beingasysadmin.com/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/"/>
-    <updated>2013-09-19T21:37:00+05:30</updated>
+    <updated>2013-09-19T21:37:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api</id>
     <content type="html"><![CDATA[<p><code>CouchDB</code> is an open source <em>NoSQL</em> database, which comes with a powerfull <strong>Rest API</strong>. It stores data in <em>JSON format</em>. uses <em>Javascripts</em> as its query language using <em>MapReduce</em>. JSON data&#8217;s are very easy to understand and can be parsed very easily. This time i got a requirement to build a commandline utility to display results for an internal monitoring tool. The tool is a bit old, and it does not have any api. And finding latest the result is consuming more time using the front end. But one advantage was the frontend can display results in HTML and XML. So curl was able to query the server using the url and it can display the xml output. The url is unique for each, as it composed of few details like Location, SerialNo, Domain, OS etc, which is unique for each hosts. So i decided to have a local database which contains all these unique host details. For this purpose, i dont need any relational databases, and NoSQL databases are sufficient. So i decided to use CouchDB, because it comes with a wonderfull rest api.</p>
 
@@ -127,7 +773,7 @@ puts json
   <entry>
     <title type="html"><![CDATA[Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite]]></title>
     <link href="http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/"/>
-    <updated>2013-06-27T16:29:00+05:30</updated>
+    <updated>2013-06-27T16:29:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite</id>
     <content type="html"><![CDATA[<p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I&#8217;m going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log&#8217;s porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i&#8217;ve explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server&#8217;s access logs.</p>
 
@@ -286,7 +932,7 @@ $ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
   <entry>
     <title type="html"><![CDATA[Lumberjack - A Light Weight Log shipper for Logstash ]]></title>
     <link href="http://beingasysadmin.com/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/"/>
-    <updated>2013-06-25T13:52:00+05:30</updated>
+    <updated>2013-06-25T13:52:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash</id>
     <content type="html"><![CDATA[<p><strong>Logstash</strong> is one of the coolest projects that i always wanted to play around. Since i&#8217;m a sysadmin, i&#8217;m forced to handle multiple apps, which will logs in different formats. The most weird part is the timestamps, where most of the app uses it&#8217;s own time formats. Logstash helps us to solve such situations, we can remodify the time stamp to a standard time format, we can use the predefined filter&#8217;s for filtering out the log&#8217;s, even we can create our own filter&#8217;s using regex. All the documentations are available in the <a href="http://logstash.net">Logstash website</a> Logstash mainly has 3 parts, 1) <em>INPUT</em> -> from which the log&#8217;s are shipped to Logstash, 2) <em>Filter</em> -> for filtering our incoming log&#8217;s to suit to our needs, 3) <em>Output</em> -> For storing or relaying the Filtered output log&#8217;s to various Applications.</p>
 
@@ -388,7 +1034,7 @@ $ dpkg -i lumberjack_0.0.30_amd64.deb  =&gt; The package will install all the fi
   <entry>
     <title type="html"><![CDATA[McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method]]></title>
     <link href="http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/"/>
-    <updated>2013-05-28T09:46:00+05:30</updated>
+    <updated>2013-05-28T09:46:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method</id>
     <content type="html"><![CDATA[<p><code>Mcollective</code> is a framework to build server orchestration or parallel job execution systems. It&#8217;s completely built on  <strong>RUBY</strong>, and offcourse <a href="https://github.com/puppetlabs/puppetlabs-mcollective">Open Sourced</a>. There are a quite good <a href="https://github.com/puppetlabs/mcollective-plugins">plugins</a> available for mcollective. In my previous blog&#8217;s i&#8217;ve explained on how to setup Mcollective with ActiveMQ and also how to use Mongo Discovery method with Mcollective. In this blog i will explain on how to use Mcollective with Rabbitmq connector and a new project called <a href="http://mcomaster.org">mcomaster</a>, an HTML5 web interface to mcollective, which uses <em>REDIS</em> Discovery method in the backend.</p>
 
@@ -585,7 +1231,7 @@ development:
   <entry>
     <title type="html"><![CDATA[Runing MCollective in a Multi-Ruby Environment]]></title>
     <link href="http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/"/>
-    <updated>2013-05-28T09:34:00+05:30</updated>
+    <updated>2013-05-28T09:34:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment</id>
     <content type="html"><![CDATA[<p>Mcollective one of the best open sourced orchestration tools. It&#8217;s build on Ruby and depends on Ruby1.8. But now a days most of the Ruby apps are build on Ruby1.9+, so the default Ruby versions will be 1.9+. This ususally causes problem for Mcollective to run. By default when we install Mcollective from APT, it will install Ruby1.8 also. So the best hack to make Mcollective run under such Multi-Ruby setup is edit the <code>/usr/sbin/mcollectived</code> file,</p>
 
@@ -598,7 +1244,7 @@ development:
   <entry>
     <title type="html"><![CDATA[Plugging QPSMTPD Service with QMAIL]]></title>
     <link href="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/"/>
-    <updated>2013-05-01T15:26:00+05:30</updated>
+    <updated>2013-05-01T15:26:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL</id>
     <content type="html"><![CDATA[<p><em>QPSMTPD</em> is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small <em>extension plugins</em> using the easy to use object oriented plugin API. Basically I uses Qmail Based mail server&#8217;s with a custom <em>qmailqueue</em>. We uses the <em>tcpsvd (TCP/IP Service Daemon)</em> for the smtp service and the mails are passed to a custom <em>qmailqueue</em> which is basically a perl script with custom filters for filtering out the mails. <em>QPSMTPD</em> has a verity of custom plugins which includes <em>SPF</em> check, <em>DKIM</em> check and even for <em>DMARC</em> also. If you are a Perl guy, then you can build custom plugins. The main reason why i got attracted to QPSMTPD was because of its plugin nature.</p>
 
@@ -693,7 +1339,7 @@ $ cpan -i Mail::Header
   <entry>
     <title type="html"><![CDATA[DKIM Signing in QMAIL]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail/"/>
-    <updated>2013-04-30T11:19:00+05:30</updated>
+    <updated>2013-04-30T11:19:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail</id>
     <content type="html"><![CDATA[<p><em>DKIM</em> and <em>SPF</em> are becoming most commonly adopted methods for email validation. Even if we want to use the DMARC (<em>Domain-based Message Authentication, Reporting &amp; Conformance</em>), we need to configure  SPF and DKIM first. DMARC acts as a layer above the SPF and DKIM. DMARC allows the receiever&#8217;s mail server to check if the Email is aligned properly as per the DMARC policy, and it queries the sender&#8217;s DNS server for the DMARC action, ie, whether to reject or quarantine if alignment fails. The action will be mentioned in the TXT record on the Sender&#8217;s DNS server. There is a good collection of DMARC training videos available in <a href="http://www.maawg.org/activities/training/dmarc-video-1">MAAWG site</a>. We will get a clear idea on how DMARC works from those videos.</p>
 
@@ -765,7 +1411,7 @@ $ chown root:qmail /etc/domainkeys/example.com/default
   <entry>
     <title type="html"><![CDATA[Sensu Admin - A GUI for Sensu API]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/"/>
-    <updated>2013-04-28T18:50:00+05:30</updated>
+    <updated>2013-04-28T18:50:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api</id>
     <content type="html"><![CDATA[<p>In my previous post&#8217;s, i&#8217;ve explained on How to setup Sensu server and setting up check&#8217;s and handler&#8217;s. The default dashboard is very simple with limited options, but for those who wants a full fledged dashboard, there is a Rails project in Github <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. So let&#8217;s try setting it up.</p>
 
@@ -799,7 +1445,7 @@ production:
   <entry>
     <title type="html"><![CDATA[Sensu - Setting up Check's and Handler's]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/25/sensu-setting-up-checks-and-handlers/"/>
-    <updated>2013-04-25T12:26:00+05:30</updated>
+    <updated>2013-04-25T12:26:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/25/sensu-setting-up-checks-and-handlers</id>
     <content type="html"><![CDATA[<p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i&#8217;ve explained on how to setup Sensu Server and Client. Now i&#8217;m going to explain how to setup Check&#8217;s and Handler&#8217;s in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
 
@@ -888,7 +1534,7 @@ wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-communi
   <entry>
     <title type="html"><![CDATA[Sensu - Cloud Monitoring Tool]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/"/>
-    <updated>2013-04-23T22:20:00+05:30</updated>
+    <updated>2013-04-23T22:20:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool</id>
     <content type="html"><![CDATA[<p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data&#8217;s.</p>
 
@@ -1094,7 +1740,7 @@ $ update-rc.d sensu-dashboard defaults
   <entry>
     <title type="html"><![CDATA[HARAKA - A NodeJS based SMTP server]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/"/>
-    <updated>2013-04-14T22:51:00+05:30</updated>
+    <updated>2013-04-14T22:51:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/14/haraka-a-nodejs-based-smtp-server</id>
     <content type="html"><![CDATA[<p>Today i came across a very interesting project in GITHUB. <a href="https://github.com/baudehlo/Haraka.git">HARAKA</a> is an SMTP server written completely in <em>NodeJS</em>. Like the qpsmtpd, apart from the core SMTP features we can improve the functionality using small plugins. There are very good pluginsi for HARAKA, basically in javascripts. Like Postfix,Qmail, we can easily implements all sorts of checks and features with the help of these plugins.</p>
 
@@ -1163,7 +1809,7 @@ $ make &amp;&amp; make install
   <entry>
     <title type="html"><![CDATA[Monitoring with ZENOSS]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss/"/>
-    <updated>2013-04-11T17:03:00+05:30</updated>
+    <updated>2013-04-11T17:03:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/11/monitoring-with-zenoss</id>
     <content type="html"><![CDATA[<p>It&#8217;s being a year since i have really played with Centos or any Redhat based Distro&#8217;s. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar&#8217;s, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
 
@@ -1204,7 +1850,7 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
   <entry>
     <title type="html"><![CDATA[Setting Up Apache CloudStack]]></title>
     <link href="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/"/>
-    <updated>2013-04-07T22:16:00+05:30</updated>
+    <updated>2013-04-07T22:16:00+00:00</updated>
     <id>http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack</id>
     <content type="html"><![CDATA[<p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It&#8217;s almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform&#8217;s available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
 
@@ -1268,453 +1914,6 @@ $ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
 </code></pre>
 
 <p>Now from the web browser go to &#8220;http://server_url:8080/client/. The default Username is &#8220;admin&#8221; and password is &#8220;password&#8221;. For the admin user, we don&#8217;t need to provide the domain option.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[WebVirtManager and Libvirt-KVM]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/04/07/webvirtmanager-and-libvirt-kvm/"/>
-    <updated>2013-04-07T13:49:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/04/07/webvirtmanager-and-libvirt-kvm</id>
-    <content type="html"><![CDATA[<p>It&#8217;s been almost two years since i&#8217;ve started using <em>KVM</em> and <em>Libvirt</em> for creating Virtual machines. All our production server&#8217;s are VM&#8217;s, so far KVM has never let us down. The <code>Virt Manager</code> is a wonderful tool taht can installed in most of the linux distributions. But when i switched to ma new MacAir, i could not find a similar tool, so i decided to use a web based tool, so that it can be used from anywhere irrespective of devices. I came across this <a href="https://www.webvirtmgr.net/">WebVirtManager</a>, a python and django based web app, which is very active in development, so i decided to give it a try. In my libvirt setup, i&#8217;m using LVM as my storage pooli for my VM&#8217;s, so the main thing which i wanted to check was, whether the <code>WebVirtManager</code> is able to create LVM&#8217;s, so that it can be used as the <strong><em>HDD image</em></strong> for my new VM&#8217;s from the WebInterface.</p>
-
-<p>First, we need to install the basic dependency packages.</p>
-
-<pre><code>$ apt-get install git python-django virtinst apache2 libapache2-mod-python libapache2-mod-wsgi
-</code></pre>
-
-<p>Now go to <code>libvirtd.conf</code>, and ensure that <em>&#8220;listen_tcp&#8221;</em> is enabled. Also go to <strong><em>&#8220;/etc/default/libvirt&#8221;</em></strong> and add the <strong><em>&#8220;-l&#8221;</em></strong> to the <strong><em>&#8220;libvirtd_opts&#8221;</em></strong>, so that libvirt will listen on tcp. The default port is &#8220;16509&#8221;.</p>
-
-<p>Now we can clone the repository from the Github.</p>
-
-<pre><code>$ git clone git://github.com/retspen/webvirtmgr.git
-$ cd webvirtmgr
-$ ./manage.py syncdb
-</code></pre>
-
-<p>While running the sync, it will ask to create a super user, so create the user, this user can be used to login to the <code>WebVirtManager</code> GUI. Now We can create a <em>virtualhost</em> in apache, and we can start the server. The Apache configurations are available in the Readme. I&#8217;ve added the below WSGI settings in my default apache sites.</p>
-
-<pre><code>WSGIScriptAlias / /var/www/webvirtmgr/wsgi/django.wsgi
-Alias /static /var/www/webvirtmgr/ virtmgr/static/
-&lt;Directory /var/www/webvirtmgr/wsgi&gt;
- Order allow,deny
-Allow from all
-&lt;/Directory&gt;
-</code></pre>
-
-<p>Ensure that the directory is <strong><em>writable by apache user</em></strong>. But for testing, we can start the server from command line using the below command.</p>
-
-<pre><code>$ ./manage.py runserver x.x.x.x:8000 (x.x.x.x - your IP address server)
-</code></pre>
-
-<p>So this command will start the <code>WebvirtManager</code>, which is listening at port &#8220;8000&#8221;. So from the Browser, we can access the url. The default usernmae and password is the one which we created during the syndb.  Now before adding the connection, we need to create a user which can access the libvirt. For that we are going to use <em>&#8220;saslpasswd2&#8221;</em>. Ensure that the package <em>sasl2-bin</em> is installed in the machine.</p>
-
-<pre><code>$ saslpasswd2 -a libvirt testuser     # replace testuser is the user name.
-</code></pre>
-
-<p>To list all the user&#8217;s, we can use the <code>sasldblistusers2</code> command.</p>
-
-<pre><code>$ sasldblistusers2 -f /etc/libvirt/passwd.db
-$ testuser@cloud: userPassword        # Note that the actual user name is testuser@cloud, where cloud is the hostname of my server. This full user name has to be used for adding connections.
-</code></pre>
-
-<p>Now login to the <code>WebvirManager</code>, and click on <strong><em>&#8220;Add Connection&#8221;</em></strong>. Fill in the connection name, ip of the server, the user which we created using <em>saslpasswd2</em>, ie <strong><em>testuser@cloud</em></strong> and the password for that user.If everything goes fine, we can see the host connected. Now click on the &#8220;Overview&#8221;, to see the settings of the host.</p>
-
-<p>Now i need to check the storage pool part. Since the storage pool is already active and running, it will get displayed at the storage pool option. If a new pool has to created, click at the <em>&#8220;add pool&#8221;</em> option, and select the &#8220;lvm&#8221; option, define the <strong><em>VolumeGroup</em></strong> name and the <strong><em>physical volumes</em></strong>.</p>
-
-<p>I tried creating a new VM from the interface, while creating, i selected my VolumeGroup as the storage, and it sucessfully created an LVM with the specified size, and i able to continue my installtion using the vnc option avalable at the WebVirtManager.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Virtualization using Linux Containers]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers/"/>
-    <updated>2013-03-19T23:18:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/03/19/virtualiation-using-linux-containers</id>
-    <content type="html"><![CDATA[<p><strong>LXC</strong> or <strong>Linux Continers</strong> is is an operating system-level virtualization, using which we can run multiple isolated Linux systems on a single host.  LXC relies on the <a href="http://en.wikipedia.org/wiki/Cgroups">cgroups</a> functionality of the Linux Kernels. <em>Cgroups (control groups)</em> is a Linux kernel feature to limit, account and isolate resource usage (CPU, memory, disk I/O, etc.) of process groups. LXC does not provide a virtual machine, but rather provides a virtual environment that has its own process and network space. It is similar to a chroot, but offers much more isolation.</p>
-
-<p>First, let&#8217;s install the necessary packages.</p>
-
-<pre><code>$ apt-get install lxc btrutils
-</code></pre>
-
-<p>By default in Ubuntu, when we install the lxc package, it will create a default bridge network called &#8220;lxcbr0&#8221;. If we don&#8217;t want to use this bridge network, we can disbale it by editing the <code>/etc/default/lxc</code> file. We can also create bridge networks using the <strong><em>&#8220;btrcl&#8221;</em></strong> or we can directly define the bridge networks in the interfaces file. There are a few templates, which gts shipped with the lxc package, which will be present in the <code>/usr/share/lxc/template</code>. I&#8217;m going to use the default template to create the containers. We can also use OPENVZ templates to create containers.</p>
-
-<p>I&#8217;m going to keep my keep all my container&#8217;s files in a default path say &#8220;/lxc&#8221;</p>
-
-<pre><code>$ mkdir /lxc
-</code></pre>
-
-<p>Now we can create the first debian container.</p>
-
-<pre><code>$ mkdir /lxc/vm0    # where vm0 is the name of my conatiner.
-
-$ /usr/share/lxc/templates/lxc-debian -p /lxc/vm0
-</code></pre>
-
-<p>Now this will install and build the necessary files for the container. If we go inside the vm0 folder, we can see two things, one is the config file, and second is the root folder of the container. This root folder will be the virtual environment for our container. Now we can edit the config file, to mention the default Network options.</p>
-
-<pre><code>lxc.network.ipv4 = 192.168.0.123/24 # IP address should end with CIDR
-lxc.network.hwaddr = 4a:59:43:49:79:bf # MAC address
-lxc.network.link = br0 # name of the bridge interface
-lxc.network.type = veth 
-lxc.network.veth.pair = veth_vm0
-</code></pre>
-
-<p>Now we need to add the ip to the lxc&#8217;s interface file alos, for that we need to edit the <code>/lxc/vm0/rootfs/etc/network/interfaces</code> file and set the ip address in it for the interface <em>eth0</em>
-We can create a bridge interface and we can bind it with the physical interface of the host, so that the lxc will be in the same network as that of the host. If there is a virtual network already existing, for example, when we install libvirt, it will create a bridge interface called &#8220;virbr0&#8221;, or in Ubuntu the lxc package installation wil create a bridge interface called &#8216;lxcbr0&#8217;, we can alos use those with lxc. Or we can define a bridge interface in the &#8220;interfaces&#8221; file. Below is a configuration of creating a bridge interface.</p>
-
-<pre><code>    auto eth0
-    iface eth0 inet manual
-
-# Bridge setup
-    iface br0 inet static
-        bridge_ports eth0 
-        address 192.168.0.2
-        broadcast 192.168.0.255
-        netmask 255.255.255.0
-        gateway 192.168.0.1
-</code></pre>
-
-<p>If a separate network has to be given for the lxc&#8217;s, then we can to go for NATing. The below configuration on the interfaces file is for the NAT enabled.</p>
-
-<pre><code>auto br0
-iface br0 inet static
-address 172.16.0.1
-netmask 255.255.255.0
-bridge_stp off
-bridge_maxwait 5
-pre-up  /usr/sbin/brctl addbr br0
-post-up /usr/sbin/brctl setfd br0 0
-post-up /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-post-up echo 1 &gt; /proc/sys/net/ipv4/ip_forward
-</code></pre>
-
-<p>Once we are ready with the configurations, we can start our container using the below command.</p>
-
-<pre><code>$ lxc-start -n vm0 -f /lxc/vm0/config
-</code></pre>
-
-<p>In the NAT scenario, the lxc machines are under the &#8220;172.16&#8221; network, while the host lies in &#8220;192.168.0&#8221; network. There are some good projects which works around with lxc, <a href="https://github.com/chrisroberts/vagabond">vagabond</a> is an example for that.Vagabond is a tool integrated with Chef to build local nodes easily and most importantly, quickly. Vagabond is built for Chef.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using Foreman with Puppet and Libvirt]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt/"/>
-    <updated>2013-03-07T09:39:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/03/07/using-foreman-with-puppet-and-libvirt</id>
-    <content type="html"><![CDATA[<p><em>TheForeman</em> is one of the best provisioning tools available. It&#8217;s purely open-sourced. And it natively supports <strong><em>puppet</em></strong> for provisioning the nodes. Foreman can talk to <strong>libvirt</strong> also, which makes us easy to create a VM and provision it on the way. In this blog i will be explaining on how to install Foreman from the source, how to integrate it with puppet to receive the logs and facts and make Foreman to use Libvirt for building VM&#8217;s.</p>
-
-<h3>Setting up Foreman</h3>
-
-
-<p>First will install the basic depenencies. Since i&#8217;m using the git repository of Foreman for installation, git package has to be installed. Moreover we also need a database for Foreman. I&#8217;m going to use Mysql for that.</p>
-
-<pre><code>$ apt-get install git mysql-server ruby-mysql libmysql-ruby1.9.1 libmysqlclient-dev libvirt-dev 
-</code></pre>
-
-<p>Now clone the repository from github. The newer build&#8217;s works with <em>Puppet 3.0</em>.</p>
-
-<pre><code>$ git clone https://github.com/theforeman/foreman.git -b develop
-</code></pre>
-
-<p>Ensure that &#8221;<strong><em>ruby</em></strong> and <strong><em>bundler</em></strong>&#8221; is installed in the machine.</p>
-
-<pre><code>$ bundle install --without postgresql sqlite
-</code></pre>
-
-<p>Now we can start configuring Foreman. Copy the sample config files.</p>
-
-<pre><code>$ cp config/settings.yaml.example config/settings.yaml
-$ cp config/database.yml.example config/database.yml
-</code></pre>
-
-<p>Now create a database for FOreman and add the database details in the <code>database.yml</code>. Now add the puppet master details in the <code>settings.yaml</code>. Since i&#8217;m going to use the Foreman in production mode, i&#8217;ve commented out the Development and test environment setting in <code>database.yml</code>. Once the config files are set, we can now go ahead with db migration.</p>
-
-<pre><code>$ RAILS_ENV=production bundle exec rake db:migrate
-</code></pre>
-
-<p>Now we can check whether the server is fine or not by using the following command. The below command will start the Foreman with the builtin web server, and we can access the webui from <code>http://foreman_ip:3000</code> in the browser. By default there is no authentication set for the WebUI. But LDAP Authentication can be set for the WebUI. Details are availabe in the foreman&#8217;s <a href="http://theforeman.org/manuals/1.1/index.html#4.1WebInterface">documentation</a>.</p>
-
-<pre><code>$ RAILS_ENV=production rails server
-</code></pre>
-
-<p>Once the Foreman server is working fine, we can configure puppet to send its logs and facts to foreman. In the puppet clients, add <code>report = true</code> in the puppet.conf file. Now in the puppet master, we need to do a few stuffs.</p>
-
-<p>Copy this foreman <a href="https://raw.github.com/theforeman/puppet-foreman/master/templates/foreman-report.rb.erb">report</a> file to puppet&#8217;s report library.</p>
-
-<p>In my case it is <code>/usr/lib/ruby/vendor_ruby/puppet/reports/</code> and rename it to foreman.rb. Now add <code>reports=log, foreman</code> in the <strong><em>puppet.conf</em></strong> file. Also add the foreman url in the foreman.rb file.</p>
-
-<pre><code>foreman_url='http://foreman:3000    # or use ip instead of foreman, if DNS/Host entry is not there for Foreman
-</code></pre>
-
-<p>Now for sending facts to puppet, we can put a cron job to execute the below command</p>
-
-<pre><code>$ rake puppet:import:hosts_and_facts RAILS_ENV=production
-</code></pre>
-
-<p>Now once the puppet clients starts running, they will send the logs to Foreman, and can be viewed in the WebUI.</p>
-
-<h3>Foreman and Libvirt</h3>
-
-
-<p>Now in the same machine i&#8217;ve installed libvirt and libvirt-ruby. Now create a user &#8220;foreman&#8221; and generate ssh-key for the user. Now copy the public key to the &#8220;authorized_keys&#8221; file of the root user. This is actually needed if your libvirt host is different.</p>
-
-<p>Now go to the Foreman WebUI, Go to  <strong><em>More</em></strong> &#8212;&#8211;> <strong><em>provisioning</em></strong> &#8212;&#8211;> <strong><em>Compute Resources</em></strong>. Now click on &#8220;New Compute Resource&#8221;, Add a name for the Resource, Select the provider as <em>Libvirt</em>, and URL is <code>qemu:///system</code>, since libvirt and foreman resides on the same system. We can also test the connection to libvirt. IF the parameters we entered are fine, Foreman can talk to libvirt directly.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Using SNMP with Icinga]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/02/26/using-snmp-with-icinga/"/>
-    <updated>2013-02-26T21:55:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/02/26/using-snmp-with-icinga</id>
-    <content type="html"><![CDATA[<p>In my previous i explained how to set up the Icinga monitoring system on Debian based machine. In this i will be explaining on how to use SNMP with icinga. Using SNMP we can get various info from a remote machine which can be used to icinga.</p>
-
-<p>On the remote server we need to install the snmp server. In ordr to check whether the snmp is working fine, we can install the snmp client also on the same machine.</p>
-
-<pre><code>apt-get install snmp snmp-server
-</code></pre>
-
-<p>From Debian Wheezy onwards, the <strong><em>snmp-mibs</em></strong> package has been removed from the debian repositories. But we can download the debian file from the squeeze repo. Since it has only a few depenencies and they can be installed from the debian repositories, we can manually install the mibs package. But in Ubuntu mibs package is still available in their repositories.</p>
-
-<p>Once the package is installed we can run the <strong><em>download-mibs</em></strong> to install all the necessary mibs. Now once the snmpd package is installed, we need to comment the MIBS option in the <code>/etc/snmp/snmp.conf</code>. And define the basic settings like, location, contact etc in the <code>snmpd.conf</code> file. We can define the ip to which snmp should listen either in the snmpd.conf file or in the <code>/etc/default/snmp</code> file as an extra option. Once the settings are modified, we can start the snmpd service.</p>
-
-<p> So now the service will listening on the port <em>631</em> on the ip which we defined, by default <strong>127.0.0.1</strong>. We can also enable authentication for snmp service, so that the snmp clients which passes the authentication will be able to get the result from the snmp service.</p>
-
-<p>Once the snmp service has started on the remote server, we can test the snmp onnectivity from our icinga server using the nagios&#8217; <code>check_snmp plugin</code>. Once we are able to get results from the snmp service, we can deploy tese snmp services into our icinga host configurations to get the results from the remote server&#8217;s using the <strong><em>check_snmp command</em></strong>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Monitoring server's using Icinga]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga/"/>
-    <updated>2013-02-25T21:44:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga</id>
-    <content type="html"><![CDATA[<p>Last week we had severe outage in our US vps. The <em>load</em> was getting too high in the server, since it&#8217;s a hosting server, and so many of our clients are hosting their DNS, website and mail server in it. So i decided to implement a monitoring system. And i decided it to extend it to all of our client server&#8217;s so that we can have a fully fledged monitoring system in our company. I&#8217;m a great fan of Sensu and i play with it regularly, but this time i decided to setup <a href="http://icinga.org">Icinga</a> monitoring system, which can be used any System admin very easily. In this post i will be explaining on how to setup the <strong><em>icinga</em></strong> with it&#8217;s newest web interface called icinga-web. This setup works perfectly in <em>Debian</em> based OS. In my next post, i will be explaining on how to setup <em>SNMP</em> to work with icinga.</p>
-
-<p>By default Ubuntu and Debian repositories has icinga packages.</p>
-
-<pre><code>$ apt-get install icinga icinga-cgi icinga-common icinga-core icinga-idoutils icinga-web icinga-web-pnp mysql-server
-</code></pre>
-
-<p>Once the installation is completed, by default icinga has already created a config file for the local host, which can be found in <code>/etc/icinga/objects/</code>. Now we can access the default icinga web interface with <code>http://yoursystemip/icinga</code>. The default user will be <strong><em>icingaadmin</em></strong> and password will be the default password which we have setup during the installation. Now we can create the config files for other hosts and we should restart the icinga service. This will add the host&#8217;s to our default web interface. All the check commands are defined in the <code>/etc/nagios-plugins/config/</code> folder.</p>
-
-<p>Now we need to set a contact so that icinga can send alerts to the specified email id. In the <code>/etc/icinga/objects/</code> there is a file called <strong><em>contacts_icinga.cfg</em></strong>, where we have to define the contact info.</p>
-
-<pre><code>define contact{
-    contact_name                    your_contact_name
-    alias                           alias
-    service_notification_period     24x7
-    host_notification_period        24x7
-    service_notification_options    w,u,c,r
-    host_notification_options       d,r
-    service_notification_commands   notify-service-by-email
-    host_notification_commands      notify-host-by-email
-    email                           your_contact_email_id
-    }
-</code></pre>
-
-<p> The <strong><em>notify-service-by-email</em></strong> and <strong><em>notify-host-by-email</em></strong> commands are defined in the <code>/etc/icinga/commands.cfg</code> file. We can make changes to the format of the email alert by modifying this file. the &#8220;icinga-web&#8221; package will setup the basic config for the new icinga-web interface. Before starting the new interface we need to check a few settings for the new interface. First is the Database for the new interface. Ensure that the DB icinga-web and a user called icinga-web is created in the mysql. Now we need ensure that the database settings are correctly mentioned in the icinga-web settings. The settings are available in <code>/etc/icinga-web/conf.d/</code>. Now ensure that the database,user, and password are correctly mentioned in the <code>databases.xml</code> file. Now we need to ensure that the broker modules are enabled in the icinga.cfg file. comment out the below line in the icinga.cfg file to enable the idmod to enable the idomod broker module.</p>
-
-<pre><code>broker_module=/usr/lib/icinga/idomod.so config_file=/etc/icinga/idomod.cfg
-</code></pre>
-
-<p>Also increase the log level to debug in both icinga as well as idomod, which helps to identify error if any. Now restart the icing and idomod services. Now go to the new interface by going to the following url, <code>http://ip/icinga-web</code>. the default user name is &#8220;root&#8221; and the passwod will be the one which we have given during installation</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Building Mailserver with Postfix]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/01/26/building-mailserver-with-postfix/"/>
-    <updated>2013-01-26T14:28:00+05:30</updated>
-    <id>http://beingasysadmin.com/blog/2013/01/26/building-mailserver-with-postfix</id>
-    <content type="html"><![CDATA[<p>It&#8217;s been a week since i started playing around with <code>Postfix</code>. Though we are qmail lovers, a few days back one of my friend asked me to help him to build a Mail server. But he wanted to use Postfix as the MTA. I decided to integrate <em>LDAP</em>  also, so that he can have a centralized user management. So in this blog i will be explaining on how to set up postfix to use LDAP for user lookup as well as using <strong><em>Dovecot SASL</em></strong> for SMTP auth and <strong><em>Dovecot&#8217;s lda</em></strong> for delivering the mails to the user&#8217;s Mailboxes. I&#8217;m using Debian 6.4 as the base os. I&#8217;ve also installed <em>SLAPD</em>, and i&#8217;ve a few test user&#8217;s in it. My LDAP setup has two OU&#8217;s, People and Groups respectively.</p>
-
-<p>First we will setup <em>Dovecot</em>. The Debian Squeeze repository has Dovecot 1.2, so i will be installing those.</p>
-
-<pre><code>$ apt-get install dovecot-common dovecot-pop3d dovecot-imapd
-</code></pre>
-
-<p>Once dovecot is installed, we need to enable dovecot&#8217;s LDA and the dovecot&#8217;s SASL auth. Modify the dovecot.conf file as below. Since i&#8217;m using a virtual user <strong><em>vmail</em></strong>, i need to define the <em>mail_uid and mail_gid</em> as the vmail&#8217;s corresponding uid and gid. Also <em>login_user</em> must be <strong><em>postfix</em></strong></p>
-
-<p>In the <em>lda</em> section,</p>
-
-<pre><code>protocol lda {
- postmaster_address = postmaster@&lt;domain_name&gt;
- mail_plugin_dir = /usr/lib/dovecot/modules/lda
- deliver_log_format = msgid=%m: %$
- sendmail_path = /usr/sbin/sendmail
- rejection_subject = Rejected: %s
- auth_socket_path = /var/run/dovecot/auth-master
- log_path = /var/log/dovecot-deliver.log
- info_log_path = /var/log/dovecot-deliver.log
-}
-</code></pre>
-
-<p>In the <em>auth</em> section,</p>
-
-<pre><code>auth default {
- mechanisms = plain
-
-  passdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  userdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  socket listen {
-         master {  
-    path = /var/run/dovecot/auth-master
-        mode = 0666
-        # Default user/group is the one who started dovecot-auth (root)
-        user = vmail
-        group = vmail   
-        }
-
-     client {
-        path = /var/spool/postfix/private/auth
-        mode = 0660
-        user = postfix
-        group = postfix
-        }
-</code></pre>
-
-<p>Below is the content of my <em>dovecot-ldap.conf</em></p>
-
-<pre><code>hosts = localhost
-dn =  &lt;ldap_bind_dn&gt;
-dnpass = &lt;ldap_bind_pwd&gt;
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = &lt;ldap_base_dn&gt;
-auth_bind = yes
-pass_attrs = uid=user
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,mailQuotaSize=quota=dirsize:storage
-user_filter = (&amp;(objectClass=posixAccount)(|(mail=%u)(mailAlternateAddress=%u)(uid=%u)))
-</code></pre>
-
-<p>So now Dovecot is ready, we need to go ahead with Postfix installation. We need to install the below packages.</p>
-
-<pre><code>$ apt-get install postfix postfix-ldap
-</code></pre>
-
-<p>Once the packages are installed, we need to configure the main config file of postfix ie, <strong>main.cf</strong>. Below is the my configuration,</p>
-
-<pre><code>myhostname = vagratn-postifx-box
-smtpd_banner = &lt;smtp_banner&gt;
-biff = no
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
-smtpd_tls_key_file=/etc/ssl/private/server.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
-mydestination = localhost
-relayhost =
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-home_mailbox = Maildir/
-virtual_mailbox_maps = ldap:/etc/postfix/ldap_virtual_users.cf          #This ldap lookup will return user's MAilbox as the result from LDAPv
-virtual_alias_maps = ldap:/etc/postfix/ldap_virtual_mailalt.cf      #This ldap lookup will return uid from LDAP
-$alias_maps = hash:/etc/aliases,ldap:/etc/postfix/ldap_virtual_mailalt.cf
-local_recipient_maps = $alias_maps
-smtpd_sender_login_maps = ldap:/etc/postfix/ldap_senders.cf     #This ldap lookup will return uid attribute from LDAP
-smtpd_sasl_type = dovecot
-smtpd_sasl_path = private/auth
-smtpd_sasl_auth_enable = yes
-mailbox_transport = dovecot
-dovecot_destination_recipient_limit = 1
-virtual_mailbox_domains = &lt;add virtual domains here&gt;
-virtual_transport = dovecot
-</code></pre>
-
-<p>We can also mention the SMTP sender and recipient restrictions in the above file,</p>
-
-<pre><code>smtpd_client_restrictions=
-        permit_mynetworks,
-
-smtpd_recipient_restrictions=
-        permit_mynetworks,
-        permit_sasl_authenticated,
-        reject_unverified_recipient,
-        reject_invalid_hostname,
-        reject_non_fqdn_hostname,
-        reject_non_fqdn_sender,
-        reject_non_fqdn_recipient,
-        reject_unknown_sender_domain,
-        reject_unknown_recipient_domain,
-        reject_unauth_pipelining,
-        permit_auth_destination,
-        reject_unauth_destination,
-
-smtpd_sender_restrictions=
-        reject_unknown_sender_domain,
-        reject_unlisted_sender,
-        reject_authenticated_sender_login_mismatch,
-</code></pre>
-
-<p>Below are the contents of the various LDAP lookup file&#8217;s contents. We can verify this lookup&#8217;s using postmap command. &#8221;<strong><em>postmap -q <query> ldap:/<lookupfile></em></strong>&#8221;</p>
-
-<pre><code>########ldap_virtual_mailalt.cf########
-
-    server_host = ldap://localhost
-    version = 3
-    search_base = &lt;ldap_base_dn&gt;
-    bind_dn = &lt;ldap_bind_dn&gt;
-    bind_pw = &lt;ldap_bind_password&gt;
-    bind = yes
-    debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid 
-
-
-########ldap_virtual_users.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid
-    result_format = %s/Maildir/
-
-
-########ldap_senders.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-        query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))            
-    result_attribute = uid
-</code></pre>
-
-<p>Now we need to allow dovecot for delivery, so we need to add the following entry to <strong>master.cf</strong></p>
-
-<pre><code>dovecot   unix  -       n       n       -       -       pipe
-    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${recipient}
-</code></pre>
-
-<p>I&#8217;m using recipient email id completely as the delivery option, because, in the multi domain setup, ifthere exist two different user&#8217;s with same name say &#8220;abc&#8221;, LDAP dn is always unique, so we cannot have same user name for two different user&#8217;s, in such cases, we uses the full email id as the username for the second user, so in such scenario, we cannot use the user parameter as delivery option, because the it dovecot will remove the @domain part and takes the rest as the user, so if we use full email id, it will not deliver to the actual user.</p>
-
-<p>This setup has worked perfectly with Debian Squeeze and as well as Debian Vagrant Boxes. I&#8217;m writing a puppet module which will automate LDAP,Postfix and Dovecot installation and configuration and will have a ready to use mail server. Soon i will upload it into my <a href="http://github.com/deepakmdass88">github</a> account.</p>
 ]]></content>
   </entry>
   
