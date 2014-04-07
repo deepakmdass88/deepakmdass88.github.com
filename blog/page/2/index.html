@@ -97,6 +97,157 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - a Light Weight Log Shipper for Logstash</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-25T13:52:00+00:00" pubdate data-updated="true">Jun 25<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><strong>Logstash</strong> is one of the coolest projects that i always wanted to play around. Since i&#8217;m a sysadmin, i&#8217;m forced to handle multiple apps, which will logs in different formats. The most weird part is the timestamps, where most of the app uses it&#8217;s own time formats. Logstash helps us to solve such situations, we can remodify the time stamp to a standard time format, we can use the predefined filter&#8217;s for filtering out the log&#8217;s, even we can create our own filter&#8217;s using regex. All the documentations are available in the <a href="http://logstash.net">Logstash website</a> Logstash mainly has 3 parts, 1) <em>INPUT</em> -> from which the log&#8217;s are shipped to Logstash, 2) <em>Filter</em> -> for filtering our incoming log&#8217;s to suit to our needs, 3) <em>Output</em> -> For storing or relaying the Filtered output log&#8217;s to various Applications.</p>
+
+<p>Lumberjack is one such input plugin designed for logstash. Though the plugin is still in beta state, i decided to give it a try. By default we can also use logstash itself for shipping logs to centralized Logstash server, the JVM made it difficult to work with many of my constrained machines. Lumberjack claims to be a light weight log shipper which uses <em>SSL</em> and we can add custom <code>fields</code> for each line of log which we ships.</p>
+
+<h4>Setting up Logstash Server</h4>
+
+<p>Download the latest the logstash jar file from the logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">website</a>. Now create a logstash configuration file for the logstash instance. In the config file, we have to enable the <code>lumberjack</code> plugin. Lumberjack uses SSL CA to verify the server. So we need to generate the same for the logstash server. We can use the below mentioned command to generate the SSL certificate and key.</p>
+
+<pre><code>$ openssl req -x509 -newkey rsa:2048 -keyout /etc/ssl/logstash.key -out /etc/ssl/logstash.pub -nodes -days 3650
+</code></pre>
+
+<p>Below is the sample logstash conf file which i used for stashing logs from <code>Socklog</code>.</p>
+
+<pre><code>input {
+
+  lumberjack {
+    type =&gt; "qmail"
+    port =&gt; 4545
+    ssl_certificate =&gt; "/etc/ssl/logstash.pub"
+        ssl_key =&gt; "/etc/ssl/logstash.key"
+  }
+}
+
+filter {
+  grok {
+        type =&gt; "socklog"
+        pattern =&gt; "%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"
+  }
+  mutate {
+        replace =&gt; [ "@message", "%{mess}" ]
+  }
+  date {
+        type =&gt; "socklog"
+        match =&gt; [ "timestamp", "MMM dd HH:mm:ss" ]
+  }
+}
+
+output {
+  stdout {
+    debug =&gt; true
+      }
+}
+</code></pre>
+
+<p>Now we can start the the logstash using the above config.</p>
+
+<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
+</code></pre>
+
+<p>Once the logstash has started successfully, we can use netstat to check if it listening on port <em>4545</em>. I&#8217;m currently running logstash in the foreground, below is the logoutput from logstash</p>
+
+<pre><code>Starting lumberjack input listener {:address=&gt;"0.0.0.0:4545", :level=&gt;:info}
+Input registered {:plugin=&gt;&lt;LogStash::Inputs::Lumberjack type=&gt;"socklog", ssl_certificate=&gt;"/etc/ssl/logstash.pub", ssl_key=&gt;"/etc/ssl/logstash.key", charset=&gt;"UTF-8", host=&gt;"0.0.0.0"&gt;, :level=&gt;:info}
+Match data {:match=&gt;{"@message"=&gt;["%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"]}, :level=&gt;:info}
+Grok compile {:field=&gt;"@message", :patterns=&gt;["%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"], :level=&gt;:info}
+Output registered {:plugin=&gt;&lt;LogStash::Outputs::Stdout debug_format=&gt;"ruby", message=&gt;"%{@timestamp} %{@source}: %{@message}"&gt;, :level=&gt;:info}
+All plugins are started and registered. {:level=&gt;:info}
+</code></pre>
+
+<h4>Setting up Lumberjack agent</h4>
+
+<p>On the machine from which we are going to ship the log&#8217;s, clone the Lumberjack github <a href="https://github.com/jordansissel/lumberjack.git">repo</a>.</p>
+
+<pre><code>$ git clone https://github.com/jordansissel/lumberjack.git
+</code></pre>
+
+<p>Install the <strong><em>fpm</em></strong> ruby gem, which is required to build the lumberjack package.</p>
+
+<pre><code>$ gem install fpm
+
+$ cd lumberjack &amp;&amp; make
+
+$ make deb   =&gt; This will build a debian package of the lumberjack
+
+$ dpkg -i lumberjack_0.0.30_amd64.deb  =&gt; The package will install all the files to the `/opt/lumberjack`
+</code></pre>
+
+<p>Now copy the SSL certificate which we have generated at the Logstash server, to the Lumberjack machine. Once the SSL certificte has been copied, we can start the lumberjack agent.</p>
+
+<pre><code>$ /opt/lumberjack/bin/lumberjack --ssl-ca-path ./ssl/logstash.pub --host logstash.test.com --port 4545 /var/log/socklog/main/current
+</code></pre>
+
+<p>Below is the log output from the lumberjack.</p>
+
+<pre><code>2013-06-25T15:04:32.798+0530 Watching 1 files, setting open file limit to 103
+2013-06-25T15:04:32.798+0530 Watching 1 files, setting memory usage limit to 1048576 bytes
+2013-06-25T15:04:32.878+0530 Connecting to logstash.test.com(192.168.19.19):4545
+2013-06-25T15:04:33.186+0530 slow operation (0.307 seconds): connect to 192.168.19.19:4545
+2013-06-25T15:04:33.186+0530 Connected successfully to logstash.test.com(192.168.19.19):4545
+2013-06-25T15:04:34.653+0530 Declaring window size of 4096
+2013-06-25T15:04:36.734+0530 flushing since nothing came in over zmq
+</code></pre>
+
+<p>Now we will start getting the output from the Logstash in our screen, since we are using the &#8216;stdout&#8217; output plugin. A very good detailed documentation about Lumberjack and Logstash can be found <a href="http://mzlizz.mit.edu/vmdoh-centralizing-logs-lumberjack-logstash-and-elasticsearch">here</a>, written by <a href="https://portland2013.drupal.org/users/brian-altenhofel">Brian Altenhofel</a>. He had given a talk on this at Drupalcon 2013, Portland. The video for the talk is available <a href="http://youtu.be/p0Av29yaBEI">here</a>. It&#8217;s a very good blog post.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/">McoMaster - an HTML5 Based GUI for Mcollective With Redis Discovery Method</a></h1>
     
     
@@ -1348,125 +1499,6 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/07/setting-up-apache-cloudstack/">Setting Up Apache CloudStack</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-07T22:16:00+00:00" pubdate data-updated="true">Apr 7<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/cloud/'>Cloud</a>, <a class='category' href='/blog/categories/ubuntu-/'>Ubuntu,</a>, <a class='category' href='/blog/categories/virtualization-/'>Virtualization,</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It&#8217;s almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform&#8217;s available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
-
-<h3>Building Debian Packages from the Source</h3>
-
-<p>First we need to install the below dependency packages.</p>
-
-<pre><code>1.  Apache Ant
-2.  JDepend
-3.  Apache Maven (version 3)
-4.  Java (Java 6/OpenJDK 1.6)
-5.  Apache Web Services Common Utilities (ws-commons-util)
-6.  MySQL
-7.  MySQLdb (provides Python database API)
-8.  Tomcat 6 (not 6.0.35)
-9.  genisoimage
-10. dpkg-dev and their dependencies
-</code></pre>
-
-<p>Maven 3, which is not currently available in 12.10. So, we&#8217;ll need to add a PPA repository that includes Maven 3</p>
-
-<pre><code>$ add-apt-repository ppa:natecarlson/maven3
-</code></pre>
-
-<p>The current ppa supports only ubuntu 12.04 aka Precise, so edit <code>/etc/apt/sources.list.d/natecarlson-maven3-quantal.list</code> and replace &#8220;quantal&#8221; with &#8220;precise&#8221;. So now the content of the file looks like below one</p>
-
-<pre><code>deb http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
-deb-src http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
-</code></pre>
-
-<p>Now we can start installing the dependencies,</p>
-
-<pre><code>$ apt-get install ant debhelper openjdk-6-jdk tomcat6 libws-commons-util-java genisoimage python-mysqldb libcommons-codec-java libcommons-httpclient-java liblog4j1.2-java python-software-properties maven3
-</code></pre>
-
-<p>Now we can resolve the buildtime depdencies for CloudStack by running the below command.</p>
-
-<pre><code>$ mvn3 -P deps.
-</code></pre>
-
-<p>Now there is a small <a href="https://issues.apache.org/jira/browse/CLOUDSTACK-1589">bug</a>, which add the dependency of &#8220;chkconfig&#8221; package to a few of the cloudstack packages. But &#8220;chkconfig&#8221; is required for Redhat based machines, not for debian based machines. So edit &#8220;Debian/control&#8221; file inside the apache cloudstack source folder and remove &#8220;chkconfig&#8221; from the dependency list. After that we can start building the debian packages.</p>
-
-<pre><code>$ dpkg-buildpackage -uc -us
-</code></pre>
-
-<p>The above command will build 16 debian packages.</p>
-
-<h3>Setting up a Local APT repo</h3>
-
-<p>Now we can set up a local apt repo so that we can install all these 16 packages along with their corresponding dependencies. First ensure that &#8220;dpkg-dev&#8221; is installed. After that copy all the packages to a specific location in order to create the local repo.</p>
-
-<pre><code>$ mkdir -p /var/www/cloudstack/repo/binary
-$ cp *.deb /var/www/cloudstack/repo/binary
-$ cd /var/www/cloudstack/repo/binary
-$ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
-</code></pre>
-
-<p>We need to configure the local machine to use this local repo. Add the local repository in <code>echo "deb http://server_url/cloudstack/repo/binary ./" &gt; /etc/apt/sources.list.d/cloudstack.list</code> and run &#8220;apt-get update&#8221;. Now we can install the cloudstack packages.</p>
-
-<pre><code>$ apt-get install cloud-agent cloud-agent-deps cloud-agent-libs cloud-awsapi cloud-cli cloud-client cloud-client-ui cloud-core cloud-deps cloud-python cloud-scripts cloud-server cloud-setup cloud-system-iso cloud-usage cloud-utils
-</code></pre>
-
-<p>Now from the web browser go to &#8220;http://server_url:8080/client/. The default Username is &#8220;admin&#8221; and password is &#8220;password&#8221;. For the admin user, we don&#8217;t need to provide the domain option.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1494,6 +1526,10 @@ $ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard with Kibana and Elasticsearch</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
         </li>
       
@@ -1507,10 +1543,6 @@ $ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
       
         <li>
           <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text To Speech Calls from Hip Chat</a>
         </li>
       
     </ul>

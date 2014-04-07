@@ -97,6 +97,125 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/07/setting-up-apache-cloudstack/">Setting Up Apache CloudStack</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-07T22:16:00+00:00" pubdate data-updated="true">Apr 7<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/cloud/'>Cloud</a>, <a class='category' href='/blog/categories/ubuntu-/'>Ubuntu,</a>, <a class='category' href='/blog/categories/virtualization-/'>Virtualization,</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It&#8217;s almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform&#8217;s available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
+
+<h3>Building Debian Packages from the Source</h3>
+
+<p>First we need to install the below dependency packages.</p>
+
+<pre><code>1.  Apache Ant
+2.  JDepend
+3.  Apache Maven (version 3)
+4.  Java (Java 6/OpenJDK 1.6)
+5.  Apache Web Services Common Utilities (ws-commons-util)
+6.  MySQL
+7.  MySQLdb (provides Python database API)
+8.  Tomcat 6 (not 6.0.35)
+9.  genisoimage
+10. dpkg-dev and their dependencies
+</code></pre>
+
+<p>Maven 3, which is not currently available in 12.10. So, we&#8217;ll need to add a PPA repository that includes Maven 3</p>
+
+<pre><code>$ add-apt-repository ppa:natecarlson/maven3
+</code></pre>
+
+<p>The current ppa supports only ubuntu 12.04 aka Precise, so edit <code>/etc/apt/sources.list.d/natecarlson-maven3-quantal.list</code> and replace &#8220;quantal&#8221; with &#8220;precise&#8221;. So now the content of the file looks like below one</p>
+
+<pre><code>deb http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+deb-src http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
+</code></pre>
+
+<p>Now we can start installing the dependencies,</p>
+
+<pre><code>$ apt-get install ant debhelper openjdk-6-jdk tomcat6 libws-commons-util-java genisoimage python-mysqldb libcommons-codec-java libcommons-httpclient-java liblog4j1.2-java python-software-properties maven3
+</code></pre>
+
+<p>Now we can resolve the buildtime depdencies for CloudStack by running the below command.</p>
+
+<pre><code>$ mvn3 -P deps.
+</code></pre>
+
+<p>Now there is a small <a href="https://issues.apache.org/jira/browse/CLOUDSTACK-1589">bug</a>, which add the dependency of &#8220;chkconfig&#8221; package to a few of the cloudstack packages. But &#8220;chkconfig&#8221; is required for Redhat based machines, not for debian based machines. So edit &#8220;Debian/control&#8221; file inside the apache cloudstack source folder and remove &#8220;chkconfig&#8221; from the dependency list. After that we can start building the debian packages.</p>
+
+<pre><code>$ dpkg-buildpackage -uc -us
+</code></pre>
+
+<p>The above command will build 16 debian packages.</p>
+
+<h3>Setting up a Local APT repo</h3>
+
+<p>Now we can set up a local apt repo so that we can install all these 16 packages along with their corresponding dependencies. First ensure that &#8220;dpkg-dev&#8221; is installed. After that copy all the packages to a specific location in order to create the local repo.</p>
+
+<pre><code>$ mkdir -p /var/www/cloudstack/repo/binary
+$ cp *.deb /var/www/cloudstack/repo/binary
+$ cd /var/www/cloudstack/repo/binary
+$ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
+</code></pre>
+
+<p>We need to configure the local machine to use this local repo. Add the local repository in <code>echo "deb http://server_url/cloudstack/repo/binary ./" &gt; /etc/apt/sources.list.d/cloudstack.list</code> and run &#8220;apt-get update&#8221;. Now we can install the cloudstack packages.</p>
+
+<pre><code>$ apt-get install cloud-agent cloud-agent-deps cloud-agent-libs cloud-awsapi cloud-cli cloud-client cloud-client-ui cloud-core cloud-deps cloud-python cloud-scripts cloud-server cloud-setup cloud-system-iso cloud-usage cloud-utils
+</code></pre>
+
+<p>Now from the web browser go to &#8220;http://server_url:8080/client/. The default Username is &#8220;admin&#8221; and password is &#8220;password&#8221;. For the admin user, we don&#8217;t need to provide the domain option.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/07/webvirtmanager-and-libvirt-kvm/">WebVirtManager and Libvirt-KVM</a></h1>
     
     
@@ -1164,95 +1283,6 @@ $ mco rpc rpcutil ping --dm=mc -v
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/26/vagrant-make-virtualization-easier/">Vagrant: Make Virtualization Easier</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-26T18:21:00+00:00" pubdate data-updated="true">Nov 26<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><strong><em>Vagrant</em></strong> is a light weight virtualization tool, build over Oracle&#8217;s <code>VirtualBox</code>. It&#8217;s completely written in ruby and it&#8217;s very easy to install and configure. The only dependency is <code>VirtualBox</code>. Once VirtualBox is installed, we can either use <code>RubyGems</code> to install <code>Vagrant</code> or we can get the installer from <a href="http://downloads.vagrantup.com/">Vagrant</a>.</p>
-
-<p>I prefer ruby gems, So</p>
-
-<pre><code>$ gem install vagrant
-</code></pre>
-
-<p>That&#8217;s it, it will install vagrant. Now we need to get the base box. Vagrant uses the base boxes to build the VM&#8217;s. We can download the base boxes from <a href="http://www.vagrantbox.es/">Vagrant Boxes</a>. we can directly use the url to create the boxes, but it&#8217;s alwasy good if we have a downloaded copy of the base boxes.</p>
-
-<p>Basically we need to follow just 3 steps. <em>add</em>,<em>initialize</em>,<em>up</em>. So once we have the base box just add the base box.</p>
-
-<pre><code>$ vagrant box add new_box_name our_downloaded_basebox_file
-
-example,
-$ vagrant box add mybox precise32.box
-</code></pre>
-
-<p>Now just do a <strong>vagrant init</strong> to create the <code>Vagrantfile</code>. This is the main configuration file. If we go through the <code>Vagrantfile</code>, we can see a bunch of options like port forward, provisioning, setting network and so on. If only one vm is required, then we just have to add the <em>new_box</em> name which we created at the <code>config.vm.box=</code> option int the <code>Vagrantfile</code>. And <strong>vagrant up</strong> will start the VM.</p>
-
-<p>But one of the most important feature of <strong><em>Vagrant</em></strong> is it suports multiple VM&#8217;s over one single box. But we have to define those VM&#8217;s in the <code>Vagrantfile</code>. Below i&#8217;ve defined two VM&#8217;s in my <code>Vagrantfile</code>, also comment out <strong>config.vm.box=base</strong></p>
-
-<pre><code>config.vm.define :ubuntu do |ubuntu_config|
-     ubuntu_config.vm.box = "precise32"
-end
-config.vm.define :puppet do |puppet_config|
-     puppet_config.vm.box = "precise32"
-end
-</code></pre>
-
-<p>Where <em>ubuntu</em> and <em>puppet</em> are the name of the VM&#8217;s. And <em>precise32</em> is the name of the the box which i&#8217;ve created. Now, <strong>vagrant up</strong> will start all the VM&#8217;s. But we can mention the name to start a specific VM. Like <strong>vagrant up ubuntu</strong>. It will start only the <strong>ubuntu</strong> VM.</p>
-
-<p>Provisioning is another important feature of Vagrant. We can use <strong><em>puppet</em></strong>,<strong><em>chef</em></strong> and <strong><em>shell</em></strong> scripts to bootstrap the vm&#8217;s. I saw <a href="https://twitter.com/mitchellh">@mitchellh&#8217;s</a> talk at <a href="http://www.youtube.com/watch?v=UTQQggVx4sI&amp;feature=BFa&amp;list=PLV86BgbREluVFB73Wwqp_tCbw5Z9TMLX1">PuppetConf 2012</a>, in which he mentioned about how to create a <strong>Fully Automated Puppet Master</strong> using the <strong>shell</strong> provisioner. I&#8217;ve tried this out using a shell script that will install puppet master and genrate the ssl certificates. It&#8217;s working fine, soon i will post it here.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1280,6 +1310,10 @@ end
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard with Kibana and Elasticsearch</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
         </li>
       
@@ -1293,10 +1327,6 @@ end
       
         <li>
           <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text To Speech Calls from Hip Chat</a>
         </li>
       
     </ul>

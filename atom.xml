@@ -4,7 +4,7 @@
   <title><![CDATA[Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2014-04-05T05:40:05+00:00</updated>
+  <updated>2014-04-07T12:00:32+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,45 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Near RealTime Dashboard with Kibana and Elasticsearch]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/"/>
+    <updated>2014-04-07T09:39:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch</id>
+    <content type="html"><![CDATA[<p>Being in <em>DevOps</em> it&#8217;s always Multi tasking. From Regular customer queries it goes through Monitoring, Troubleshooting etc. And offcourse when things breaks, it really becomes core multi tasking. Especially when you have a really scaling infrastructure, we should really understand what&#8217;s really happening in our infrastructure. Yes we do have many new generation cloud monitoring tools like Sensu, but what if we have a near real time system that can tell us the each and every events happeing in our infrastructure. Logs are the best places where we can keep track of the events, even if the monitoring tools has missed it. We have a lot of log aggregator tools like tool Logstash, Splunk, Apache Kafka etc. And for log based event collection the common choice will be always <strong>Logstash -> StatsD -> Graphite</strong>. And ElasticSearch for indexing these.</p>
+
+<p>My requirement was pretty straight. Record the events, aggregate them and keeps track of them in a timely manner. Kibana uses ElasticSearch facets for aggregating the search query results.Facets provide aggregated data based on a search query. So as a first task, i decided to visualize the location of user&#8217;s who are registering their SIP endpoints on our SIP registrar server. Kibana gives us a good interface for the 2D heat map as well as a new option called <em>BetterMap</em>. Bettermap uses geographic coordinates to create clusters of markers on map and shade them orange, yellow and green depending on the density of the cluster. So from the logs, i just extracted the register events, and used a custom regex patterns to extract the details like the Source IP, usernames etc using logstash. Using the logstash&#8217;s GeoIP filter, the Geo Locations of the IP can be identified. For the BetterMap, we need  coordinates, in geojson format. <em>GeoJSON</em> is <strong>[longitude,latitude]</strong> in an array. From the Geo Locations that we have identified in the GeoIP filter, we can create this GeoJSON for each event that we are receiving. Below is a sample code that i&#8217;ve used  in logstash.conf for creating the GeoJSON in Logstash.</p>
+
+<pre><code>if [source_ip]  {
+    geoip {
+      type =&gt; "kamailio-registers"
+      source =&gt; "source_ip"
+      target =&gt; "geoip"
+      add_field =&gt; ["[geoip][coordinates]","%{[geoip][longitude]}"]
+      add_field =&gt; ["[geoip][coordinates]","%{[geoip][latitude]}"]
+    }
+    mutate {
+      convert =&gt; [ "[geoip][coordinates]", "float" ]
+    }
+  }
+</code></pre>
+
+<p>The above filter will create a GeoJSON array &#8220;geoip.coordinates&#8221;. This array can be used for creating the BetterMap in Kibana. Below are the settings for creating a BetterMap panel in the Kibana dashboard. While adding a new panel, select &#8220;bettermap&#8221; as the panel type, and the co-ordinate filed should be the one which contains the GeoJSON data. Make sure that the data is of the format [longitude,latitude], ie Longitude first and then followed by latitude.</p>
+
+<p><img src="http://beingasysadmin.com/images/bettermap_config.png"></p>
+
+<p><img src="http://beingasysadmin.com/images/bettermap.png"></p>
+
+<p>Moving ahead, i decided to collect the events happening on our various other server&#8217;s. We were one of the earliest companies who started using SIP (Session Initiation Protocol). SIP employs design elements similar to the HTTP request/response transaction model. So similar to web traffic, i&#8217;ve decided to collect events related to 4XX, 5XX and 6XX error responses, as it is very important to us. Once the logs are shipped to logstash, i wrote another custom grok pattern, which extracts the Error Code and Error responses, including the server which returned the same. These data&#8217;s can be used for future analysis also. So i decided to store these on ElasticSearch. So now we have the real time event data&#8217;s stored, but how to visualize. Since i dont have to perform much mathematical analytics with data, i decided to to remove graphite. Kibana has a wonder full GUI for visualizing the data. So decided to go ahead with Kibana. One option is &#8220;histogram&#8221; panel time. Using histogram we can visualize the data via a regular bar graph, as well as using the area graph. There is another panel type called &#8220;terms&#8221; which can be used to display the agrregated events via pie chart, bar chart, or a table. And below is what i achieved with Kibana.</p>
+
+<p><img src="http://beingasysadmin.com/images/SIP-kibana.png"></p>
+
+<p><img src="http://beingasysadmin.com/images/SIP-pie.png"></p>
+
+<p>This is just an inital setup. I&#8217;m going to add more events to this. As of now Kibana + Elasticsearch proves to be a promising combination for displaying all near real time events happening in my Infrastructure.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Event Monitoring using Logstash + StatsD + Riemann]]></title>
@@ -1844,76 +1883,6 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
 </code></pre>
 
 <p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>&#8220;http://server_ip:8080&#8221;</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I&#8217;ve added my vps as well as few of my local server&#8217;s with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground &#8230;</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Setting Up Apache CloudStack]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack/"/>
-    <updated>2013-04-07T22:16:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/04/07/setting-up-apache-cloudstack</id>
-    <content type="html"><![CDATA[<p>Today i was completely playing around with virtualization. I was playing around with Foreman and KVM, then i got <code>WebVirtmanager</code> to play around, which is working perfectly with LVM storage pool. It&#8217;s almost a week since i saw a few videos related to Apache Cloudstack, so today i decided to give it a try. In this blog i will explain on how to set up Apache CloudStack on an ubuntu 12.10 Machine. Apache Cloudstack is one of the coolest cloud platform&#8217;s available. It supports hypervisors like KVM, XEN, vSphere. The latest version is 4.0.1-incubating. The source can be downloaded from <a href="http://apache.techartifact.com/mirror/incubator/cloudstack/releases/4.0.1-incubating/apache-cloudstack-4.0.1-incubating-src.tar.bz2">here</a>. There is a very good documentation available from <a href="http://cloudstack.apache.org/docs/en-US/Apache_CloudStack/4.0.1-incubating/pdf/Installation_Guide/Apache_CloudStack-4.0.1-incubating-Installation_Guide-en-US.pdf">Cloudstack</a>.</p>
-
-<h3>Building Debian Packages from the Source</h3>
-
-<p>First we need to install the below dependency packages.</p>
-
-<pre><code>1.  Apache Ant
-2.  JDepend
-3.  Apache Maven (version 3)
-4.  Java (Java 6/OpenJDK 1.6)
-5.  Apache Web Services Common Utilities (ws-commons-util)
-6.  MySQL
-7.  MySQLdb (provides Python database API)
-8.  Tomcat 6 (not 6.0.35)
-9.  genisoimage
-10. dpkg-dev and their dependencies
-</code></pre>
-
-<p>Maven 3, which is not currently available in 12.10. So, we&#8217;ll need to add a PPA repository that includes Maven 3</p>
-
-<pre><code>$ add-apt-repository ppa:natecarlson/maven3
-</code></pre>
-
-<p>The current ppa supports only ubuntu 12.04 aka Precise, so edit <code>/etc/apt/sources.list.d/natecarlson-maven3-quantal.list</code> and replace &#8220;quantal&#8221; with &#8220;precise&#8221;. So now the content of the file looks like below one</p>
-
-<pre><code>deb http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
-deb-src http://ppa.launchpad.net/natecarlson/maven3/ubuntu precise main
-</code></pre>
-
-<p>Now we can start installing the dependencies,</p>
-
-<pre><code>$ apt-get install ant debhelper openjdk-6-jdk tomcat6 libws-commons-util-java genisoimage python-mysqldb libcommons-codec-java libcommons-httpclient-java liblog4j1.2-java python-software-properties maven3
-</code></pre>
-
-<p>Now we can resolve the buildtime depdencies for CloudStack by running the below command.</p>
-
-<pre><code>$ mvn3 -P deps.
-</code></pre>
-
-<p>Now there is a small <a href="https://issues.apache.org/jira/browse/CLOUDSTACK-1589">bug</a>, which add the dependency of &#8220;chkconfig&#8221; package to a few of the cloudstack packages. But &#8220;chkconfig&#8221; is required for Redhat based machines, not for debian based machines. So edit &#8220;Debian/control&#8221; file inside the apache cloudstack source folder and remove &#8220;chkconfig&#8221; from the dependency list. After that we can start building the debian packages.</p>
-
-<pre><code>$ dpkg-buildpackage -uc -us
-</code></pre>
-
-<p>The above command will build 16 debian packages.</p>
-
-<h3>Setting up a Local APT repo</h3>
-
-<p>Now we can set up a local apt repo so that we can install all these 16 packages along with their corresponding dependencies. First ensure that &#8220;dpkg-dev&#8221; is installed. After that copy all the packages to a specific location in order to create the local repo.</p>
-
-<pre><code>$ mkdir -p /var/www/cloudstack/repo/binary
-$ cp *.deb /var/www/cloudstack/repo/binary
-$ cd /var/www/cloudstack/repo/binary
-$ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
-</code></pre>
-
-<p>We need to configure the local machine to use this local repo. Add the local repository in <code>echo "deb http://server_url/cloudstack/repo/binary ./" &gt; /etc/apt/sources.list.d/cloudstack.list</code> and run &#8220;apt-get update&#8221;. Now we can install the cloudstack packages.</p>
-
-<pre><code>$ apt-get install cloud-agent cloud-agent-deps cloud-agent-libs cloud-awsapi cloud-cli cloud-client cloud-client-ui cloud-core cloud-deps cloud-python cloud-scripts cloud-server cloud-setup cloud-system-iso cloud-usage cloud-utils
-</code></pre>
-
-<p>Now from the web browser go to &#8220;http://server_url:8080/client/. The default Username is &#8220;admin&#8221; and password is &#8220;password&#8221;. For the admin user, we don&#8217;t need to provide the domain option.</p>
 ]]></content>
   </entry>
   
