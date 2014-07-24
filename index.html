@@ -97,6 +97,871 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-07-24T11:45:00+00:00" pubdate data-updated="true">Jul 24<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> is a very powerfull tool for managing Linux containers. In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/16/dockerizing-freeswitch-docker-enters-telephony-world/">blog</a> i&#8217;ve explaind on how to setup a Docker Freeswitch. Docker is very mature now, version 1.0 has already been released. Docker is now supported by all major cloud vendors. Docker was showing promising results when i was performing my initial testing. So this time i decided to perform a heavy load test on the Freeswitch container to ensure that Docker can really enter Telephony. Like any normal sys admin, i was googling for Freeswitch load test, and most of the results were pointing to Sipp, an Open Source test tool / traffic generator for the SIP protocol. For me Sipp didnt helped me as it started throwing errors beyond 320 simultaneous calls. The UDP connections were timing out. I tried increasing the timeout, which didn&#8217;t helped much.</p>
+
+<p>So next choice is to use a Freeswitch itself, to generate calls. Using the FreeSwitch&#8217;s <em>originate</em> command to generate simultaneous calls and hit the Docker Freeswitch container. I also decided to collect all system metrics, so that i knows how the machine behaves under various load tests conditions. For this i deciced to use <em>CollectD</em> and <em>Graphite</em> combo. Collectd 5+ has an inbuild graphite plugin which can send the collectd metrics to a graphite server.</p>
+
+<p>I&#8217;ve already setup an Ubuntu-Freeswitch Docker <a href="https://registry.hub.docker.com/u/deepakmdass88/fs-ubuntu/">image</a>. First we need to pull the images from the Docker hub.</p>
+
+<pre><code>$ docker pull deepakmdass88/fs-ubuntu
+</code></pre>
+
+<p>Now i&#8217;m going to start the Docker FreeSwitch container in foreground.</p>
+
+<pre><code>$ docker run --rm --privilieged -i -t -p 5060:5060/tcp -p 5060:5060/udp -p 16384:16384/udp -p 16385:16385/udp -p 16386:16386/udp -p 16387:16387/udp -p 16388:16388/udp -p 16389:16389/udp -p 16390:16390/udp -p 16391:16391/udp -p 16392:16392/udp -p 16393:16393/udp -p 5080:5080/tcp -p 5080:5080/udp deepakmdass88/fs-ubuntu /bin/bash
+</code></pre>
+
+<p>The <code>privilieged</code> option was enabled because, the FreeSwitch init script sets some custom <strong>ulimit</strong> values, so the container has to be given special privileges. Corresponding SIP and RTP ports are forwarded from the host to the container.</p>
+
+<p>Now before starting the Freeswitch service, we can set up the CollectD agent. By default, the Ubuntu repostiry contains CollectD versio 4.10, but the Graphite plugin is available from version 5.0+ onwards. So we can use somne PPA which has the corresponding version available.</p>
+
+<pre><code>$ apt-get install python-software-properties
+
+$ add-apt-repository ppa:joey-imbasciano/collectd5
+
+$ apt-get update &amp;&amp; apt-get install collectd
+</code></pre>
+
+<p>Now in the <code>/etc/collectd.conf</code>, uncomment <em>LoadPlugin write_graphite</em>. Also, in the same file and uncomment the plugin definition and fill in the server details.</p>
+
+<pre><code>&lt;Plugin write_graphite&gt;
+  &lt;Carbon&gt;
+        Host "dockergraphite.example.com"
+        Port "2003"
+        Protocol "tcp"
+        LogSendErrors true
+        Prefix "collectd."
+        StoreRates true
+        AlwaysAppendDS false
+        EscapeCharacter "_"
+  &lt;/Carbon&gt;
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>I&#8217;ve enabled a custom <a href="https://github.com/ReadyTalk/freeswitch-collectd-plugin">freeswitch</a> plugin, which will extract the current ongoing calls count from freeswitch and sends it to the graphite server. Once the config changes are done we can restart the CollectD service. Now we can check our graphite UI to see if the default metrics like memory, load, cpu etc. are reaching the graphite server. Once CollectD-Graphite setup is ready, we can go ahead with our load test. So, once the call has reached the server, we need some <em>Dialplan</em> to continue the calls. So the simplest method is to create an infinite loop of playing some file, or some conference. Below are some dialplans that i&#8217;ve created in the <code>public.xml</code></p>
+
+<pre><code># Infinite Play Loop
+
+ &lt;extension name="111222333"&gt;
+       &lt;condition field="destination_number" expression="^111222333$"&gt;
+         &lt;action application="answer"/&gt;
+         &lt;action application="playback" data="sounds/music/8000/got.wav"/&gt;
+         &lt;action application="transfer" data="111222333 XML public"/&gt;
+       &lt;/condition&gt;
+    &lt;/extension&gt;
+
+# Test conference
+
+  &lt;extension name="docker-fs-test-conf"&gt;
+    &lt;condition field="destination_number" expression="^112233"&gt;
+      &lt;action application="answer"/&gt;
+      &lt;action application="sleep" data="500"/&gt;
+      &lt;action application="conference" data="docker-test@public"/&gt;
+    &lt;/condition&gt;
+  &lt;/extension&gt;
+
+
+# Default IVR menu
+
+    &lt;extension name="ivr_demo"&gt;
+      &lt;condition field="destination_number" expression="^5000$"&gt;
+        &lt;action application="answer"/&gt;
+        &lt;action application="sleep" data="2000"/&gt;
+        &lt;action application="ivr" data="demo_ivr"/&gt;
+      &lt;/condition&gt;
+    &lt;/extension&gt;
+</code></pre>
+
+<p>Now, we have the dialplans ready, next is authentication. By default there are two ways, Digest auth and IP Whitelist. Here i&#8217;m going to use IP whitelist, so we need to whitelist our IP in the acl.conf file.</p>
+
+<pre><code> &lt;list name="domains" default="deny"&gt;
+      &lt;!-- domain= is special it scans the domain from the directory to build the ACL --&gt;
+      &lt;node type="allow" domain="$${domain}"/&gt;
+      &lt;node type="allow" cidr="xxx.xxx.xxx.xxx/32"/&gt;                 # IP of FS from which we are going to send the calls
+      &lt;!-- use cidr= if you wish to allow ip ranges to this domains acl. --&gt;
+      &lt;!-- &lt;node type="allow" cidr="192.168.0.0/24"/&gt; --&gt;
+ &lt;/list&gt;
+</code></pre>
+
+<p>Now we can start the Freeswitch service.</p>
+
+<pre><code>$ /etc/init.d/freeswitch start
+</code></pre>
+
+<p>We can check the freeswich service using the fs_cli command.</p>
+
+<pre><code>$ /usr/local/freeswitch/bin/fs_cli -x "show status"
+
+UP 0 years, 0 days, 6 hours, 34 minutes, 59 seconds, 648 milliseconds, 56 microseconds
+FreeSWITCH (Version 1.5.13b git 39200cd 2014-07-02 21:55:21Z 64bit) is ready
+1068 session(s) since startup
+0 session(s) - peak 299, last 5min 0
+0 session(s) per Sec out of max 30, peak 29, last 5min 0
+1000 session(s) max
+min idle cpu 0.00/100.00
+Current Stack Size/Max 240K/8192K
+</code></pre>
+
+<p>Now freeswitch is ready to accept the connection. We can start sending the calls from our Load test freeswitch. Below is the script that was used to originate the calls from the load test Freeswitch machine. This will create simultaneous calls towards the Docker FS.</p>
+
+<pre><code>IP_URI="sip:111222333@&lt;docker-fs-ip&gt;:5060"
+MAX_CALLS=$1
+
+while [ 1 ]; do
+
+set -i req
+req=$(/usr/local/freeswitch/bin/fs_cli -q -b -x "show channels count" | awk '{print $1}')
+if [ $req -lt $MAX_CALLS ]; then
+    /usr/local/freeswitch/bin/fs_cli -q -b -x "bgapi originate sofia/external/$SIP_URI loadtest"
+else
+    echo "sleep a bit ..."
+    sleep 10s
+
+fi
+</code></pre>
+
+<p>While bulk calls are being made from the Load test freeswitch machines, to test the Quality in real time, it&#8217;s better to dial to the extension directly from a Sip Phone/Client and ensure that voice quality is good. Below is my Graphite dashboard for the load test.</p>
+
+<p>Default Graphite UI</p>
+
+<p><img src="/images/Docker-FS-Loadtest.png"></p>
+
+<p><a href="https://github.com/urbanairship/tessera">Tessera</a> UI</p>
+
+<p><img src="/images/tessera-graphite.png"></p>
+
+<p>The FS was stable till 500 simultaneous calls, after that there was a sudden drop in calls and also the voice quality started dropping and in a minute the Freeswitch crashed due to Segmentation fault. I&#8217;m  going to analyze the core dump file to understand more about the crash. The other smaller drops that we see in the graph was caused by the Load test Freeswitch machine, as the load was getting high when the number of calls was increased. But 500 simultaneous calls are pretty decent and the there was no issue in voice quality till the number of calls crossed 500. Though it&#8217;s very difficult to make a final confirmation, i decided to go ahead with phase 2 load test.</p>
+
+<p>In the phase 2 test, i&#8217;m planning to use multiple FS load test machines to generate large simultaneous calls + running 2 separate FS containers on the same host and split the incoming calls to both these containers. Once the phase 2 test is completed, ill share the test results in an another blog post. Docker is still under heavy development, and i&#8217;m sure Docker will be entering Telephony soon.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters Using Mesos and Marathon</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-27T07:31:00+00:00" pubdate data-updated="true">Jun 27<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/containerization/'>containerization</a>, <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/docker-cluster/'>docker-cluster</a>, <a class='category' href='/blog/categories/marathon/'>marathon</a>, <a class='category' href='/blog/categories/mesos/'>mesos</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> has became one of my favourite tool. It&#8217;s super cool and super easy tool to manage linux containers. LXC&#8217;s are around in IT world for some time, but by the entry of Docker last year, the wave started rising. Thanks to <a href="https://github.com/dotcloud/docker">Docker</a> team and <a href="https://twitter.com/solomonstre">Solomon Hykes</a> for open sourcing such a wonderfull project. I&#8217;ve already mentioned a lot of stuffs about Docker in my previos blogs, so today im going explain how Docker can be used as a Cluster. There are some interesting tools like <a href="https://coreos.com/">CoreOS</a>, <a href="https://github.com/spotify/helios">Helios</a> etc for managing Docker as a cluster. But today i&#8217;m going to explain on how to set up a Docker cluster using Apache <a href="http://mesos.apache.org/">Mesos</a>. CoreOS is a custom linux os which comes with SystemD. But the restriction is, we have to use that custom images of coreos.. Indeed CoreOS team open sourced some exciting tools like etcd fleet which works with CoreOS for managing Docker clusters. But Mesos is quite simple, we can install it via package, or even using tar balls available in thier Github repo onto most of the Linux Distro&#8217;s and it&#8217;s quite easy to configure also. Mesos is heavily used by Twitter to manage their data center&#8217;s. And now <a href="http://mesosphere.io/">Mesosphere</a> has opensourced a new tool called <a href="https://github.com/mesosphere/marathon">Mararthon</a> which now provides a UI and a Rest API for maaging and scheduling Mesos Frameworks aka jobs, in this case containers as a service.</p>
+
+<p>A few weeks ago, Mesos 0.19 was released which comes with an official support for Docker coantiners by intergrating <a href="https://github.com/mesosphere/deimos">Deimos</a> into it. And a few days ago Marathon has released their new version 0.6.0 supports launching any task in a Docker container via Mesos 0.19+</p>
+
+<h2>Setting up Mesos Cluster</h2>
+
+<p>In this test setup, i&#8217;m going to setup both Mesos master/slave and Zookeeper on the same Ubuntu 14.04 vagrant node. First we can install the dependencies,</p>
+
+<pre><code>$ apt-get install curl python-setuptools python-pip python-dev python-protobuf
+</code></pre>
+
+<p>Now we can install Zookeeper</p>
+
+<pre><code>$ apt-get install zookeeperd
+</code></pre>
+
+<p>After the installation, ZooKeeper has 1 configuration. Each Zookeeper needs to know its position in the quorum.</p>
+
+<pre><code>$ echo 1 | sudo dd of=/var/lib/zookeeper/myid
+</code></pre>
+
+<p>Now we can setup Docker</p>
+
+<pre><code>$ echo "deb http://get.docker.io/ubuntu docker main" &gt; /etc/apt/sources.list.d/docker.list
+
+$ apt-get update &amp;&amp; apt-get install lxc-docker
+
+$ docker version
+
+   Client version: 1.0.0
+   Client API version: 1.12
+   Go version (client): go1.2.1
+   Git commit (client): 63fe64c
+   Server version: 1.0.0
+   Server API version: 1.12
+   Go version (server): go1.2.1
+   Git commit (server): 63fe64c
+</code></pre>
+
+<p>Let&#8217;s pull some basic ubuntu images from Docker Hub so that we can use the same for testing.</p>
+
+<pre><code>$ docker pull libmesos/ubuntu
+</code></pre>
+
+<p>Now we can configure Mesos</p>
+
+<pre><code>$ curl -fL http://downloads.mesosphere.io/master/ubuntu/14.04/mesos_0.19.0~ubuntu14.04%2B1_amd64.deb -o /tmp/mesos.deb
+
+$ dpkg -i /tmp/mesos.deb
+
+$ mkdir -p /etc/mesos-master
+
+$ echo in_memory | sudo dd of=/etc/mesos-master/registry
+
+## Mesos Python egg for use in authoring frameworks
+
+$ curl -fL http://downloads.mesosphere.io/master/ubuntu/14.04/mesos-0.19.0_rc2-py2.7-linux-x86_64.egg -o /tmp/mesos.egg
+
+$ easy_install /tmp/mesos.egg
+</code></pre>
+
+<p>We can download the latest Marathon 0.6 from <a href="http://downloads.mesosphere.io/marathon/marathon-0.6.0/marathon-0.6.0.tgz">here</a></p>
+
+<pre><code>$ tar xvzf marathon-0.6.0.tgz
+</code></pre>
+
+<p>Mesos uses Deimos for managing dockers, Deimos can installed via pip</p>
+
+<pre><code>$ pip install deimos
+</code></pre>
+
+<p>Also, we need to configure mesos to use Deimos,</p>
+
+<pre><code>$ mkdir -p /etc/mesos-slave
+
+$ echo /usr/local/bin/deimos | sudo dd of=/etc/mesos-slave/containerizer_path
+
+$ echo external | sudo dd of=/etc/mesos-slave/isolation
+</code></pre>
+
+<p>Now we can start all the services.</p>
+
+<pre><code>$ initctl reload-configuration
+
+$ service docker start
+
+$ service zookeeper start
+
+$ service mesos-master start
+
+$ service mesos-slave start
+
+##### Starting Marathon #####
+
+$ cd marathon-0.6.0
+
+$ ./bin/start --master zk://localhost:2181/mesos --zk_hosts localhost:2181
+</code></pre>
+
+<p>Marathon will now start listening to port <em>8080</em>, We can access the UI from the browser via this port, also via rest API using the same port.</p>
+
+<pre><code>curl localhost:8080/help   # gives us some details about the API's
+</code></pre>
+
+<p>I just went through the Deimos code, so under the hood they are using <code>docker run</code> with some default parameters like <code>--sig-proxy</code>,  <code>--rm</code>,  <code>--cidfile</code>,  <code>-v</code>, <code>-w</code> and extra parameters that we are passing while creating the task via Marathon.</p>
+
+<p>As of now, we still can&#8217;t pass details like Container image, Docker options via Marathon GUI. So we can use the Rest API for the time being. Below is a sample curl request for launcing a single container,</p>
+
+<pre><code>curl -X POST -H "Accept: application/json" -H "Content-Type: application/json" \
+    localhost:8080/v2/apps -d '{
+        "container": {"image": "docker:///libmesos/ubuntu", "options": ["--privileged"]},
+        "cpus": 0.5,
+        "cmd": "sleep 500",
+        "id": "docker-tester",
+        "instances": 1,
+        "mem": 300
+    }'
+</code></pre>
+
+<p>We can pass custom options to the docker run command via &#8220;options&#8221;. After making the curl request, we can check the syslog, as mesos will be logging into syslog by default. We can even see the Docker run command on the same.</p>
+
+<pre><code>Jun 27 07:24:58 vagrant-ubuntu-trusty-64 deimos[19227]: deimos.containerizer.docker.launch() exit 0 // docker run --sig-proxy --rm --cidfile /tmp/deimos/mesos/00d459fb-22ca-4af7-9a97-ef8a510905f2/cid -w /tmp/mesos-sandbox -v /tmp/deimos/mesos/00d459fb-22ca-4af7-9a97-ef8a510905f2/fs:/tmp/mesos-sandbox --privileged -p 31498:31498 -c 512 -m 300m -e PORT=31498 -e PORT0=31498 -e PORTS=31498 libmesos/ubuntu sh -c 'sleep 500'
+</code></pre>
+
+<p>We can also use the Marathon Rest API to check the status of the job which we started.</p>
+
+<pre><code>curl -X GET -H "Content-Type: application/json" localhost:8080/v2/apps
+</code></pre>
+
+<p>Below is the screenshort for the same from the Marathon UI.</p>
+
+<p><img src="/images/marathon1.png"></p>
+
+<p>We can also check if the container is launched via <code>docker ps</code> command.</p>
+
+<p><img src="/images/docker1.png"></p>
+
+<p>A more detailed report about the Docker job which we have launched can be viewed via the default Mesos GUI listening on port <em>5050</em> on the Mesos master. Now we can test the scalability of the Job. Currently we have only one container running. So now we can try scaling say adding one more node. We can do it in two ways, like via PUT request using curl or using GUI</p>
+
+<pre><code>curl -X PUT -H "Content-Type: application/json" localhost:8080/v2/apps/docker-tester \
+    "container": {"image": "docker:///libmesos/ubuntu", "options": ["--privileged"]},
+            "cpus": 0.5,
+            "cmd": "sleep 500",
+            "id": "docker-tester",
+            "instances": 2,     # increasing the instance count to 2
+            "mem": 300
+            }'
+</code></pre>
+
+<p>Now we can use the <code>docker ps</code> command to see if the new container is launched or not. Also we can see that status in UI also.</p>
+
+<p><img src="/images/docker2.png"></p>
+
+<p><img src="/images/marathon2.png"></p>
+
+<p>Similarly, we can scale down also. I&#8217;ve tested the same and all seems to be good. Marathon ensures that the docker process will be running. So incase if the process crashes Marathon will restart the same and ensures that the instances are up and running as per our configuration. There are a few other Open Sourced Mesos Scheduler&#8217;s  like Apache Aurora, Airbnb&#8217;s Chronos. But for my requirement marathon is pretty straight and simple and also provides a very good Rest API layer for managing containers. Mesos, Marathon and Docker are still young, but provides a killer combination for managing clusters built over Docker containers.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-10T11:39:00+00:00" pubdate data-updated="true">Jun 10<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/freeswitch/'>FreeSwitch</a>, <a class='category' href='/blog/categories/telephony/'>Telephony</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> has became one of the hottest topics in IT now a days. <code>Docker</code> is an open-source project that automates the deployment of applications inside software containers. Docker extends a common container format called <em>Linux Containers</em> (LXC), with a high-level API providing lightweight virtualization that runs processes in isolation.Docker uses <em>LXC, cgroups,</em> and the <em>Linux kernel</em> itself. Though i coudn&#8217;t make out to the DockerCon 2014 in SF, a lot new developments were announced on the DockerCon. Especially three new Opensource Projects <a href="https://github.com/docker/libcontainer">libcontainer</a>, <a href="https://github.com/docker/libchan">libchan</a> and <a href="https://github.com/docker/libswarm">libswarn</a>. Docker is indeed creating a revolution in the container space, creating a next generation of scalable platform management. There are a lot PAAS services like <a href="http://deis.io/">Deis</a>, <a href="http://signup.resin.io/">resin.io</a>, <a href="https://github.com/progrium/dokku">Dokku</a> which are already using Docker in production. Another important and exciting project is <a href="https://coreos.com/">CoreOS</a>. CoreOS uses tools like <a href="http://www.freedesktop.org/wiki/Software/systemd/">SystemD</a>, <a href="https://github.com/coreos/fleet">Fleet</a>, <a href="https://github.com/coreos/etcd">EtcD</a> to build a fully scalabale docker based cluster management system. I definitely need a separate blog to write about CoreOS, it&#8217;s really a super exciting project to play with.</p>
+
+<p>Last week Docker Team released Version 1.0 of Docker. So i&#8217;ll be using the same in this new set up. It&#8217;s been almost 6 Month&#8217;s since i&#8217;ve been working @ <a href="http://plivo.com">Plivo</a> as a DevOps Engineer. Telephony was really a very new platform for me. And my first companion was offcourse <a href="http://freeswitch.org/">FreeSwitch</a>,a scalable open source cross-platform telephony platform designed to route and interconnect popular communication protocols using audio, video, text or any other form of media. I was heavily using Vagrant for all my experiments in my mac. But after started using Docker, it really made me crazy. I&#8217;ve played for some time wiht LXC&#8217;s long back. So this was like a leap back to the container world.</p>
+
+<p>There are a lot of concerns on using Virtual Machines in Telephony world. Especially for the server&#8217;s that handles the Real Time voice packets, as voice quality is pretty important in Telephony. Docker&#8217;s again more light weight isolated environment, and i decide to see how Docker can perform with such issues. If Docker handle Freeswitch smoothly, then i&#8217;m sure that we can use Docker for other telephony app&#8217;s like OpenSIPS/Kamailio etc, as they handle only sessions not the Media traffic. I know there are a lot of concerns like CPU load, Network etc, but this is like an initial move to test Docker into Telephony.</p>
+
+<h2>Setting Up Docker </h2>
+
+<p>Docker 1.0 is available from the Official Docker repo.</p>
+
+<pre><code>$ echo "deb http://get.docker.io/ubuntu docker main" &gt; /etc/apt/sources.list.d/docker.list
+
+$ apt-get update &amp;&amp; apt-get install lxc-docker
+</code></pre>
+
+<p>Now we can check the Docker version using the docker binary itself.</p>
+
+<pre><code>$ docker version
+
+Client version: 1.0.0
+Client API version: 1.12
+Go version (client): go1.2.1
+Git commit (client): 63fe64c
+Server version: 1.0.0
+Server API version: 1.12
+Go version (server): go1.2.1
+Git commit (server): 63fe64c
+</code></pre>
+
+<p>Now Docker is installed, but we need some OS images to use with docker. We can build custom images using debootstrap etc. But there are official minimal images available in Docker <a href="https://registry.hub.docker.com/">HUB</a>. We can search for the repositories and can pull those images via docker binary itself.</p>
+
+<p>For example to pull the entire Ubuntu images, we can just do,</p>
+
+<pre><code>$ docker pull ubuntu
+</code></pre>
+
+<p>But this will download all the ubuntu images available in the repo. We can also do selective download by using the tag.</p>
+
+<pre><code>$ docker pull ubuntu:14:04
+</code></pre>
+
+<p>Once the images are downloaded, we can use images option in docker binary to see all the downloaded images.</p>
+
+<pre><code>$ docker images
+
+REPOSITORY                      TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+ubuntu                          14.04               ad892dd21d60        10 days ago         275.5 MB
+</code></pre>
+
+<p>Here i&#8217;m not going to daemonize the container, i&#8217;ll be using the interactive option. But first, let&#8217;s start a new container.</p>
+
+<pre><code>$ docker run -t -i ubuntu:14.04 /bin/bash
+</code></pre>
+
+<p>This command will start a conatiner and will open up a bash session for us and we will be inside the bash session. Now to use an application we need to open up corresponding ports to outside world. We can use the &#8220;-p&#8221; option while starting a docker container to enable port forwarding. Under the hood, docker is using IPtables for the same. In the case of Freeswitch, we need to open 5060,5080 for the default Sofia profiles (Internal and External). Also we need to open the RTP ports. In this test i&#8217;ll be opening a predefined set of ports ie from &#8220;16384&#8221; to &#8220;16394&#8221;. (As my Docker host resides on Azure, creating an Endpoint for each port forward is really a pain, so i decided to open only a few). And also i&#8217;ll be opening port 22, so that we can have an ssh server inside the container.</p>
+
+<pre><code>$ docker run -t -i -p 2223:22 -p 5060:5060/tcp -p 5060:5060/udp -p 16384:16384/udp -p 16385:16385/udp -p 16386:16386/udp -p 16387:16387/udp -p 16388:16388/udp -p 16389:16389/udp -p 16390:16390/udp -p 16391:16391/udp -p 16392:16392/udp -p 16393:16393/udp -p 5080:5080/tcp -p 5080:5080/udp ubuntu:14.04 /bin/bash
+</code></pre>
+
+<p>This will start a new container and Docker by default will setup the IPtables for port forwarding. So now my IPtables looks like this.</p>
+
+<pre><code>Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+   43 16850 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:5080
+    0     0 ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:5080
+  988  198K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16392
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16389
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16385
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16393
+ 2026  405K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16388
+ 8817 1763K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16384
+12144 8684K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:5060
+ 4359  257K ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:5060
+ 9917 1983K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16390
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16387
+    0     0 ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:22
+   38  4848 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16391
+    1   152 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16386
+    0     0 ACCEPT     all  --  *      lxcbr0  0.0.0.0/0            0.0.0.0/0
+    0     0 ACCEPT     all  --  lxcbr0 *       0.0.0.0/0            0.0.0.0/0
+ 431K  630M ACCEPT     all  --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+ 128K   19M ACCEPT     all  --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0
+   16  2460 ACCEPT     all  --  docker0 docker0  0.0.0.0/0            0.0.0.0/0
+</code></pre>
+
+<p>Now we can go ahead with Freeswitch compilation. In my previous <a href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">blog</a>, i&#8217;ve mentioned how to compile and set up freeswitch. Once freeswitch is ready, we need to make a few changes. By default, Freeswitch uses STUN to route through NAT, but this doesn&#8217;t work with Docker. So we have to set the external IP manually. In the Freeswitch installed folder, edit <code>conf/autoload_configs/switch.conf.xml</code>. In this file we can set the External IP manually. Add the below lines to switch_conf.xml.</p>
+
+<pre><code>&lt;X-PRE-PROCESS cmd="set" data="external_sip_ip=&lt;YOUR_EXTERNAL_IP&gt;"/&gt;
+&lt;X-PRE-PROCESS cmd="set" data="external_rtp_ip=&lt;YOUR_EXTERNAL_IP&gt;"/&gt;
+</code></pre>
+
+<p>Also we need to modify the Default Sofia Profiles and need to set the <em>ext-rtp-ip</em> and <em>ext-sip-ip</em> to use our external IP added in the <code>switch_conf.xml</code> file while establishing connections. Add the below lines to the <code>conf/sip_profiles/internal.xml</code> and <code>conf/sip_profiles/external.xml</code></p>
+
+<pre><code>&lt;param name="ext-rtp-ip" value="$${external_rtp_ip}"/&gt;
+&lt;param name="ext-sip-ip" value="$${external_sip_ip}"/&gt;
+</code></pre>
+
+<p>Now we need to set teh RTP ip range to the range which we have forwarded while creting the container. So we need to edit <code>conf/autoload_configs/switch.conf.xml</code></p>
+
+<pre><code>&lt;param name="rtp-start-port" value="16384"/&gt;
+&lt;param name="rtp-end-port" value="16394"/&gt;
+</code></pre>
+
+<p>Once the changes are made, we can start the FreeSwitch service. Now to make sure that the External IP is working properly, we can check the sofia profile status using fs_cli. below is a sample output of the sofia profile status.</p>
+
+<pre><code>freeswitch@internal&gt; sofia status profile internal
+=================================================================================================
+Name                internal
+Domain Name         N/A
+Auto-NAT            false
+DBName              sofia_reg_internal
+Pres Hosts          172.17.0.6,172.17.0.6
+Dialplan            XML
+Context             public
+Challenge Realm     auto_from
+RTP-IP              172.17.0.6
+Ext-RTP-IP          &lt;my_external_ip&gt;
+SIP-IP              172.17.0.6
+Ext-SIP-IP          &lt;my_external_ip&gt;
+URL                 sip:mod_sofia@&lt;my_external_ip&gt;:5060
+BIND-URL            sip:mod_sofia@&lt;my_external_ip&gt;:5060;maddr=172.17.0.6;transport=udp,tcp
+HOLD-MUSIC          local_stream://moh
+OUTBOUND-PROXY      N/A
+CODECS IN           OPUS,G722,PCMU,PCMA,GSM
+CODECS OUT          OPUS,G722,PCMU,PCMA,GSM
+TEL-EVENT           101
+DTMF-MODE           rfc2833
+CNG                 13
+SESSION-TO          0
+MAX-DIALOG          0
+NOMEDIA             false
+LATE-NEG            true
+PROXY-MEDIA         false
+ZRTP-PASSTHRU       true
+AGGRESSIVENAT       false
+CALLS-IN            0
+FAILED-CALLS-IN     0
+CALLS-OUT           0
+FAILED-CALLS-OUT    0
+REGISTRATIONS       1
+</code></pre>
+
+<p>Now freeswitch ahs started successfully. We can test some basic calls using softphones like Xlite, Telephone etc. By default, there are some default extensions and user&#8217;s available, so we can use the same for testing the calls. But i really wanted to try trunkning also and wanted to see the quality of the voice. So i created <a href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP trunking in Freeswitch using Plivo</a>. And i tested a couple of calls to US and India DID&#8217;s and no issues were detected in the quality. But again i need to test the laod of the server&#8217;s when it startes handling concurrent calls and also the voice quality. But i decied to d oit as a Phase II. But as of now, Docker FreeSwitch is working perfectly like a physical machine with out issues.</p>
+
+<p>So now we have a working FreeSwitch container, now here comes the main advantage of the Docker. We can create a new image with all these changes, so that nex time i dont need to work from scratch. I can use this saved image and a readymade Docker Freeswitch container can be launched in seconds. Since we are in interactive mode, we should not quit the session before it&#8217;s saved or else all the things will be lost,becoz dokcer will destroy the same. So open up a new shell on the docker host and use the commit option. But to use the commit command, we need to know the container id, so here docker ps command comes handy.</p>
+
+<pre><code>$ docker ps
+
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS           NAMES
+
+e7f3c02346d4        a4196763d248        /bin/bash           32 hours ago        Up 32 hours         0.0.0.0:2223-&gt;22/tcp, 0.0.0.0:5060-&gt;5060/tcp, 0.0.0.0:5060-&gt;5060/udp, 0.0.0.0:5080-&gt;5080/tcp, 0.0.0.0:5080-&gt;5080/udp, 0.0.0.0:16384-&gt;16384/udp, 0.0.0.0:16385-&gt;16385/udp, 0.0.0.0:16386-&gt;16386/udp, 0.0.0.0:16387-&gt;16387/udp, 0.0.0.0:16388-&gt;16388/udp, 0.0.0.0:16389-&gt;16389/udp, 0.0.0.0:16390-&gt;16390/udp, 0.0.0.0:16391-&gt;16391/udp, 0.0.0.0:16392-&gt;16392/udp, 0.0.0.0:16393-&gt;16393/udp   silly_turing
+</code></pre>
+
+<p>In my case &#8220;e7f3c02346d4&#8221; is the container ID. So i can use the same for commit. I won&#8217;t be commiting to the base Ubuntu image, as i can use the same for other purposes, so here i&#8217;ll commiting to a new image say &#8220;ubntu-fs-docker&#8221;</p>
+
+<pre><code>$ docker commit -m "&lt;commit message&gt;" e7f3c02346d4 ubntu-fs-docker
+</code></pre>
+
+<p>Now we can use this &#8220;ubntu-fs-docker&#8221; image to launch a ready made FreeSwitch server&#8217;s.</p>
+
+<p>Docker is a very juvenile project about more than a year old. But the use cases are expanding heavily in the Modern IT world. Docker is fueling up a new generation of scalable servers. Wishing all the best for Docker and kudos to <a href="https://twitter.com/solomonstre">Solomon Hykes</a> and the DotCloud team for opensourcing such a powerfull project</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - an Awesome Dashboard for Sensu</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-19T06:42:00+00:00" pubdate data-updated="true">May 19<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/devops/'>DevOps</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>, <a class='category' href='/blog/categories/sensu-dashboard/'>sensu-dashboard</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s been more than a year since i&#8217;ve started playing with <code>Sensu</code>. It was one of coolest monitoring projects that i&#8217;ve ever worked with. Perfect for <em>Cloud</em> infrastructure and backed by a cool community. Though Sensu is still in <em>Juvenile</em> (v 0.12) state, its mature enough to tackle majority of the monitoring issues. Recently i started migrating all our monitoring from traditional Nagios to Sensu and the pretty cool thing with sensu is, we can directly use the Nagios plugins with Sensu. That&#8217;s an easy task for migration. We don&#8217;t have to rebuild all the check&#8217;s to make with Sensu. But most of the people outside was pointing to the sensu&#8217;s default dashboard. Though the dashboard doesn&#8217;t looks pretty fancy, it can do all the functions. But having a good dashboard which can display the current status is always a time saver.</p>
+
+<p>So i was being searching for a good dashboard and the first choice on the google search was <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. A Rails project, which needs a backend DB. But still i was not satisfied with it, and i started looking out for something different. The second choice was <a href="https://github.com/cloudant/sabisu">sabisu</a>. Sabisu uses Cloudant&#8217;s hosted Couchdb with Lucene. We just need to store all the events in a Redis List and a custom script which reads the data from the Redis List and pushes it to the Cloudant&#8217;s CouchDB. So we basically need a Cloudant account and the Webapp makes Lucene queries to the Cloudant DB and displays the results on the Sabisu dashboard. Though i tried to rebuild the same setup locally, like running a CouchDB+Lucene locally and sending the same data to the local couchdb. With some codehack&#8217;s i was able to make the webapp talk to my local CouchDB and display the results on the dashboard.</p>
+
+<p>But then, I found a super cool dashboard project called <a href="https://github.com/palourde/uchiwa">UCHIWA</a> which was started in Github a few days back by <a href="https://github.com/palourde">Simon Plourde</a>. <a href="https://github.com/palourde/uchiwa">Uchiwa</a> is simple dashboard built with <em>NodeJS</em> and uses <em>SocketIO</em> for real time updates. The screenshot&#8217;s looks super cool and i decided to give it a try. It has only one dependency, NodeJS, no backend DB&#8217;s required as it talks to the Sensu&#8217;s API in realtime.</p>
+
+<h2>Setting Up NodeJS</h2>
+
+<p>For Ubuntu, we can use the chris-lea&#8217;s PPA.</p>
+
+<pre><code>apt-get install python-software-properties        # required for "apt-add-repository" binary
+
+apt-add-repository ppa:chris-lea/node.js
+
+apt-get update
+
+apt-get install nodejs
+</code></pre>
+
+<p>now we have the latest NodeJS on our system, we can start setting up Uchiwa.</p>
+
+<h2>Setting Up Uchiwa Dashboard</h2>
+
+<p><code>Uchiwa</code>&#8217;s source is available in Github.</p>
+
+<pre><code>git clone https://github.com/palourde/uchiwa.git
+</code></pre>
+
+<p>Once  cloned, the repository contains the &#8220;package.json&#8221; file which contains the list of necessary dependencies. We can use &#8220;npm&#8221; (node package manager) to install all these.</p>
+
+<pre><code>cd uchiwa
+
+npm install
+</code></pre>
+
+<p>Now we need to create a config file for the app. There is a sample config file available in the repo. So we need to mention the Sensu&#8217;s API IP and Port number and also the auth credentials if any. Plus auth credentials for accessing Uchiwa Dashboard page.</p>
+
+<p>once all these are set, we are done. We just need to start the service.</p>
+
+<pre><code>node app.js 
+</code></pre>
+
+<p>We can access the page via <em>http://localhost:3000/</em>,  or we can proxy pass from the webserver. Instructions for <em>Nginx</em> is available on the Readme of the project. Now we need to keep this app running all the time. So it&#8217;s better to create a init/upstart process for the same, so that the process will start automatically when the system reboots. There is a cool Node project called <a href="https://github.com/nodejitsu/forever">forever</a> which is a  simple CLI tool for ensuring that a given script runs continuously.</p>
+
+<p>I&#8217;ve created an upstart script for Uchiwa, bu putting a conf file &#8220;uchiwa.conf&#8221; in the &#8220;/etc/init&#8221; directory. Below is the content for the conf file. Once the file is in place, we have to do a reload of the upstart configuration. <code>initctl reload-configuration</code> will do the trick.</p>
+
+<pre><code>description "uchiwa - dashboard for sensu"
+env APP_PATH = "/usr/local/uchiwa/"
+
+start on startup
+stop on shutdown
+
+script
+  cd $APP_PATH
+  exec forever start app.js
+end script
+</code></pre>
+
+<p>Uchiwa looks pretty cool and neat and it has the stash support also. There are couple of addons required like &#8220;Downtime&#8221;, but Uchiwa is a pretty new project and i&#8217;m sure that this project is gonna grow soon. It has already received 99 stars on the Github. Kudos to <a href="https://github.com/palourde">Simon Plourde</a> for Open Sourcing this awesome project.</p>
+
+<p><img src="/images/uchiwa1.png"></p>
+
+<p><img src="/images/uchiwa2.png"></p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK Stack to VOIP Infrastructure</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-05T05:12:00+00:00" pubdate data-updated="true">May 5<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/collectd/'>Collectd</a>, <a class='category' href='/blog/categories/elasticsearch/'>Elasticsearch</a>, <a class='category' href='/blog/categories/freeswitch/'>Freeswitch</a>, <a class='category' href='/blog/categories/kibana/'>Kibana</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/voip/'>VOIP</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Being a <code>DevOps</code> guy, i always love metrics. Visualized metrics gives a good picture of what&#8217;s happening in our live battle stations. There are now a quite lot of Open Source tools for monitoring and visualizing. It&#8217;s more than a year since i&#8217;ve started using <em>Logstash</em>. It never turned me down. <code>ElasticSearch-Logstash-Kibana</code> (ELK) is a killer combination. Though i started Elasticsearch + Logstash as a log analyzer, later <a href="https://github.com/etsy/statsd/">StatsD</a> and <a href="http://graphite.wikidot.com/">Graphite</a> took it to the next level. When we have a simple infrastructure it&#8217;s easy to monitor. But when the infra starts scaling, it becomes quite difficult to keep track of all the events happening inside each nodes. Though service checks can help, but there is still limitation for it. I faced a lot of scenarios where things breaks but service checks will be fine. Under such scenarios logs are the only hope. They have all these events captured.</p>
+
+<p>At Plivo, we manage a variety of servers from SIP, Media, Proxy, WebServers, DB&#8217;s etc. Being a fully Cloud based system, i really wanted to have a system which can keep track of all the live events/status of what&#8217;s really happening inside our infra. So my plan was to collect two important stats, 1) Server&#8217;s events 2) Application events.</p>
+
+<h4>Collectd and Logstash</h4>
+
+<p><code>Collectd</code> is a daemon which collects system performance statistics periodically. Since we have a lot Server&#8217;s which handle Realtime Media, it&#8217;s a very critical component for us. We need to ensure that the server&#8217;s are not getting overloaded and there is no latency in network. I&#8217;ve been using Logstash heavily for stashing all my logs. And there is a stable input plugin for collectd to send the all the system metrics to logstash.</p>
+
+<p>First we need to enable the Network Plugin, and then we need to mention our Logstash server IP and port so that collectd can start injecting metrics. Below is a sample colectd configuration.</p>
+
+<pre><code>Hostname    "test.plivo.com"
+Interval 10
+Timeout 4
+Include "/etc/collectd/filters.conf"
+Include "/etc/collectd/thresholds.conf"
+ReportStats true
+    LogLevel info
+LoadPlugin interface
+LoadPlugin load
+LoadPlugin memory
+LoadPlugin network
+&lt;Plugin interface&gt;
+    Interface "eth0"
+    IgnoreSelected false
+&lt;/Plugin&gt;
+&lt;Plugin network&gt;
+    Server "{logstash_server_ip}" "logstash_server_port"    # if no port number is mentioned, it will take the default port number (25826)
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>Now on the Logstash server, we need to add the CollectD plugin on to the input filter in the logstash&#8217;s config file.</p>
+
+<pre><code>input {
+      collectd {
+      port =&gt; "5555"    # default port is 25826
+      }
+}
+</code></pre>
+
+<p>Now we are set. Based the plugins enabled in the collectd config file, collctd will start sending the metrics to Logstash on the Interval mentioned in the config, default is 10s. So in my case, i wanted the Load, CPU usage, Memory usage, Bandiwdth (TX and RX) etc. There are default plugins for all these metrics, which we can just enable it in the config file. We also had some custom plugins to collect some custom metrics. BTW writing custom plugin is pretty easy in Collectd.</p>
+
+<p>Now using the Logstash&#8217;s Elasticsearch output plugin, we can keep these metrics in Elasticsearch. Now this where Kibana comes in. We can start visualizing these metrics via Kibana. We need to create a custom Lucene Query. Once we have the query, we can create a custom histogram&#8217;s for each of these queries. Below aresome sample Lucene queries that we can use with Kibana.</p>
+
+<pre><code>For Load -&gt; collectd_type:"load" AND host:"test.plivo.com"
+For Network usage -&gt; collectd_type:"if_octets" AND host:"test.plivo.com"
+</code></pre>
+
+<p>Below is the screenshot of  histogram for Load and Network (TX and RX)</p>
+
+<p><img src="/images/collectd.png"></p>
+
+<h5>Log Events</h5>
+
+<p>Now next is to collect the events from the application logs. We use SIP protocol for all our VOIP sessions. So all our SIP server&#8217;s are very critical for us. SIP is pretty similar to HTTP. The response codes are very similar to HTTP responses, ie 1xx, 2xx, 3xx, 4xx, 5xx, 6xx. So i wrote some custom grok patterns so keep track of all of these responses and stores the same on the Elasticsearch.</p>
+
+<p>The second stats which i was interested was our SIP registrar server. We provide SIP endpoints to our customers so that they can use the same with SIP/Soft phones. So i was more interested on stats like Number of registrations/sec, Auth error rates. Plus using ElasticSearch&#8217;s MAP facet&#8217;s i can create BetterMap. In my previous blog post&#8217;s i&#8217;ve mentioned on how to create these bettermaps using Kibana and Elasticsearch. Below bettermap screenshot shows us the SIP endpoint registrations from various locations in the last 2 hours.</p>
+
+<p><img src="/images/bettermap.png"></p>
+
+<p>Now using the Kibana we can start visualizing all these data&#8217;s. Below is a sample of Dashboard that i&#8217;ve created using Kibana.</p>
+
+<p><img src="/images/event_logs.png"></p>
+
+<p>ELK stack proved to be an amazing combination. We are currently injecting 3 million events every day and ElasticSearch was blazingly fast in indexing all theses.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard With Kibana and Elasticsearch</a></h1>
     
     
@@ -813,729 +1678,6 @@ $  make all cd-sounds-install cd-moh-install    # optional, run this if you want
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text to Speech Calls From Hip Chat</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-01-23T16:18:00+00:00" pubdate data-updated="true">Jan 23<span>rd</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/hipchat/'>hipchat</a>, <a class='category' href='/blog/categories/hipchatbot/'>hipchatbot</a>, <a class='category' href='/blog/categories/plivo/'>plivo</a>, <a class='category' href='/blog/categories/rubot/'>rubot</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>I&#8217;ve been using <code>HipChat</code> for the last one month. Before that it was IRC always. But when i joined <em>Plivo&#8217;s</em> <strong>DevOps</strong> family, i&#8217;ve got a lot of places to integrate plivo to automate a lot of stuffs. This i was planning to do some thing with Hipchat. There are a couple of HipChat bot&#8217;s available, i decided to use &#8217;<strong>robut</strong>&#8217;, as it is simple, written in Ruby and easy to write plugins also. Robut need only one &#8220;Chatfile&#8221; as its config file. All the Hip Chat account and room details are mentioned in this file. The Plugins are enabled in this file.</p>
-
-<p>First we need to clone the repository.</p>
-
-<pre><code>$ git clone https://github.com/justinweiss/robut.git
-</code></pre>
-
-<p>Now i need &#8217;<strong>redis</strong>&#8217; and &#8217;<strong>plivo</strong>&#8217; gems for my new plugin. So need to add the same in the Gemfile. Once the gems are added in to the Gemfile, we need to do a &#8221;<strong>bundle install</strong>&#8221; to install all the necessary gems. The path for the <code>Chatfile</code> can be mentioned in  &#8221;<strong>bin/robut</strong>&#8221; file. Now before starting <strong>robut</strong> we need to add the basic HipChat settings ie, <em>jabberid, nick, password and room</em>. Now wen eed to create a plugin to use with robut. The default plugins are available in &#8221;<em>lib/robut/plugin/</em>&#8221; folder. Below is the plugin which i created for making  Text To Speech calls.</p>
-
-<pre><code>require 'json'
-require 'timeout'
-require 'securerandom'
-require 'plivo'
-require 'redis'
-
-class Robut::Plugin::Call
-  include Robut::Plugin
-
-  def usage
-    "#{at_nick} call &lt;number&gt; &lt;message&gt; "
-  end
-
-  def handle(time, sender_nick, message)
-    new_msg = message.split(' ')
-    if sent_to_me?(message) &amp;&amp; new_msg[1] == 'call'
-    num = new_msg[2]
-    textt = message.split(' ').drop(3).join(' ')
-      begin
-    reply("Calling #{num}")
-    plivo_auth_id = "XXXXXXXXXXXXXXXXX"
-    plivo_auth_token = "XXXXXXXXXXXXXXXXX"
-    uuid = SecureRandom.hex
-        r = Redis.new(:host =&gt; "redis_host", :port =&gt; redis_port, :password =&gt; "redis_port")
-        temp = {
-               'text' =&gt; "#{textt}"
-               }
-    plivo_number = "plivo_number"
-        to_number = "#{num}"
-        answer_url = "http://polar-everglades-1062.herokuapp.com/#{uuid}"
-
-        call_params = {
-                      'from' =&gt; plivo_number,
-                      'to' =&gt; to_number,
-                      'answer_url' =&gt; answer_url,
-                      'answer_method' =&gt; 'GET'
-                      }
-        r.set "#{uuid}", temp.to_json
-        r.expire "#{uuid}", 3000
-        sleep 5
-        puts "Initiating plivo call"
-    p = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
-        details = p.make_call(call_params)
-    reply("Summary #{details}")
-      rescue
-        reply("Can't calculate that.")
-      end
-    end
-  end
-end
-</code></pre>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo/">Phone Call Notification for Sensu Using Plivo</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-01-12T19:02:00+00:00" pubdate data-updated="true">Jan 12<span>th</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/monitoring-/'>Monitoring,</a>, <a class='category' href='/blog/categories/plivo/'>Plivo</a>, <a class='category' href='/blog/categories/sensu-/'>Sensu,</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>It&#8217;s almost 2 weeks since i&#8217;ve joined <a href="http://plivo.com/">Plivo&#8217;s</a> DevOps family. I was spending a lot of time on understanding their API&#8217;s as i&#8217;m new to telephony. Plivo&#8217;s <a href="http://plivo.com/docs/api/">API</a> made telephony so easy that even a person with basic programming language can built powerfull telephony apps to suit to their infrastructure. So when i started playing around with the API, i decided to take it to a different level. I&#8217;m strong lover of Sensu Monitoring tool, so i decided to integrate <em>Plivo</em> with <em>Sensu</em> to built a new Notification system using the Phone call. Many people rely on Pagerduty for the same feature. But that part is completly managed by PagerDuty, where in for the alerts which we sent to PagerDuty, they will notify us via phone call to the phone numbers mentioned on Pager Duty. So i decided to built a similar Handler to Sensu, so that we can have a similar feature on Sensu. In this blog i will explain how i achieved the same with Plivo Framework.</p>
-
-<p><code>Plivo</code> provides Application Programming Interfaces (APIs) to make and receive calls, send SMS, make a conference call, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. Developers can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
-
-<p>Here the Sensu will be initiating outbound calls using Plivo&#8217;s <a href="http://plivo.com/docs/api/">Call</a> API, to the required numbers and will read out the Alert using Plivo&#8217;s Text to Speech Engine. First we need an account on Plivo Cloud, we can go to <a href="https://manage.plivo.com/accounts/register/">SignUP</a> page, and need to create an account. By using the default, we can make test calls. But for longer usage, i will suggest to buy some credits for using the service extensively. Once we login with credentials, at the dashboard we can see <strong><em>Plivo AuthID</em></strong> and <strong><em>Plivo AuthToken</em></strong>, which is required to access Plivo&#8217;s API. Now for making out bound calls, we need to use the <a href="http://plivo.com/docs/api/call/">Call</a> API. We also need to provide an &#8221;<strong>answer_url</strong>&#8221; which contains XML instructions to direct the progress of the call. Plivo will fetch the &#8221;<strong>answer_url</strong>&#8221; and executes te XML instructions. So here i will be using <em>Sinatra</em> to create a web app that will returns the XML.  The main challenge is the text to be mentioned in the XML need to retrieved from the alert. So we cannot predefine the text as well as the request url, because it will be in dynamic in nature.</p>
-
-<p><code>Solution</code> :- Here i&#8217;m going to use a publically accessible <em>Redis</em> server which is protected with a password. When Sensu handler receives the alert, it will create a hash from the alert received with a random UUID as the name of the hash. And the same UUID will be used as the request path for the answer_url. And when sinatra recieves a request, by default the requested path wont be existing in the sinatra&#8217;s config file, as it&#8217;s a dynamically generated. So by default Sinatra will return a 404 response. But in Sinatra, there is an option called &#8221;<strong><em>not_found</em></strong>&#8221;, where we can customize the response instead of returning 404 directly. So i will be using the &#8220;not_found&#8221; option and instead of directly returing a 404, i will make sinatra to talk to my redis server. Since the UUID can be fetched from the request URL, and the same is used in the redis as the name of the Hash, Sinatra can get the details of the alert from the Redis. These details are then used to create the XML and will be returned as the response to Plivo. It will be better to go through Plivo&#8217;s API documentation to understand more about the XML responses and outbound calls.</p>
-
-<p>For those who don&#8217;t have a dedicated server to host the Sinatra app and Redis server, <a href="https://devcenter.heroku.com/articles/getting-started-with-ruby">heroku</a> can be used to host the Sinatra app. We can also use the redis addon availabe at the Heroku for our usage.</p>
-
-<h2>Sinatra App</h2>
-
-<p>Below is the code for the Sinatra app. The &#8221;<strong><em>not_found</em></strong>&#8221; option is the one which performs the connection with the Redis.</p>
-
-<pre><code>require 'plivo'
-require 'sinatra'
-require 'redis'
-require 'rest_client'
-
-get '/' do
-  play_loop = 1
-  lang = "en-US"
-  voice = "WOMAN"
-  text = "Congratulations! You just made a text to speech app on Plivo cloud!"
-  @path = request.path
-  puts @path
-  speak_params = {
-                     'loop' =&gt; play_loop,
-                     'language' =&gt; lang,
-                     'voice' =&gt; voice,
-                     }
-
-  plivo = Plivo::Speak.new(text, speak_params)
-
-  response = Plivo::Response.new()
-  response.add(p)
-  return response.to_xml
-end
-
-not_found do
-  @path = request.path
-  keyword = @path[1..-1]
-  response = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
-  data_red = response.get("#{keyword}")
-  if data_red == nil
-         return "404 Not Found"
-  else
-         data = JSON.parse(response.get("#{keyword}"))
-         text = data["text"]
-         play_loop = 1
-         lang = "en-US"
-         voice = "WOMAN"
-         speak_params = {
-                        'loop' =&gt; play_loop,
-                        'language' =&gt; lang,
-                        'voice' =&gt; voice,
-                        }
-
-         plivo = Plivo::Speak.new(text, speak_params)
-
-         response = Plivo::Response.new()
-         response.add(p)
-         return r.to_xml
-   end
-end
-</code></pre>
-
-<p>The above app will redirect all the non found requests and make a requests to the Redis server using the request.path as the name of the hash. If there is a valid hash table, it will generate a Plivo XML else it will return &#8220;404 Not Found&#8221;.</p>
-
-<h2>Plivo Handler</h2>
-
-<p>Below is the Plivo Handler code. this is the Initial code, need to be tweaked to suit to the Sensu&#8217;s coding standard. Also the settings option need to be added so that all the parameters can be provided in the JSON file of the Handler. But as of now, this handler has been tested with Sensu and it is working perfectly fine.</p>
-
-<pre><code>require 'rubygems'
-require 'sensu-handler'
-require 'timeout'
-require 'securerandom'
-require 'plivo'
-require 'redis'
-require 'timeout'
-
-
-class PLIVO &lt; Sensu::Handler
-
-  def short_name
-    @event['client']['name'] + '/' + @event['check']['name']
-  end
-
-  def action_to_string
-    @event['action'].eql?('resolve') ? "RESOLVED" : "ALERT"
-  end
-
-  def handle
-    plivo_auth_id = "XXXXXXXXXXXXXXXX"          # =&gt; available at the plivo dashboard
-    plivo_auth_token = "XXXXXXXXXXXXXXXX"       # =&gt; available at the plivo dashboard
-    body = &lt;&lt;-BODY.gsub(/^ {14}/, '')
-            #{@event['check']['output']}
-            Host: #{@event['client']['name']}
-           BODY
-    uuid = SecureRandom.hex
-    r = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
-    temp = {
-            'text' =&gt; "#{body}"
-            }
-    plivo_number = "&lt;YOUR PLIVO NUMBER"
-    to_number = "&lt;DESTINATION NUMBER&gt;"
-    answer_url = "&lt;YOUR HEROKU APP URL&gt;/#{uuid}"
-    call_params = {
-                     'from' =&gt; plivo_number,
-                     'to' =&gt; to_number,
-                     'answer_url' =&gt; answer_url,
-                     'answer_method' =&gt; 'GET'
-                     }
-         r.set "#{uuid}", temp.to_json
-         r.expire "#{uuid}", &lt;EXPIRY TTL&gt;
-         sleep 5
-     begin
-       timeout 10 do
-         puts "Connecting to Plivo Cloud.."
-         plivo = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
-     details = plivo.make_call(call_params)
-       end
-       rescue Timeout::Error
-       puts "timed out while attempting to contact Plivo Cloud"
-         end
-  end
-end
-</code></pre>
-
-<p>The above handler will make an outbound call to the Destination number and plivo&#8217;s text to speech engine will read out the Alert summary on the call. Now If you want to call multiple user&#8217;s, simply create an array or hash with the contact numbers and iterate over it.</p>
-
-<p>This handler will give us the same feature of Phone Call notification similar to Pager Duty. We just need to pay for the phone call usage. Dedicated to all those who wants an affordable yet a good notification system with Sensu. I will be merging out my code soon to the  sensu-community repository.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - a Live Tweet Grabber</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-09-22T17:30:00+00:00" pubdate data-updated="true">Sep 22<span>nd</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/sinatra/'>Sinatra</a>, <a class='category' href='/blog/categories/tweetgrabber/'>TweetGrabber</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user&#8217;s comments on their  services/products and they even interacts with user&#8217;s. Website&#8217;s like &#8220;downrightnow.com&#8221;, uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site&#8217;s we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i&#8217;m more concerned about the new trends going on in the Twitter.</p>
-
-<p>Since i&#8217;m a <em>Rubyist</em>, i decided to build a Ruby app with <strong>Sinatra</strong> web Frontend, one my favourite web frameworks. I&#8217;m hard lover of Redis, faster since it runs on ram, and i dont want to keep my old tweets. So, My app is pretty simple, there will a <strong>Feeder</strong> which will talk to Twitter&#8217;s API and get the Tweet&#8217;s these tweet&#8217;s will be then stored in Redis, The Sinatra Fronend will fetch the tweets, and will display it in a scrolling fashion on the front end. Since i&#8217;m a CLI junkie, i&#8217;m not familiar with HTMLs and UI&#8217;s, so i decided to go with <em>Twitter Bootstrap</em> to build the HTML pages.</p>
-
-<p>There is a Ruby gem called &#8221;<strong>TweetStream</strong>&#8221; which works very well with Twitter API v1.1. So i&#8217;m going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
-
-<p><img src="/images/tweetgrabber.png"></p>
-
-<p>Let&#8217;s see each components in detail.</p>
-
-<h3>Feeder</h3>
-
-
-<p><code>Feeder</code> is a ruby script which constantly talks to Twitter API and grabs the latest streaming tweets based on the search keywords. Add all the grabbed tweets are then stored into the Redis database. Since i&#8217;ve to display teets corresponding to each keyword in separate scrolling fashions, i&#8217;m using separate redis database for each. So the Feeder has multiple ruby methods, where each method will be used  for each keyword and writes into the corresponding Redis DB. Below is one of the Ruby Method in the Feeder script.</p>
-
-<pre><code>                        #######  FEEDER ####### 
-
-TweetStream.configure do |config|
-  config.consumer_key       = 'xxxxxxxxxxxxxx'          =&gt; All these cosnumerkey,secret and oauth tokens have to be generated from
-  config.consumer_secret    = 'xxxxxxxxxxxxxx'             the Twitter's API site, dev.twitter.com
-  config.oauth_token        = 'xxxxxxxxxxxxxx'
-  config.oauth_token_secret = 'xxxxxxxxxxxxxx'
-  config.auth_method        = :oauth
-end
-
-def tweet_general
-  TweetStream::Client.new.track('opensource') do |status|   =&gt;  Thiss Tweatstream client will keep tracking the keyword "opensource"
-    if ( status.lang == 'en' )
-      push(
-                'id' =&gt; status[:id],
-               'text' =&gt; status.text,
-               'username' =&gt; status.user.screen_name,
-               'userid' =&gt; status.user[:id],
-               'name' =&gt; status.user.name,
-               'profile_image_url' =&gt; status.user.profile_image_url,
-               'received_at' =&gt; Time.new.to_i,
-               'user_link' =&gt; "http://twitter.com/"
-             )
-        end
-  end
-end
-def push(data)
-      @db = Redis.new
-      @db.lpush('tweets_general', data.to_json)         =&gt; LPUSHing Tweets into the RedisDB
-    end
-</code></pre>
-
-<h3>Redis DB</h3>
-
-
-<p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
-
-<p><img src="/images/redis-list.png"></p>
-
-<p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
-
-<h3>Sinatra Frontend</h3>
-
-
-<p>I&#8217;m using <strong>SINATRA</strong> for building the frontend. SInce i&#8217;m not much familiar with HTML&#8217;s and UI&#8217;s, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i&#8217;ve created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
-
-<p><img src="/images/layout.png"></p>
-
-<p>As of now the app is working fine. But i&#8217;m planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I&#8217;m going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB - a NoSQL DB With a Powerfull Rest API</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-09-19T21:37:00+00:00" pubdate data-updated="true">Sep 19<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/couchdb/'>CouchDB</a>, <a class='category' href='/blog/categories/nosql/'>NOSQL</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>CouchDB</code> is an open source <em>NoSQL</em> database, which comes with a powerfull <strong>Rest API</strong>. It stores data in <em>JSON format</em>. uses <em>Javascripts</em> as its query language using <em>MapReduce</em>. JSON data&#8217;s are very easy to understand and can be parsed very easily. This time i got a requirement to build a commandline utility to display results for an internal monitoring tool. The tool is a bit old, and it does not have any api. And finding latest the result is consuming more time using the front end. But one advantage was the frontend can display results in HTML and XML. So curl was able to query the server using the url and it can display the xml output. The url is unique for each, as it composed of few details like Location, SerialNo, Domain, OS etc, which is unique for each hosts. So i decided to have a local database which contains all these unique host details. For this purpose, i dont need any relational databases, and NoSQL databases are sufficient. So i decided to use CouchDB, because it comes with a wonderfull rest api.</p>
-
-<p>Since i&#8217;m a <em>RUBY</em> lover, i decided to use this couchdb ruby <a href="http://wiki.apache.org/couchdb/Getting_started_with_Ruby">wrapper</a>. SInce my requirement with CouchDB was pretty simple, this wrapper itself was sufficient for me. This wrapper can be used to perform any operations like, reading,writing,deleting Documents as well as Databases. This wrapper basically uses the ruby http library to talk to the CouchDB&#8217;s rest api.  By default couchdb is available in most of the Linux respositories. for windows and mac, the files are available in the CouchDB website itself.</p>
-
-<p>for example, for ubuntu/debian, below command will install couchdb server.</p>
-
-<pre><code>sudo apt-get install couchdb -y
-</code></pre>
-
-<p>By default, the couchDB package comes with a web frontend called &#8220;Futon&#8221; which can be accessed via browsers ugin the below url,</p>
-
-<pre><code>http://localhost:5984/_utils/
-</code></pre>
-
-<p>Below is the screenshot of the Futon frontend.</p>
-
-<p><img src="/images/futon.png"></p>
-
-<p>We can perform all the operations through this web interface also. So i created a database, and created a document for each host with required fields. Now these documents can be accessed via the rest api in JSON format. so that my ruby script can fetch all the necessary data and can compose the exact url for fetching the check results for corresponding hosts.</p>
-
-<p>Below is a sample read operation that we can perform through our ruby scripts. But before using the operation, we need to include the wrapper into our script. For that we need to add &#8216;require ./couch.rb&#8217;, we can use both relative or absolute path. once the wrapper is included,we can start performing operations with the CouchDB.</p>
-
-<pre><code>server = Couch::Server.new("localhost", "5984")
-res = server.get("/foo/document_id")
-json = res.body
-puts json
-</code></pre>
-
-<p>The operation will read the document and will convert it into JSON using the json ruby library. Now i can use the JSON data to collect the required fields so that my script can form the exact fetch url for each host and can perform the result fetch.  There is couchdb <a href="https://github.com/phifty/couchdb">gem</a> for ruby, which can perform more operations.</p>
-
-<p>Apart from this, CouchDB has another important feature &#8221;<strong>MAPREDUCE</strong>&#8221;, yes it can perform <strong>MapReduce</strong>, i&#8217;m trying to find if mapreduce can help me, so that i can extend my app to do more things. Once if i get any weird idea with MapReduce i will udapte this blog with that also.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring Using Lumberjack-Logstash-Statsd-Graphite</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-06-27T16:29:00+00:00" pubdate data-updated="true">Jun 27<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/graphite/'>Graphite</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/lumberjack/'>Lumberjack</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/statsd/'>Statsd</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I&#8217;m going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log&#8217;s porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i&#8217;ve explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server&#8217;s access logs.</p>
-
-<p>By default, i&#8217;m using the combined apache log format, but it doesnot have the original response time for each request as well as the total reponse time. So we need to modify the LogFormat, in order to add the two. Below is the LogFormat which i&#8217;m using for my test setup.</p>
-
-<pre><code>LogFormat "%h %l %u %t \"%r\" %&gt;s %O \"%{Referer}i\" \"%{User-Agent}i\" %D %&gt;D" combined
-</code></pre>
-
-<p>Once the LogFormat is modified, restart the apache service in order to make the change to be effective.</p>
-
-<h4>Setting up Logstash Server</h4>
-
-<p>First Download the latest Logstash Jar file from the Logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">site</a>. Now we need to create a logstash conf file. By default there is a grok pattern available for apache log called &#8220;COMBINEDAPACHELOG&#8221;, but since we have added the tow new fields for the response time, we need to add the same for grok pattern also. So below is a pattern which is going to be used with Logstash.</p>
-
-<pre><code>pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
-</code></pre>
-
-<p>So the Logstash conf file will look like this,</p>
-
-<pre><code>input {
-      lumberjack {
-        type =&gt; "apache-access"
-        port =&gt; 4444
-        ssl_certificate =&gt; "/etc/ssl/logstash.pub"
-        ssl_key =&gt; "/etc/ssl/logstash.key"
-  }
-}
-
-filter {
-  grok {
-        type =&gt; "apache-access"
-    pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
-  }
-}
-
-output {
-  stdout {
-    debug =&gt; true
-      }
-  statsd {
-    type =&gt; "apache-access"
-    host =&gt; "localhost"
-    port =&gt; 8125
-    debug =&gt; true
-    timing =&gt; [ "apache.servetime", "%{resptimefull}" ]
-    increment =&gt; "apache.response.%{response}"
-  }
-}
-</code></pre>
-
-<h4>Setting up STATSD</h4>
-
-<p>Now we can start setting up the StatsD daemon. By default, Ubuntu&#8217;s latest OS ships with newer verision of NodeJS and NPM. So we can install it using APT/Aptitude.</p>
-
-<pre><code>$ apt-get install nodejs npm
-</code></pre>
-
-<p>Now clone the StatsD github repository to the local machine.</p>
-
-<pre><code>$ git clone git://github.com/etsy/statsd.git
-</code></pre>
-
-<p>Now create a local config file &#8220;localConfig.js&#8221; with the below contents.</p>
-
-<pre><code>{
-graphitePort: 2003
-, graphiteHost: "127.0.0.1"
-, port: 8125
-}
-</code></pre>
-
-<p>Now we can start the StatsD daemon.</p>
-
-<pre><code>$ node /opt/statsd/stats.js /opt/statsd/localConfig.js
-</code></pre>
-
-<p>The above command will start the StatsD in foreground. Now we can go ahead with setting up the Graphite.</p>
-
-<h4>Setting up Graphite</h4>
-
-<p>First, let&#8217;s install the basic python dependencies.</p>
-
-<pre><code>$ apt-get install python-software-properties memcached python-dev python-pip sqlite3 libcairo2 libcairo2-dev python-cairo pkg-config
-</code></pre>
-
-<p>Then, we can start installing Carbon and Graphite dependencies.</p>
-
-<pre><code>        cat &gt;&gt; /tmp/graphite_reqs.txt &lt;&lt; EOF
-        django==1.3
-        python-memcached
-        django-tagging
-        twisted
-        whisper==0.9.9
-        carbon==0.9.9
-        graphite-web==0.9.9
-        EOF
-
-$  pip install -r /tmp/graphite_reqs.txt
-</code></pre>
-
-<p>Now we can configure Carbon.</p>
-
-<pre><code>$ cd /opt/graphite/conf/
-
-$ cp carbon.conf.example carbon.conf
-</code></pre>
-
-<p>Now we need to create a storage schema.</p>
-
-<pre><code>        cat &gt;&gt; /tmp/storage-schemas.conf &lt;&lt; EOF
-        # Schema definitions for Whisper files. Entries are scanned in order,
-        # and first match wins. This file is scanned for changes every 60 seconds.
-        # [name]
-        # pattern = regex
-        # retentions = timePerPoint:timeToStore, timePerPoint:timeToStore
-        [stats]
-        priority = 110
-        pattern = ^stats\..*
-        retentions = 10s:6h,1m:7d,10m:1y
-        EOF
-
-
-$ cp /tmp/storage-schemas.conf /opt/graphite/conf/storage-schemas.conf
-</code></pre>
-
-<p>Also we need to create a log directory for graphite.</p>
-
-<pre><code>$ mkdir -p /opt/graphite/storage/log/webapp
-</code></pre>
-
-<p>Now we need to copy over the local settings file and initialize database</p>
-
-<pre><code>$ cd /opt/graphite/webapp/graphite/
-
-$ cp local_settings.py.example local_settings.py
-
-$ python manage.py syncdb
-</code></pre>
-
-<p>Fill in the necessary details including the super user details while initializing the database. Once the database is initialized we can start the carbon cache and graphite webgui.</p>
-
-<pre><code>$ /opt/graphite/bin/carbon-cache.py start
-
-$ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
-</code></pre>
-
-<p>Now we can access the dashboard using the url, &#8220;http://ip-address:8080&#8221;. Once we have started the carbon cache, we can start the Logstash server.</p>
-
-<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
-</code></pre>
-
-<p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i&#8217;ve enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph&#8217;s from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1559,23 +1701,23 @@ $ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
     <ul class="recent_posts">
       
         <li>
-          <a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard with Kibana and Elasticsearch</a>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
         </li>
       
         <li>
-          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
         </li>
       
     </ul>

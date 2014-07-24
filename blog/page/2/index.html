@@ -97,6 +97,729 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text to Speech Calls From Hip Chat</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-01-23T16:18:00+00:00" pubdate data-updated="true">Jan 23<span>rd</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/hipchat/'>hipchat</a>, <a class='category' href='/blog/categories/hipchatbot/'>hipchatbot</a>, <a class='category' href='/blog/categories/plivo/'>plivo</a>, <a class='category' href='/blog/categories/rubot/'>rubot</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>I&#8217;ve been using <code>HipChat</code> for the last one month. Before that it was IRC always. But when i joined <em>Plivo&#8217;s</em> <strong>DevOps</strong> family, i&#8217;ve got a lot of places to integrate plivo to automate a lot of stuffs. This i was planning to do some thing with Hipchat. There are a couple of HipChat bot&#8217;s available, i decided to use &#8217;<strong>robut</strong>&#8217;, as it is simple, written in Ruby and easy to write plugins also. Robut need only one &#8220;Chatfile&#8221; as its config file. All the Hip Chat account and room details are mentioned in this file. The Plugins are enabled in this file.</p>
+
+<p>First we need to clone the repository.</p>
+
+<pre><code>$ git clone https://github.com/justinweiss/robut.git
+</code></pre>
+
+<p>Now i need &#8217;<strong>redis</strong>&#8217; and &#8217;<strong>plivo</strong>&#8217; gems for my new plugin. So need to add the same in the Gemfile. Once the gems are added in to the Gemfile, we need to do a &#8221;<strong>bundle install</strong>&#8221; to install all the necessary gems. The path for the <code>Chatfile</code> can be mentioned in  &#8221;<strong>bin/robut</strong>&#8221; file. Now before starting <strong>robut</strong> we need to add the basic HipChat settings ie, <em>jabberid, nick, password and room</em>. Now wen eed to create a plugin to use with robut. The default plugins are available in &#8221;<em>lib/robut/plugin/</em>&#8221; folder. Below is the plugin which i created for making  Text To Speech calls.</p>
+
+<pre><code>require 'json'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+
+class Robut::Plugin::Call
+  include Robut::Plugin
+
+  def usage
+    "#{at_nick} call &lt;number&gt; &lt;message&gt; "
+  end
+
+  def handle(time, sender_nick, message)
+    new_msg = message.split(' ')
+    if sent_to_me?(message) &amp;&amp; new_msg[1] == 'call'
+    num = new_msg[2]
+    textt = message.split(' ').drop(3).join(' ')
+      begin
+    reply("Calling #{num}")
+    plivo_auth_id = "XXXXXXXXXXXXXXXXX"
+    plivo_auth_token = "XXXXXXXXXXXXXXXXX"
+    uuid = SecureRandom.hex
+        r = Redis.new(:host =&gt; "redis_host", :port =&gt; redis_port, :password =&gt; "redis_port")
+        temp = {
+               'text' =&gt; "#{textt}"
+               }
+    plivo_number = "plivo_number"
+        to_number = "#{num}"
+        answer_url = "http://polar-everglades-1062.herokuapp.com/#{uuid}"
+
+        call_params = {
+                      'from' =&gt; plivo_number,
+                      'to' =&gt; to_number,
+                      'answer_url' =&gt; answer_url,
+                      'answer_method' =&gt; 'GET'
+                      }
+        r.set "#{uuid}", temp.to_json
+        r.expire "#{uuid}", 3000
+        sleep 5
+        puts "Initiating plivo call"
+    p = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+        details = p.make_call(call_params)
+    reply("Summary #{details}")
+      rescue
+        reply("Can't calculate that.")
+      end
+    end
+  end
+end
+</code></pre>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo/">Phone Call Notification for Sensu Using Plivo</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-01-12T19:02:00+00:00" pubdate data-updated="true">Jan 12<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/monitoring-/'>Monitoring,</a>, <a class='category' href='/blog/categories/plivo/'>Plivo</a>, <a class='category' href='/blog/categories/sensu-/'>Sensu,</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s almost 2 weeks since i&#8217;ve joined <a href="http://plivo.com/">Plivo&#8217;s</a> DevOps family. I was spending a lot of time on understanding their API&#8217;s as i&#8217;m new to telephony. Plivo&#8217;s <a href="http://plivo.com/docs/api/">API</a> made telephony so easy that even a person with basic programming language can built powerfull telephony apps to suit to their infrastructure. So when i started playing around with the API, i decided to take it to a different level. I&#8217;m strong lover of Sensu Monitoring tool, so i decided to integrate <em>Plivo</em> with <em>Sensu</em> to built a new Notification system using the Phone call. Many people rely on Pagerduty for the same feature. But that part is completly managed by PagerDuty, where in for the alerts which we sent to PagerDuty, they will notify us via phone call to the phone numbers mentioned on Pager Duty. So i decided to built a similar Handler to Sensu, so that we can have a similar feature on Sensu. In this blog i will explain how i achieved the same with Plivo Framework.</p>
+
+<p><code>Plivo</code> provides Application Programming Interfaces (APIs) to make and receive calls, send SMS, make a conference call, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. Developers can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>Here the Sensu will be initiating outbound calls using Plivo&#8217;s <a href="http://plivo.com/docs/api/">Call</a> API, to the required numbers and will read out the Alert using Plivo&#8217;s Text to Speech Engine. First we need an account on Plivo Cloud, we can go to <a href="https://manage.plivo.com/accounts/register/">SignUP</a> page, and need to create an account. By using the default, we can make test calls. But for longer usage, i will suggest to buy some credits for using the service extensively. Once we login with credentials, at the dashboard we can see <strong><em>Plivo AuthID</em></strong> and <strong><em>Plivo AuthToken</em></strong>, which is required to access Plivo&#8217;s API. Now for making out bound calls, we need to use the <a href="http://plivo.com/docs/api/call/">Call</a> API. We also need to provide an &#8221;<strong>answer_url</strong>&#8221; which contains XML instructions to direct the progress of the call. Plivo will fetch the &#8221;<strong>answer_url</strong>&#8221; and executes te XML instructions. So here i will be using <em>Sinatra</em> to create a web app that will returns the XML.  The main challenge is the text to be mentioned in the XML need to retrieved from the alert. So we cannot predefine the text as well as the request url, because it will be in dynamic in nature.</p>
+
+<p><code>Solution</code> :- Here i&#8217;m going to use a publically accessible <em>Redis</em> server which is protected with a password. When Sensu handler receives the alert, it will create a hash from the alert received with a random UUID as the name of the hash. And the same UUID will be used as the request path for the answer_url. And when sinatra recieves a request, by default the requested path wont be existing in the sinatra&#8217;s config file, as it&#8217;s a dynamically generated. So by default Sinatra will return a 404 response. But in Sinatra, there is an option called &#8221;<strong><em>not_found</em></strong>&#8221;, where we can customize the response instead of returning 404 directly. So i will be using the &#8220;not_found&#8221; option and instead of directly returing a 404, i will make sinatra to talk to my redis server. Since the UUID can be fetched from the request URL, and the same is used in the redis as the name of the Hash, Sinatra can get the details of the alert from the Redis. These details are then used to create the XML and will be returned as the response to Plivo. It will be better to go through Plivo&#8217;s API documentation to understand more about the XML responses and outbound calls.</p>
+
+<p>For those who don&#8217;t have a dedicated server to host the Sinatra app and Redis server, <a href="https://devcenter.heroku.com/articles/getting-started-with-ruby">heroku</a> can be used to host the Sinatra app. We can also use the redis addon availabe at the Heroku for our usage.</p>
+
+<h2>Sinatra App</h2>
+
+<p>Below is the code for the Sinatra app. The &#8221;<strong><em>not_found</em></strong>&#8221; option is the one which performs the connection with the Redis.</p>
+
+<pre><code>require 'plivo'
+require 'sinatra'
+require 'redis'
+require 'rest_client'
+
+get '/' do
+  play_loop = 1
+  lang = "en-US"
+  voice = "WOMAN"
+  text = "Congratulations! You just made a text to speech app on Plivo cloud!"
+  @path = request.path
+  puts @path
+  speak_params = {
+                     'loop' =&gt; play_loop,
+                     'language' =&gt; lang,
+                     'voice' =&gt; voice,
+                     }
+
+  plivo = Plivo::Speak.new(text, speak_params)
+
+  response = Plivo::Response.new()
+  response.add(p)
+  return response.to_xml
+end
+
+not_found do
+  @path = request.path
+  keyword = @path[1..-1]
+  response = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+  data_red = response.get("#{keyword}")
+  if data_red == nil
+         return "404 Not Found"
+  else
+         data = JSON.parse(response.get("#{keyword}"))
+         text = data["text"]
+         play_loop = 1
+         lang = "en-US"
+         voice = "WOMAN"
+         speak_params = {
+                        'loop' =&gt; play_loop,
+                        'language' =&gt; lang,
+                        'voice' =&gt; voice,
+                        }
+
+         plivo = Plivo::Speak.new(text, speak_params)
+
+         response = Plivo::Response.new()
+         response.add(p)
+         return r.to_xml
+   end
+end
+</code></pre>
+
+<p>The above app will redirect all the non found requests and make a requests to the Redis server using the request.path as the name of the hash. If there is a valid hash table, it will generate a Plivo XML else it will return &#8220;404 Not Found&#8221;.</p>
+
+<h2>Plivo Handler</h2>
+
+<p>Below is the Plivo Handler code. this is the Initial code, need to be tweaked to suit to the Sensu&#8217;s coding standard. Also the settings option need to be added so that all the parameters can be provided in the JSON file of the Handler. But as of now, this handler has been tested with Sensu and it is working perfectly fine.</p>
+
+<pre><code>require 'rubygems'
+require 'sensu-handler'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+require 'timeout'
+
+
+class PLIVO &lt; Sensu::Handler
+
+  def short_name
+    @event['client']['name'] + '/' + @event['check']['name']
+  end
+
+  def action_to_string
+    @event['action'].eql?('resolve') ? "RESOLVED" : "ALERT"
+  end
+
+  def handle
+    plivo_auth_id = "XXXXXXXXXXXXXXXX"          # =&gt; available at the plivo dashboard
+    plivo_auth_token = "XXXXXXXXXXXXXXXX"       # =&gt; available at the plivo dashboard
+    body = &lt;&lt;-BODY.gsub(/^ {14}/, '')
+            #{@event['check']['output']}
+            Host: #{@event['client']['name']}
+           BODY
+    uuid = SecureRandom.hex
+    r = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+    temp = {
+            'text' =&gt; "#{body}"
+            }
+    plivo_number = "&lt;YOUR PLIVO NUMBER"
+    to_number = "&lt;DESTINATION NUMBER&gt;"
+    answer_url = "&lt;YOUR HEROKU APP URL&gt;/#{uuid}"
+    call_params = {
+                     'from' =&gt; plivo_number,
+                     'to' =&gt; to_number,
+                     'answer_url' =&gt; answer_url,
+                     'answer_method' =&gt; 'GET'
+                     }
+         r.set "#{uuid}", temp.to_json
+         r.expire "#{uuid}", &lt;EXPIRY TTL&gt;
+         sleep 5
+     begin
+       timeout 10 do
+         puts "Connecting to Plivo Cloud.."
+         plivo = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+     details = plivo.make_call(call_params)
+       end
+       rescue Timeout::Error
+       puts "timed out while attempting to contact Plivo Cloud"
+         end
+  end
+end
+</code></pre>
+
+<p>The above handler will make an outbound call to the Destination number and plivo&#8217;s text to speech engine will read out the Alert summary on the call. Now If you want to call multiple user&#8217;s, simply create an array or hash with the contact numbers and iterate over it.</p>
+
+<p>This handler will give us the same feature of Phone Call notification similar to Pager Duty. We just need to pay for the phone call usage. Dedicated to all those who wants an affordable yet a good notification system with Sensu. I will be merging out my code soon to the  sensu-community repository.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - a Live Tweet Grabber</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-09-22T17:30:00+00:00" pubdate data-updated="true">Sep 22<span>nd</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/sinatra/'>Sinatra</a>, <a class='category' href='/blog/categories/tweetgrabber/'>TweetGrabber</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user&#8217;s comments on their  services/products and they even interacts with user&#8217;s. Website&#8217;s like &#8220;downrightnow.com&#8221;, uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site&#8217;s we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i&#8217;m more concerned about the new trends going on in the Twitter.</p>
+
+<p>Since i&#8217;m a <em>Rubyist</em>, i decided to build a Ruby app with <strong>Sinatra</strong> web Frontend, one my favourite web frameworks. I&#8217;m hard lover of Redis, faster since it runs on ram, and i dont want to keep my old tweets. So, My app is pretty simple, there will a <strong>Feeder</strong> which will talk to Twitter&#8217;s API and get the Tweet&#8217;s these tweet&#8217;s will be then stored in Redis, The Sinatra Fronend will fetch the tweets, and will display it in a scrolling fashion on the front end. Since i&#8217;m a CLI junkie, i&#8217;m not familiar with HTMLs and UI&#8217;s, so i decided to go with <em>Twitter Bootstrap</em> to build the HTML pages.</p>
+
+<p>There is a Ruby gem called &#8221;<strong>TweetStream</strong>&#8221; which works very well with Twitter API v1.1. So i&#8217;m going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
+
+<p><img src="/images/tweetgrabber.png"></p>
+
+<p>Let&#8217;s see each components in detail.</p>
+
+<h3>Feeder</h3>
+
+
+<p><code>Feeder</code> is a ruby script which constantly talks to Twitter API and grabs the latest streaming tweets based on the search keywords. Add all the grabbed tweets are then stored into the Redis database. Since i&#8217;ve to display teets corresponding to each keyword in separate scrolling fashions, i&#8217;m using separate redis database for each. So the Feeder has multiple ruby methods, where each method will be used  for each keyword and writes into the corresponding Redis DB. Below is one of the Ruby Method in the Feeder script.</p>
+
+<pre><code>                        #######  FEEDER ####### 
+
+TweetStream.configure do |config|
+  config.consumer_key       = 'xxxxxxxxxxxxxx'          =&gt; All these cosnumerkey,secret and oauth tokens have to be generated from
+  config.consumer_secret    = 'xxxxxxxxxxxxxx'             the Twitter's API site, dev.twitter.com
+  config.oauth_token        = 'xxxxxxxxxxxxxx'
+  config.oauth_token_secret = 'xxxxxxxxxxxxxx'
+  config.auth_method        = :oauth
+end
+
+def tweet_general
+  TweetStream::Client.new.track('opensource') do |status|   =&gt;  Thiss Tweatstream client will keep tracking the keyword "opensource"
+    if ( status.lang == 'en' )
+      push(
+                'id' =&gt; status[:id],
+               'text' =&gt; status.text,
+               'username' =&gt; status.user.screen_name,
+               'userid' =&gt; status.user[:id],
+               'name' =&gt; status.user.name,
+               'profile_image_url' =&gt; status.user.profile_image_url,
+               'received_at' =&gt; Time.new.to_i,
+               'user_link' =&gt; "http://twitter.com/"
+             )
+        end
+  end
+end
+def push(data)
+      @db = Redis.new
+      @db.lpush('tweets_general', data.to_json)         =&gt; LPUSHing Tweets into the RedisDB
+    end
+</code></pre>
+
+<h3>Redis DB</h3>
+
+
+<p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
+
+<p><img src="/images/redis-list.png"></p>
+
+<p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
+
+<h3>Sinatra Frontend</h3>
+
+
+<p>I&#8217;m using <strong>SINATRA</strong> for building the frontend. SInce i&#8217;m not much familiar with HTML&#8217;s and UI&#8217;s, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i&#8217;ve created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
+
+<p><img src="/images/layout.png"></p>
+
+<p>As of now the app is working fine. But i&#8217;m planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I&#8217;m going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB - a NoSQL DB With a Powerfull Rest API</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-09-19T21:37:00+00:00" pubdate data-updated="true">Sep 19<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/couchdb/'>CouchDB</a>, <a class='category' href='/blog/categories/nosql/'>NOSQL</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>CouchDB</code> is an open source <em>NoSQL</em> database, which comes with a powerfull <strong>Rest API</strong>. It stores data in <em>JSON format</em>. uses <em>Javascripts</em> as its query language using <em>MapReduce</em>. JSON data&#8217;s are very easy to understand and can be parsed very easily. This time i got a requirement to build a commandline utility to display results for an internal monitoring tool. The tool is a bit old, and it does not have any api. And finding latest the result is consuming more time using the front end. But one advantage was the frontend can display results in HTML and XML. So curl was able to query the server using the url and it can display the xml output. The url is unique for each, as it composed of few details like Location, SerialNo, Domain, OS etc, which is unique for each hosts. So i decided to have a local database which contains all these unique host details. For this purpose, i dont need any relational databases, and NoSQL databases are sufficient. So i decided to use CouchDB, because it comes with a wonderfull rest api.</p>
+
+<p>Since i&#8217;m a <em>RUBY</em> lover, i decided to use this couchdb ruby <a href="http://wiki.apache.org/couchdb/Getting_started_with_Ruby">wrapper</a>. SInce my requirement with CouchDB was pretty simple, this wrapper itself was sufficient for me. This wrapper can be used to perform any operations like, reading,writing,deleting Documents as well as Databases. This wrapper basically uses the ruby http library to talk to the CouchDB&#8217;s rest api.  By default couchdb is available in most of the Linux respositories. for windows and mac, the files are available in the CouchDB website itself.</p>
+
+<p>for example, for ubuntu/debian, below command will install couchdb server.</p>
+
+<pre><code>sudo apt-get install couchdb -y
+</code></pre>
+
+<p>By default, the couchDB package comes with a web frontend called &#8220;Futon&#8221; which can be accessed via browsers ugin the below url,</p>
+
+<pre><code>http://localhost:5984/_utils/
+</code></pre>
+
+<p>Below is the screenshot of the Futon frontend.</p>
+
+<p><img src="/images/futon.png"></p>
+
+<p>We can perform all the operations through this web interface also. So i created a database, and created a document for each host with required fields. Now these documents can be accessed via the rest api in JSON format. so that my ruby script can fetch all the necessary data and can compose the exact url for fetching the check results for corresponding hosts.</p>
+
+<p>Below is a sample read operation that we can perform through our ruby scripts. But before using the operation, we need to include the wrapper into our script. For that we need to add &#8216;require ./couch.rb&#8217;, we can use both relative or absolute path. once the wrapper is included,we can start performing operations with the CouchDB.</p>
+
+<pre><code>server = Couch::Server.new("localhost", "5984")
+res = server.get("/foo/document_id")
+json = res.body
+puts json
+</code></pre>
+
+<p>The operation will read the document and will convert it into JSON using the json ruby library. Now i can use the JSON data to collect the required fields so that my script can form the exact fetch url for each host and can perform the result fetch.  There is couchdb <a href="https://github.com/phifty/couchdb">gem</a> for ruby, which can perform more operations.</p>
+
+<p>Apart from this, CouchDB has another important feature &#8221;<strong>MAPREDUCE</strong>&#8221;, yes it can perform <strong>MapReduce</strong>, i&#8217;m trying to find if mapreduce can help me, so that i can extend my app to do more things. Once if i get any weird idea with MapReduce i will udapte this blog with that also.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring Using Lumberjack-Logstash-Statsd-Graphite</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-27T16:29:00+00:00" pubdate data-updated="true">Jun 27<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/graphite/'>Graphite</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/lumberjack/'>Lumberjack</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/statsd/'>Statsd</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I&#8217;m going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log&#8217;s porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i&#8217;ve explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server&#8217;s access logs.</p>
+
+<p>By default, i&#8217;m using the combined apache log format, but it doesnot have the original response time for each request as well as the total reponse time. So we need to modify the LogFormat, in order to add the two. Below is the LogFormat which i&#8217;m using for my test setup.</p>
+
+<pre><code>LogFormat "%h %l %u %t \"%r\" %&gt;s %O \"%{Referer}i\" \"%{User-Agent}i\" %D %&gt;D" combined
+</code></pre>
+
+<p>Once the LogFormat is modified, restart the apache service in order to make the change to be effective.</p>
+
+<h4>Setting up Logstash Server</h4>
+
+<p>First Download the latest Logstash Jar file from the Logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">site</a>. Now we need to create a logstash conf file. By default there is a grok pattern available for apache log called &#8220;COMBINEDAPACHELOG&#8221;, but since we have added the tow new fields for the response time, we need to add the same for grok pattern also. So below is a pattern which is going to be used with Logstash.</p>
+
+<pre><code>pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+</code></pre>
+
+<p>So the Logstash conf file will look like this,</p>
+
+<pre><code>input {
+      lumberjack {
+        type =&gt; "apache-access"
+        port =&gt; 4444
+        ssl_certificate =&gt; "/etc/ssl/logstash.pub"
+        ssl_key =&gt; "/etc/ssl/logstash.key"
+  }
+}
+
+filter {
+  grok {
+        type =&gt; "apache-access"
+    pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+  }
+}
+
+output {
+  stdout {
+    debug =&gt; true
+      }
+  statsd {
+    type =&gt; "apache-access"
+    host =&gt; "localhost"
+    port =&gt; 8125
+    debug =&gt; true
+    timing =&gt; [ "apache.servetime", "%{resptimefull}" ]
+    increment =&gt; "apache.response.%{response}"
+  }
+}
+</code></pre>
+
+<h4>Setting up STATSD</h4>
+
+<p>Now we can start setting up the StatsD daemon. By default, Ubuntu&#8217;s latest OS ships with newer verision of NodeJS and NPM. So we can install it using APT/Aptitude.</p>
+
+<pre><code>$ apt-get install nodejs npm
+</code></pre>
+
+<p>Now clone the StatsD github repository to the local machine.</p>
+
+<pre><code>$ git clone git://github.com/etsy/statsd.git
+</code></pre>
+
+<p>Now create a local config file &#8220;localConfig.js&#8221; with the below contents.</p>
+
+<pre><code>{
+graphitePort: 2003
+, graphiteHost: "127.0.0.1"
+, port: 8125
+}
+</code></pre>
+
+<p>Now we can start the StatsD daemon.</p>
+
+<pre><code>$ node /opt/statsd/stats.js /opt/statsd/localConfig.js
+</code></pre>
+
+<p>The above command will start the StatsD in foreground. Now we can go ahead with setting up the Graphite.</p>
+
+<h4>Setting up Graphite</h4>
+
+<p>First, let&#8217;s install the basic python dependencies.</p>
+
+<pre><code>$ apt-get install python-software-properties memcached python-dev python-pip sqlite3 libcairo2 libcairo2-dev python-cairo pkg-config
+</code></pre>
+
+<p>Then, we can start installing Carbon and Graphite dependencies.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/graphite_reqs.txt &lt;&lt; EOF
+        django==1.3
+        python-memcached
+        django-tagging
+        twisted
+        whisper==0.9.9
+        carbon==0.9.9
+        graphite-web==0.9.9
+        EOF
+
+$  pip install -r /tmp/graphite_reqs.txt
+</code></pre>
+
+<p>Now we can configure Carbon.</p>
+
+<pre><code>$ cd /opt/graphite/conf/
+
+$ cp carbon.conf.example carbon.conf
+</code></pre>
+
+<p>Now we need to create a storage schema.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/storage-schemas.conf &lt;&lt; EOF
+        # Schema definitions for Whisper files. Entries are scanned in order,
+        # and first match wins. This file is scanned for changes every 60 seconds.
+        # [name]
+        # pattern = regex
+        # retentions = timePerPoint:timeToStore, timePerPoint:timeToStore
+        [stats]
+        priority = 110
+        pattern = ^stats\..*
+        retentions = 10s:6h,1m:7d,10m:1y
+        EOF
+
+
+$ cp /tmp/storage-schemas.conf /opt/graphite/conf/storage-schemas.conf
+</code></pre>
+
+<p>Also we need to create a log directory for graphite.</p>
+
+<pre><code>$ mkdir -p /opt/graphite/storage/log/webapp
+</code></pre>
+
+<p>Now we need to copy over the local settings file and initialize database</p>
+
+<pre><code>$ cd /opt/graphite/webapp/graphite/
+
+$ cp local_settings.py.example local_settings.py
+
+$ python manage.py syncdb
+</code></pre>
+
+<p>Fill in the necessary details including the super user details while initializing the database. Once the database is initialized we can start the carbon cache and graphite webgui.</p>
+
+<pre><code>$ /opt/graphite/bin/carbon-cache.py start
+
+$ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
+</code></pre>
+
+<p>Now we can access the dashboard using the url, &#8220;http://ip-address:8080&#8221;. Once we have started the carbon cache, we can start the Logstash server.</p>
+
+<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
+</code></pre>
+
+<p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i&#8217;ve enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph&#8217;s from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - a Light Weight Log Shipper for Logstash</a></h1>
     
     
@@ -815,690 +1538,6 @@ $ chown root:qmail /etc/domainkeys/example.com/default
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - a GUI for Sensu API</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-28T18:50:00+00:00" pubdate data-updated="true">Apr 28<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>In my previous post&#8217;s, i&#8217;ve explained on How to setup Sensu server and setting up check&#8217;s and handler&#8217;s. The default dashboard is very simple with limited options, but for those who wants a full fledged dashboard, there is a Rails project in Github <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. So let&#8217;s try setting it up.</p>
-
-<p>First clone the repository from Github.</p>
-
-<pre><code>$ git clone https://github.com/sensu/sensu-admin.git
-</code></pre>
-
-<p>Now go to sensu-admin folder, and run <code>bundle install</code> to install all the dependency gems. Now go inside the &#8221;<em>config</em>&#8221; folder, edit the &#8221;<em>database.yml</em>&#8221; and fill in the database details. I&#8217;m going to use mysql, below is my database config.</p>
-
-<pre><code>development:
-   adapter: mysql2
-   database: sensudb
-   username: sensu
-   password: secreto
-   host: localhost
-production:
-   adapter: mysql2
-   database: sensudb
-   username: sensu
-   password: secreto
-   host: localhost
-</code></pre>
-
-<p>Now run <code>rake db:migrate</code> and then  <code>rake db:seed</code>. The seed file creates auser account named &#8221;<strong><em>admin@example.com</em></strong>&#8221; with password &#8221;<strong><em>secret</em></strong>&#8221;.</p>
-
-<p>We can start the Rails app by running &#8220;rails s&#8221;, this will start the app using the thin webserver at port <em>3000</em>. Access the dashboard using the url &#8221;<strong><em>http://server_ip:3000</em></strong>&#8221; Login to the dashboard with the admin@example.com and go to the &#8220;*Account&#8221; tab and modify the default user name and password. Now we go through tabs and check if it displays the checks, clients, events etc properly. This is a <a href="/images/SensuAdmin.png">screenshot</a> of the SensuAdmin dashboard.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting Up Check&#8217;s and Handler&#8217;s</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-25T12:26:00+00:00" pubdate data-updated="true">Apr 25<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i&#8217;ve explained on how to setup Sensu Server and Client. Now i&#8217;m going to explain how to setup Check&#8217;s and Handler&#8217;s in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
-
-<h4>Setting up Check&#8217;s</h4>
-
-<p>On the Sensu <em>Client Node</em>,</p>
-
-<p>First clone the plugins repository on the client node. Now install the &#8221;<strong>sensu-plugin</strong>&#8221; gem on the client node. And then copy the required plugins to <code>/etc/sensu/plugins/</code> folder.</p>
-
-<p>On the Sensu <em>Server</em>,</p>
-
-<p>We need to define the check first. Create a json config file for the check in <code>/etc/sensu/conf.d</code>. Following is a sample check config,</p>
-
-<pre><code>     {
-    "checks": {
-         "snmp_check": {
-         "handlers": ["default"],
-         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
-         "interval": 30,
-         "subscribers": [ "snmp" ]
-          }
-      }
-   }
-</code></pre>
-
-<p>The above check will be applied to all clients subscribed to &#8221;<em>snmp</em>&#8221; exchange. Based on the interval, Server will publish this check request, which will reach all the clients subscribed to the &#8221;<em>snmp</em>&#8221; exchange using an arbitrary queue. The client will run the command mentioned in the command part, and then it will publish the result back to th server through <em>Result queue</em>. The <a href="https://github.com/deepakmdass88/my-sensu-plugins.git">check_snmp</a> is a small plugin written by me. If we check the sensu-server log, we can see the result coming from the client machine. Below one is a similar log output in my sensu-server log.</p>
-
-<pre><code>{"timestamp":1366968018},"check":{"handlers":["default","mailer"],"command":"/etc/sensu/plugins/check-snmp.rb -w 1 -c 3","interval":100,"subscribers":["snmp"],"name":"snmp_check","issued":1366968407,"executed":1366968028,"output":"CheckSNMP WARNING: Warning state detected\n","status":1,"duration":0.526,"history":["0","0","1"]},"occurrences":1,"action":"create"},"handler":{"type":"pipe","command":"true","name":"default"}}
-</code></pre>
-
-<p>The above log line shows us what are handler&#8217;s enabled for this check, what is the executed command, subcribers, name of the check, timestamp at the time when the command was issued, timestamp of the time when the server has received the result, Output of the check command etc. If there is any while executing th check command, we can see the errors popping in the log&#8217;s soon after this line in the server log.</p>
-
-<h4>Setting up Handler&#8217;s</h4>
-
-<p>Sensu has got a very good collection Handler&#8217;s, available at the sensu-community-plugin repo in github. For example there is a hanlder called &#8221;<em>show</em>&#8221;, available at the debug section in Handler&#8217;s, which will display a more debug report about the Event as well as the Sensu server&#8217;s settings. This is the <a href="/images/show-handler.png">output</a> which i got after applying &#8221;<em>show</em>&#8221; handler in my serverlog. But it&#8217;s not possible to go check the log&#8217;s continously, so there another plugin called &#8220;mailer&#8221;, which can send email alerts like how nagios does.</p>
-
-<p>So first get the &#8220;mailer&#8221; plugin files from the sensu-community-plugin repo in github.</p>
-
-<pre><code>wget -O /etc/sensu/handlers/mailer.rb https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.rb
-wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.json
-</code></pre>
-
-<p>Now edit the mailer.json, and change the settings to fit to our environment. We need to define a new pipe handler for this new handler. So create a file <code>/etc/sensu/conf.d/handler_mailer.json</code>, and add the below lines to it.</p>
-
-<pre><code>        {
-    "handlers": {
-        "mailer": {
-        "type": "pipe",
-        "command": "/etc/sensu/handlers/mailer.rb"
-        }
-          }
-      }
-</code></pre>
-
-<p>Now go to the one of the check config files, where we want to apply this new &#8220;mailer&#8221; handler.</p>
-
-<pre><code>           {
-    "checks": {
-         "snmp_check": {
-         "handlers": ["default", "mailer"],         
-         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
-         "interval": 30,
-         "subscribers": [ "snmp" ]
-          }
-      }
-   }
-</code></pre>
-
-<p>Now restart the sensu-server to make the new changes to come into effect. If everything goes fine, when the sensu detects a state change it will execute this mailer handler, we can also see the below lines in server log.</p>
-
-<pre><code>"action":"create"},"handler":{"type":"pipe","command":"/etc/sensu/handlers/mailer.rb","name":"mailer"
-</code></pre>
-
-<p>Sensu is executing the mailer script, and if there is any problem, we will see the corresponding error following the above line, or we will receive the email alert to email id mentioned in the &#8220;mailer.json&#8221; file. But in my case, i was getting an error, when the sensu invoked the &#8220;mailer&#8221; handler.</p>
-
-<pre><code>{"timestamp":"2013-04-25T15:03:32.002132+0530","level":"info","message":"/etc/sensu/handlers/mailer.rb:28:in `handle': undefined method `[]' for nil:NilClass (NoMethodError)"}
-{"timestamp":"2013-04-25T15:03:32.002308+0530","level":"info","message":"\tfrom /var/lib/gems/1.9.1/gems/sensu-plugin-0.1.7/lib/sensu-handler.rb:41:in `block in &lt;class:Handler&gt;'"}
-</code></pre>
-
-<p>After playing for some time, i came to know that, it was not parsing the options from the mailer.json file, so i manually added the smtp and email settings directly in <em>mailer.rb</em> file. Then it started working fine. I&#8217;m writing a small script which will be using the basic &#8216;net/smtp&#8217; library to send out mails. There are many other cool Handler&#8217;s like sending matrices to Graphite, Logstash, Graylog, sending notifcations to irc,xmpp,campfire etc. Compare to traditional monitoring tools, Sensu is an Amazing tool, we can use any check script&#8217;s, whether it&#8217;s ruby or perl or bash, doesn&#8217;t matter. The one common thing which i heard about other people, was the lack of proper dashboard like the traditional monitoring tools. Though Sensu dashboard is a simple one, i&#8217;m sure it will improve a lot in future.</p>
-
-<p>Since I&#8217;m a CLI Junky, I dont care much about the dashboard thing, apart from that i have many good and interesting stuffs to hang around with Sensu. Cheers to <a href="https://twitter.com/portertech">portertech</a> and <a href="http://www.sonian.com/cloud-monitoring-sensu/">sonian</a> for open sourcing such an amazing tool.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-23T22:20:00+00:00" pubdate data-updated="true">Apr 23<span>rd</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data&#8217;s.</p>
-
-<p> Sensu has <strong>3</strong> operation Mode.</p>
-
-<p> 1) <strong>Request-Reply Mode</strong>, where the server will send a check request to the clients through the RabbitMQ and the clients will reply back the results.</p>
-
-<p> 2) <strong>Standalone Mode</strong>, where the server will not send any check request, instead the client itself will run the checks according to interval mentioned, and sends the results to the sensu master through the Result queue in RabbitMQ.</p>
-
-<p> 3) <strong>Push Mode</strong>, where the client will send out results to a specific handler.</p>
-
-<p>So now we can start installing the dependencies for sensu, ie, RabbitMQ and Redis.</p>
-
-<h3>Setting up RabbitMQ</h3>
-
-<p>Let&#8217;s add the <strong>RabbitMQ</strong> official APT repo.</p>
-
-<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;/etc/apt/sources.list.d/rabbitmq.list
-
-$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
-
-$ apt-key add ~/rabbitmq-signing-key-public.asc &amp;&amp; apt-get update
-</code></pre>
-
-<p>Now we can install RabbitMQ</p>
-
-<pre><code>$ apt-get install rabbitmq-server erlang-nox
-</code></pre>
-
-<p>Now we need to generate SSL certificates for RabbitMQ and the sensu clients. We can use RabbitMQ with out ssl also, but it will more secure with SSL, <a href="http://github.com/joemiller">@joemiller</a> has wrote a script to generate the SSL certificates. It&#8217;s avaliable in his GitHub <a href="http://github.com/joemiller/joemiller.me-intro-to-sensu.git">repo</a>. Clone the repo and modify the &#8220;openssl.cnf&#8221; according to our need and then we can go ahead with generating the certificates.</p>
-
-<pre><code>$ git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
-
-$ cd joemiller.me-intro-to-sensu/
-
-$ ./ssl_certs.sh clean &amp;&amp; /ssl_certs.sh generate
-</code></pre>
-
-<p>Now copy the server key and cert files to the RabbitMQ folder in &#8220;/etc/rabbitmq/&#8221;</p>
-
-<pre><code>$ mkdir /etc/rabbitmq/ssl
-
-$ cp server_key.pem /etc/rabbitmq/ssl/
-
-$ cp server_cert.pem /etc/rabbitmq/ssl/
-
-$ cp testca/cacert.pem /etc/rabbitmq/ssl/
-</code></pre>
-
-<p>Now create the RabbitMQ config file, &#8220;/etc/rabbitmq/rabbitmq.config&#8221;, and add the following lines in it.</p>
-
-<pre><code>[
-  {rabbit, [
-      {ssl_listeners, [5671]},
-      {ssl_options, [{cacertfile,"/etc/rabbitmq/ssl/cacert.pem"},
-               {certfile,"/etc/rabbitmq/ssl/server_cert.pem"},
-               {keyfile,"/etc/rabbitmq/ssl/server_key.pem"},
-               {verify,verify_peer},
-               {fail_if_no_peer_cert,true}]}
-    ]}
-].
-</code></pre>
-
-<p>Once the config file is created, restart the RabbitmQ server. Now RabbitMQ has a cool management console, we can enable this by running &#8221;<strong><em>rabbitmq-plugins enable rabbitmq_management</em></strong>&#8221; in console. Once the Management console is enabled, we can access it RabbitMQ Web UI: <strong>Username is &#8220;guest&#8221;, password is &#8220;guest&#8221; - http://SENSU-SERVER:55672</strong>. Protocol amqp should be bound to port 5672 and amqp/ssl on port 5671.</p>
-
-<p>Now let&#8217;s create a vhost and user for Sensu in RabbitMQ.</p>
-
-<pre><code> $ rabbitmqctl add_vhost /sensu
-
- $ rabbitmqctl add_user sensu mypass
-
- $ rabbitmqctl set_permissions -p /sensu sensu ".*" ".*" ".*"
-</code></pre>
-
-<h3>Setting up Redis Server</h3>
-
-<p>Now we can set up Redis server. This will used by Sensu for stroring data&#8217;s. Ubuntu&#8217;s Apt repo ships with latest Redis server, so we can directly install it.</p>
-
-<pre><code>$ apt-get install redis-server
-</code></pre>
-
-<h3>Installing Sensu Server</h3>
-
-<p>Sensu has a public repository which can be used to install the necessary sensu packages. First we need to add the repository public key.</p>
-
-<pre><code>$ wget -q http://repos.sensuapp.org/apt/pubkey.gpg -O- | sudo apt-key add -
-</code></pre>
-
-<p>Now add the repo sources in APT</p>
-
-<pre><code>$ echo " deb     http://repos.sensuapp.org/apt sensu main" &gt;&gt; /etc/apt/sources.list &amp;&amp; apt-get update
-
-$ apt-get install sensu
-</code></pre>
-
-<p>Enable the sensu services to start automatically during system startup.</p>
-
-<pre><code>$ update-rc.d sensu-server defaults
-
-$ update-rc.d sensu-api defaults
-
-$ update-rc.d sensu-client defaults
-
-$ update-rc.d sensu-dashboard defaults
-</code></pre>
-
-<p>Copy the client ssl cert and key to <strong>/etc/sensu</strong> folder, say to a subfolder ssl.</p>
-
-<pre><code>$ cp client_key.pem client_cert.pem  /etc/sensu/ssl/
-</code></pre>
-
-<p>Now we need setup the sensu master, create a file &#8221;<strong>/etc/sensu/config.json</strong>&#8221; and add the below lines.</p>
-
-<pre><code>         {
-        "rabbitmq": {
-          "ssl": {
-            "private_key_file": "/etc/sensu/ssl/client_key.pem",
-            "cert_chain_file": "/etc/sensu/ssl/client_cert.pem"
-          },
-          "port": 5671,
-          "host": "localhost",
-          "user": "sensu",
-          "password": "mypass",
-          "vhost": "/sensu"
-        },
-        "redis": {
-          "host": "localhost",
-          "port": 6379
-        },
-        "api": {
-          "host": "localhost",
-          "port": 4567
-        },
-        "dashboard": {
-          "host": "localhost",
-          "port": 8080,
-          "user": "admin",
-          "password": "sensu@123"
-        },
-        "handlers": {
-          "default": {
-            "type": "pipe",
-            "command": "true"
-          }
-        }
-      }
-</code></pre>
-
-<p>By default sensu package comes with all sensu-server,sensu-client,sensu-api and sensu-dashboard., If we dont want to use the current machine as a client, we can stop the sensu-client from running, and do not create the client config. But for testing purpose, i&#8217;m going to add the current machine as client also. Create a file &#8221;<strong>/etc/sensu/conf.d/client.json</strong>&#8221; and add the client configuration in JSON format.</p>
-
-<pre><code>        {
-          "client": {
-          "name": "sensu.test.com",
-          "address": "192.168.1.108",
-          "subscriptions": [ "vmmaster" ]
-         }
-       }
-</code></pre>
-
-<p>Now restart the sensu-client to affect the changes. The logs are recorded at &#8221;<strong>/var/log/sensu/sensu-client.log</strong>&#8221; file. We can access the sensu-dashboard from &#8220;http://SENSU SERVER:8080&#8221;, with the username and password mentioned in the config.json file.</p>
-
-<h3>Setting up a Separate Sensu-Client Node</h3>
-
-<p>If we want to setup sensu-client on a separate node, just dd the Sensu apt repo, and install the sensu package. After that just enable only the sensu-client service and remove all other sesnu-services. Then create a config.json file and add only the rabbitmq server details in it. Now generate a separate SSL certificate for the new client and use that in the config file.</p>
-
-<pre><code>       {
-      "rabbitmq": {
-        "ssl": {
-          "private_key_file": "/etc/sensu/ssl/client1_key.pem",
-          "cert_chain_file": "/etc/sensu/ssl/client1_cert.pem"
-        },
-        "port": 5671,
-        "host": "192.168.1.108",
-        "user": "sensu",
-        "password": "mypass",
-        "vhost": "/sensu"
-      }
-    }
-</code></pre>
-
-<p>Now create the  &#8220;client.json&#8221; in the &#8220;/etc/sensu/conf.d/&#8221; folder.</p>
-
-<pre><code>        {
-              "client": {
-              "name": "client1.test.com",
-              "address": "192.168.1.212",
-              "subscriptions": [ "vmmaster" ]
-             }
-           }
-</code></pre>
-
-<p>Restart the the sensu-clinet, and check the &#8220;/var/log/sensu/sensu-client.log&#8221;, if things goes fine, we can see client connecting to the RabbitMQ server also we can see the config is getting applied.</p>
-
-<pre><code>{"timestamp":"2013-04-23T22:53:27.870728+0530","level":"warn","message":"config file applied changes","config_file":"/etc/sensu/conf.d/client.json","changes":{"client":[null,{"name":"client1.test.        com","address":"192.168.1.212","subscriptions":["vmmaster"]}]}}
-{"timestamp":"2013-04-23T22:53:27.879671+0530","level":"info","message":"loaded extension","type":"mutator","name":"only_check_output","description":"returns check output"}
-{"timestamp":"2013-04-23T22:53:27.883504+0530","level":"info","message":"loaded extension","type":"handler","name":"debug","description":"outputs json event data"}
-</code></pre>
-
-<p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check&#8217;s. One of the best thing of sensu, all the config&#8217;s are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check&#8217;s and how to add these check&#8217;s to various clients, and how to add handler&#8217;s like Email alerts, Sending Metrics to graphite.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/">HARAKA - a NodeJS Based SMTP Server</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-14T22:51:00+00:00" pubdate data-updated="true">Apr 14<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>MailServer</a>, <a class='category' href='/blog/categories/nodejs/'>Nodejs</a>, <a class='category' href='/blog/categories/smtp/'>SMTP</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Today i came across a very interesting project in GITHUB. <a href="https://github.com/baudehlo/Haraka.git">HARAKA</a> is an SMTP server written completely in <em>NodeJS</em>. Like the qpsmtpd, apart from the core SMTP features we can improve the functionality using small plugins. There are very good pluginsi for HARAKA, basically in javascripts. Like Postfix,Qmail, we can easily implements all sorts of checks and features with the help of these plugins.</p>
-
-<p>Setting up <code>HARAKA</code> is very simple. In my setup, i will be using HARAKA as my primary smtp server, where i will implement all my filterings and then i will relay to a qmail server for local delivery. There is plugin written by <a href="https://github.com/madeingnecca/haraka-plugins.git">@madeingnecca</a> in github, for directly delivering the mails to user&#8217;s INBOX (mail box should be in <em>MAILDIR</em> format). In the real server&#8217;s we use LDAP backend for storing all the USER databases. So before putting HARAKA into production, i need a to rebuild the auth plugin so that HARAKA can talk to LDAP for user authentication in SMTP.</p>
-
-<p>So first we need to install <strong>NodeJS</strong> and <strong>NPM (Node Package Manager)</strong>. There are several ways for installing NodeJS. We can compile it from the source, or we can use <strong><em>NVM (Node Version Manager)</em></strong>, or we can install the packages from APT in Debian machines. But i prefer source code, because official APT repo has older versions of NodeJS, which will create compatibility issue. Current version is <em>&#8220;v0.10.4&#8221;</em>. Building NodeJS from source is pretty simple.</p>
-
-<p>Just Download the latest source code from <strong>&#8220;http://nodejs.org/download/&#8221;</strong></p>
-
-<pre><code>$ wget http://nodejs.org/dist/v0.10.4/node-v0.10.4.tar.gz
-
-$ tar xvzf node-v0.10.4.tar.gz &amp;&amp; cd node-v0.10.4
-
-$  ./compile 
-
-$ make &amp;&amp; make install
-</code></pre>
-
-<p>Once NodeJS is installed, we can go ahead with <code>HARAKA</code>.</p>
-
-<pre><code>$ git clone https://github.com/baudehlo/Haraka.git
-</code></pre>
-
-<p>Now go inside to the <em>Haraka</em> folder and run the below command. All the dependency packages are mentioned in the <strong>package.json</strong> file.</p>
-
-<pre><code>$ npm install
-</code></pre>
-
-<p>The above command will install all the necessary modules mentioned in the package.json file and will setup HARAKA. Now we can setup a separate service folder for HARAKA.</p>
-
-<pre><code>$ haraka -i /etc/heraka     
-</code></pre>
-
-<p> The above  command will create the heraka folder in <strong>/etc/</strong> and it will create  creates config and plugin directories in there, and automatically sets the host name used by Haraka to the output of the hostname command. Now we need to setup up the <em>port number</em> and <em>ip</em> which HARAKA SMTP service should listen. Go to config folder in the newly created haraka service folder and open the <strong>&#8220;smtp.ini&#8221;</strong> file, and mention the port number and ip.</p>
-
-<p>Now before starting the smtp service, first let&#8217;s disable all the plugins, so that we can go in steps. In the config folder, open the <em>&#8220;plugin&#8221;</em> file, and comment out all the plugins, because by default haraka will not create any plugin scripts, so most of them mentioned in that will not work. So we will start using the plugins, once we have copied the corresponding plugin&#8217;s js files to the plugin directory inside our service directory.</p>
-
-<p>Let&#8217;s try running the <code>HARAKA</code> foreground and see if it starts and listens on the port we mentioned.</p>
-
-<pre><code>$ haraka -c /etc/haraka
-</code></pre>
-
-<p>Once <code>HARAKA</code> SMTP service starts, we can see the line &#8221;<strong>[NOTICE] [-] [core] Listening on :::25</strong>&#8221; in the STDOUT, which means HARAKA is listening on port 25. We can just Telnet to port 25 and see if we are getting SMTP banner.</p>
-
-<p>Now we can try out a plugin. Heraka has a <em>spamassassin</em> plugin. So will try it out. So first install spamassassin and start the spam filtering.</p>
-
-<pre><code>$ apt-get install spamassassin spamc
-</code></pre>
-
-<p>Now from the plugin folder inside the git source folder of HARAKA, copy the <strong>spamassassin.js</strong> and copy it to the plugin folder of our service directory. By default plugin folder is not created inside the service directory, so create it. Now we need to enable the service. Inside the config folder of our service directory, create a config file <strong>&#8220;spamassassin.ini&#8221;</strong>, and inside the file fill in the necessary details like, <strong>&#8220;reject_thresold&#8221;, &#8220;subject_prefix&#8221;, &#8220;spamd_socket&#8221;</strong>. Now before starting the plugin, we need to add it in the plugin, inside the config folder. Once spamassassin plugin is added, we can start the HARAKA smtp service. If the plugin is added properly, then we can see the below lines in the stdout,</p>
-
-<pre><code>[INFO] [-] [core] Loading plugin: spamassassin
-[DEBUG] [-] [core] registered hook data_post to spamassassin.hook_data_post
-</code></pre>
-
-<p>Now using swaks, we can send a test mail see, if spam assassin is putting scores for the emails. Like this we can enable all other plugins, based on our needs.</p>
-
-<p>Since i&#8217;m going to relay the mails, i need to make HARAKA to accept mails for all my domains. For that i need to define all my domains on HARAKA. In the config folder, open the file <strong>&#8220;host_list&#8221;</strong>, and add all the domains for which HARAKA should accept mails. There also a regular expression option available for, which can be done in <strong>&#8220;host_list_regex&#8221;</strong> file.</p>
-
-<p>Now we need to add, smtp relay, for that edit the <em>&#8220;smtp_forward.ini&#8221;</em> file and mention the relay host ip, port number and auth details(if required). Now we can restart the <code>HARAKA</code> service and we can check SMTP relay by sending test mails using swaks.</p>
-
-<p>I haven&#8217;t tried the Auth plugin yet, but soon i will be trying it. If possible, i will try to use LDAP backend for authentication, so that HARAKA can be used a full fledged SMTP service. More developments are happening in this, hope it wil become a good competitor &#8230;</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/11/monitoring-with-zenoss/">Monitoring With ZENOSS</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-11T17:03:00+00:00" pubdate data-updated="true">Apr 11<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/centos/'>Centos</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/zenoss/'>Zenoss</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>It&#8217;s being a year since i have really played with Centos or any Redhat based Distro&#8217;s. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar&#8217;s, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
-
-<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It&#8217;s a bash script. We can download it from the below link.</p>
-
-<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
-</code></pre>
-
-<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
-
-<p>Once done, we can start the installer script.</p>
-
-<pre><code>$ ./core-autodeploy.sh
-</code></pre>
-
-<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>&#8220;connection reset&#8221;</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
-
-<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
-accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
-
-=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
-closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
-{channel0_error,starting,
-            {amqp_error,access_refused,
-                        "PLAIN login refused: user 'zenoss' - invalid credentials",
-                        'connection.start_ok'}}
-</code></pre>
-
-<p>The error says that the zenoss user credential is wrong. So using <strong><em>&#8220;rabbitmqctl&#8221;</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>&#8220;/opt/zenoss/etc&#8221;</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
-
-<pre><code>$ service zenoss start
-</code></pre>
-
-<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>&#8220;http://server_ip:8080&#8221;</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I&#8217;ve added my vps as well as few of my local server&#8217;s with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground &#8230;</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1526,23 +1565,23 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
     <ul class="recent_posts">
       
         <li>
-          <a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard with Kibana and Elasticsearch</a>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
         </li>
       
         <li>
-          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
         </li>
       
     </ul>

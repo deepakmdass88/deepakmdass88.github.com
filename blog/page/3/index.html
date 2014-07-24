@@ -97,6 +97,690 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - a GUI for Sensu API</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-28T18:50:00+00:00" pubdate data-updated="true">Apr 28<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous post&#8217;s, i&#8217;ve explained on How to setup Sensu server and setting up check&#8217;s and handler&#8217;s. The default dashboard is very simple with limited options, but for those who wants a full fledged dashboard, there is a Rails project in Github <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. So let&#8217;s try setting it up.</p>
+
+<p>First clone the repository from Github.</p>
+
+<pre><code>$ git clone https://github.com/sensu/sensu-admin.git
+</code></pre>
+
+<p>Now go to sensu-admin folder, and run <code>bundle install</code> to install all the dependency gems. Now go inside the &#8221;<em>config</em>&#8221; folder, edit the &#8221;<em>database.yml</em>&#8221; and fill in the database details. I&#8217;m going to use mysql, below is my database config.</p>
+
+<pre><code>development:
+   adapter: mysql2
+   database: sensudb
+   username: sensu
+   password: secreto
+   host: localhost
+production:
+   adapter: mysql2
+   database: sensudb
+   username: sensu
+   password: secreto
+   host: localhost
+</code></pre>
+
+<p>Now run <code>rake db:migrate</code> and then  <code>rake db:seed</code>. The seed file creates auser account named &#8221;<strong><em>admin@example.com</em></strong>&#8221; with password &#8221;<strong><em>secret</em></strong>&#8221;.</p>
+
+<p>We can start the Rails app by running &#8220;rails s&#8221;, this will start the app using the thin webserver at port <em>3000</em>. Access the dashboard using the url &#8221;<strong><em>http://server_ip:3000</em></strong>&#8221; Login to the dashboard with the admin@example.com and go to the &#8220;*Account&#8221; tab and modify the default user name and password. Now we go through tabs and check if it displays the checks, clients, events etc properly. This is a <a href="/images/SensuAdmin.png">screenshot</a> of the SensuAdmin dashboard.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting Up Check&#8217;s and Handler&#8217;s</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-25T12:26:00+00:00" pubdate data-updated="true">Apr 25<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i&#8217;ve explained on how to setup Sensu Server and Client. Now i&#8217;m going to explain how to setup Check&#8217;s and Handler&#8217;s in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
+
+<h4>Setting up Check&#8217;s</h4>
+
+<p>On the Sensu <em>Client Node</em>,</p>
+
+<p>First clone the plugins repository on the client node. Now install the &#8221;<strong>sensu-plugin</strong>&#8221; gem on the client node. And then copy the required plugins to <code>/etc/sensu/plugins/</code> folder.</p>
+
+<p>On the Sensu <em>Server</em>,</p>
+
+<p>We need to define the check first. Create a json config file for the check in <code>/etc/sensu/conf.d</code>. Following is a sample check config,</p>
+
+<pre><code>     {
+    "checks": {
+         "snmp_check": {
+         "handlers": ["default"],
+         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
+         "interval": 30,
+         "subscribers": [ "snmp" ]
+          }
+      }
+   }
+</code></pre>
+
+<p>The above check will be applied to all clients subscribed to &#8221;<em>snmp</em>&#8221; exchange. Based on the interval, Server will publish this check request, which will reach all the clients subscribed to the &#8221;<em>snmp</em>&#8221; exchange using an arbitrary queue. The client will run the command mentioned in the command part, and then it will publish the result back to th server through <em>Result queue</em>. The <a href="https://github.com/deepakmdass88/my-sensu-plugins.git">check_snmp</a> is a small plugin written by me. If we check the sensu-server log, we can see the result coming from the client machine. Below one is a similar log output in my sensu-server log.</p>
+
+<pre><code>{"timestamp":1366968018},"check":{"handlers":["default","mailer"],"command":"/etc/sensu/plugins/check-snmp.rb -w 1 -c 3","interval":100,"subscribers":["snmp"],"name":"snmp_check","issued":1366968407,"executed":1366968028,"output":"CheckSNMP WARNING: Warning state detected\n","status":1,"duration":0.526,"history":["0","0","1"]},"occurrences":1,"action":"create"},"handler":{"type":"pipe","command":"true","name":"default"}}
+</code></pre>
+
+<p>The above log line shows us what are handler&#8217;s enabled for this check, what is the executed command, subcribers, name of the check, timestamp at the time when the command was issued, timestamp of the time when the server has received the result, Output of the check command etc. If there is any while executing th check command, we can see the errors popping in the log&#8217;s soon after this line in the server log.</p>
+
+<h4>Setting up Handler&#8217;s</h4>
+
+<p>Sensu has got a very good collection Handler&#8217;s, available at the sensu-community-plugin repo in github. For example there is a hanlder called &#8221;<em>show</em>&#8221;, available at the debug section in Handler&#8217;s, which will display a more debug report about the Event as well as the Sensu server&#8217;s settings. This is the <a href="/images/show-handler.png">output</a> which i got after applying &#8221;<em>show</em>&#8221; handler in my serverlog. But it&#8217;s not possible to go check the log&#8217;s continously, so there another plugin called &#8220;mailer&#8221;, which can send email alerts like how nagios does.</p>
+
+<p>So first get the &#8220;mailer&#8221; plugin files from the sensu-community-plugin repo in github.</p>
+
+<pre><code>wget -O /etc/sensu/handlers/mailer.rb https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.rb
+wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.json
+</code></pre>
+
+<p>Now edit the mailer.json, and change the settings to fit to our environment. We need to define a new pipe handler for this new handler. So create a file <code>/etc/sensu/conf.d/handler_mailer.json</code>, and add the below lines to it.</p>
+
+<pre><code>        {
+    "handlers": {
+        "mailer": {
+        "type": "pipe",
+        "command": "/etc/sensu/handlers/mailer.rb"
+        }
+          }
+      }
+</code></pre>
+
+<p>Now go to the one of the check config files, where we want to apply this new &#8220;mailer&#8221; handler.</p>
+
+<pre><code>           {
+    "checks": {
+         "snmp_check": {
+         "handlers": ["default", "mailer"],         
+         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
+         "interval": 30,
+         "subscribers": [ "snmp" ]
+          }
+      }
+   }
+</code></pre>
+
+<p>Now restart the sensu-server to make the new changes to come into effect. If everything goes fine, when the sensu detects a state change it will execute this mailer handler, we can also see the below lines in server log.</p>
+
+<pre><code>"action":"create"},"handler":{"type":"pipe","command":"/etc/sensu/handlers/mailer.rb","name":"mailer"
+</code></pre>
+
+<p>Sensu is executing the mailer script, and if there is any problem, we will see the corresponding error following the above line, or we will receive the email alert to email id mentioned in the &#8220;mailer.json&#8221; file. But in my case, i was getting an error, when the sensu invoked the &#8220;mailer&#8221; handler.</p>
+
+<pre><code>{"timestamp":"2013-04-25T15:03:32.002132+0530","level":"info","message":"/etc/sensu/handlers/mailer.rb:28:in `handle': undefined method `[]' for nil:NilClass (NoMethodError)"}
+{"timestamp":"2013-04-25T15:03:32.002308+0530","level":"info","message":"\tfrom /var/lib/gems/1.9.1/gems/sensu-plugin-0.1.7/lib/sensu-handler.rb:41:in `block in &lt;class:Handler&gt;'"}
+</code></pre>
+
+<p>After playing for some time, i came to know that, it was not parsing the options from the mailer.json file, so i manually added the smtp and email settings directly in <em>mailer.rb</em> file. Then it started working fine. I&#8217;m writing a small script which will be using the basic &#8216;net/smtp&#8217; library to send out mails. There are many other cool Handler&#8217;s like sending matrices to Graphite, Logstash, Graylog, sending notifcations to irc,xmpp,campfire etc. Compare to traditional monitoring tools, Sensu is an Amazing tool, we can use any check script&#8217;s, whether it&#8217;s ruby or perl or bash, doesn&#8217;t matter. The one common thing which i heard about other people, was the lack of proper dashboard like the traditional monitoring tools. Though Sensu dashboard is a simple one, i&#8217;m sure it will improve a lot in future.</p>
+
+<p>Since I&#8217;m a CLI Junky, I dont care much about the dashboard thing, apart from that i have many good and interesting stuffs to hang around with Sensu. Cheers to <a href="https://twitter.com/portertech">portertech</a> and <a href="http://www.sonian.com/cloud-monitoring-sensu/">sonian</a> for open sourcing such an amazing tool.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-23T22:20:00+00:00" pubdate data-updated="true">Apr 23<span>rd</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Monitoring always plays an important role, especially for sysadmins. There are a lot of Monitoring tools available, like Nagios, Zenoss, Icinga etc. <code>Sensu</code> is a new generation Cloud monitoring tool designed by <a href="http://www.sonian.com/cloud-monitoring-sensu/">Sonian</a>. <em>Sensu</em> is bascially written in <strong><em>Ruby</em></strong>, uses <strong><em>RabbitMQ</em></strong> Server as the Message Broker for Message transactions, and <strong>Redis</strong> for storing the data&#8217;s.</p>
+
+<p> Sensu has <strong>3</strong> operation Mode.</p>
+
+<p> 1) <strong>Request-Reply Mode</strong>, where the server will send a check request to the clients through the RabbitMQ and the clients will reply back the results.</p>
+
+<p> 2) <strong>Standalone Mode</strong>, where the server will not send any check request, instead the client itself will run the checks according to interval mentioned, and sends the results to the sensu master through the Result queue in RabbitMQ.</p>
+
+<p> 3) <strong>Push Mode</strong>, where the client will send out results to a specific handler.</p>
+
+<p>So now we can start installing the dependencies for sensu, ie, RabbitMQ and Redis.</p>
+
+<h3>Setting up RabbitMQ</h3>
+
+<p>Let&#8217;s add the <strong>RabbitMQ</strong> official APT repo.</p>
+
+<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;/etc/apt/sources.list.d/rabbitmq.list
+
+$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc
+
+$ apt-key add ~/rabbitmq-signing-key-public.asc &amp;&amp; apt-get update
+</code></pre>
+
+<p>Now we can install RabbitMQ</p>
+
+<pre><code>$ apt-get install rabbitmq-server erlang-nox
+</code></pre>
+
+<p>Now we need to generate SSL certificates for RabbitMQ and the sensu clients. We can use RabbitMQ with out ssl also, but it will more secure with SSL, <a href="http://github.com/joemiller">@joemiller</a> has wrote a script to generate the SSL certificates. It&#8217;s avaliable in his GitHub <a href="http://github.com/joemiller/joemiller.me-intro-to-sensu.git">repo</a>. Clone the repo and modify the &#8220;openssl.cnf&#8221; according to our need and then we can go ahead with generating the certificates.</p>
+
+<pre><code>$ git clone git://github.com/joemiller/joemiller.me-intro-to-sensu.git
+
+$ cd joemiller.me-intro-to-sensu/
+
+$ ./ssl_certs.sh clean &amp;&amp; /ssl_certs.sh generate
+</code></pre>
+
+<p>Now copy the server key and cert files to the RabbitMQ folder in &#8220;/etc/rabbitmq/&#8221;</p>
+
+<pre><code>$ mkdir /etc/rabbitmq/ssl
+
+$ cp server_key.pem /etc/rabbitmq/ssl/
+
+$ cp server_cert.pem /etc/rabbitmq/ssl/
+
+$ cp testca/cacert.pem /etc/rabbitmq/ssl/
+</code></pre>
+
+<p>Now create the RabbitMQ config file, &#8220;/etc/rabbitmq/rabbitmq.config&#8221;, and add the following lines in it.</p>
+
+<pre><code>[
+  {rabbit, [
+      {ssl_listeners, [5671]},
+      {ssl_options, [{cacertfile,"/etc/rabbitmq/ssl/cacert.pem"},
+               {certfile,"/etc/rabbitmq/ssl/server_cert.pem"},
+               {keyfile,"/etc/rabbitmq/ssl/server_key.pem"},
+               {verify,verify_peer},
+               {fail_if_no_peer_cert,true}]}
+    ]}
+].
+</code></pre>
+
+<p>Once the config file is created, restart the RabbitmQ server. Now RabbitMQ has a cool management console, we can enable this by running &#8221;<strong><em>rabbitmq-plugins enable rabbitmq_management</em></strong>&#8221; in console. Once the Management console is enabled, we can access it RabbitMQ Web UI: <strong>Username is &#8220;guest&#8221;, password is &#8220;guest&#8221; - http://SENSU-SERVER:55672</strong>. Protocol amqp should be bound to port 5672 and amqp/ssl on port 5671.</p>
+
+<p>Now let&#8217;s create a vhost and user for Sensu in RabbitMQ.</p>
+
+<pre><code> $ rabbitmqctl add_vhost /sensu
+
+ $ rabbitmqctl add_user sensu mypass
+
+ $ rabbitmqctl set_permissions -p /sensu sensu ".*" ".*" ".*"
+</code></pre>
+
+<h3>Setting up Redis Server</h3>
+
+<p>Now we can set up Redis server. This will used by Sensu for stroring data&#8217;s. Ubuntu&#8217;s Apt repo ships with latest Redis server, so we can directly install it.</p>
+
+<pre><code>$ apt-get install redis-server
+</code></pre>
+
+<h3>Installing Sensu Server</h3>
+
+<p>Sensu has a public repository which can be used to install the necessary sensu packages. First we need to add the repository public key.</p>
+
+<pre><code>$ wget -q http://repos.sensuapp.org/apt/pubkey.gpg -O- | sudo apt-key add -
+</code></pre>
+
+<p>Now add the repo sources in APT</p>
+
+<pre><code>$ echo " deb     http://repos.sensuapp.org/apt sensu main" &gt;&gt; /etc/apt/sources.list &amp;&amp; apt-get update
+
+$ apt-get install sensu
+</code></pre>
+
+<p>Enable the sensu services to start automatically during system startup.</p>
+
+<pre><code>$ update-rc.d sensu-server defaults
+
+$ update-rc.d sensu-api defaults
+
+$ update-rc.d sensu-client defaults
+
+$ update-rc.d sensu-dashboard defaults
+</code></pre>
+
+<p>Copy the client ssl cert and key to <strong>/etc/sensu</strong> folder, say to a subfolder ssl.</p>
+
+<pre><code>$ cp client_key.pem client_cert.pem  /etc/sensu/ssl/
+</code></pre>
+
+<p>Now we need setup the sensu master, create a file &#8221;<strong>/etc/sensu/config.json</strong>&#8221; and add the below lines.</p>
+
+<pre><code>         {
+        "rabbitmq": {
+          "ssl": {
+            "private_key_file": "/etc/sensu/ssl/client_key.pem",
+            "cert_chain_file": "/etc/sensu/ssl/client_cert.pem"
+          },
+          "port": 5671,
+          "host": "localhost",
+          "user": "sensu",
+          "password": "mypass",
+          "vhost": "/sensu"
+        },
+        "redis": {
+          "host": "localhost",
+          "port": 6379
+        },
+        "api": {
+          "host": "localhost",
+          "port": 4567
+        },
+        "dashboard": {
+          "host": "localhost",
+          "port": 8080,
+          "user": "admin",
+          "password": "sensu@123"
+        },
+        "handlers": {
+          "default": {
+            "type": "pipe",
+            "command": "true"
+          }
+        }
+      }
+</code></pre>
+
+<p>By default sensu package comes with all sensu-server,sensu-client,sensu-api and sensu-dashboard., If we dont want to use the current machine as a client, we can stop the sensu-client from running, and do not create the client config. But for testing purpose, i&#8217;m going to add the current machine as client also. Create a file &#8221;<strong>/etc/sensu/conf.d/client.json</strong>&#8221; and add the client configuration in JSON format.</p>
+
+<pre><code>        {
+          "client": {
+          "name": "sensu.test.com",
+          "address": "192.168.1.108",
+          "subscriptions": [ "vmmaster" ]
+         }
+       }
+</code></pre>
+
+<p>Now restart the sensu-client to affect the changes. The logs are recorded at &#8221;<strong>/var/log/sensu/sensu-client.log</strong>&#8221; file. We can access the sensu-dashboard from &#8220;http://SENSU SERVER:8080&#8221;, with the username and password mentioned in the config.json file.</p>
+
+<h3>Setting up a Separate Sensu-Client Node</h3>
+
+<p>If we want to setup sensu-client on a separate node, just dd the Sensu apt repo, and install the sensu package. After that just enable only the sensu-client service and remove all other sesnu-services. Then create a config.json file and add only the rabbitmq server details in it. Now generate a separate SSL certificate for the new client and use that in the config file.</p>
+
+<pre><code>       {
+      "rabbitmq": {
+        "ssl": {
+          "private_key_file": "/etc/sensu/ssl/client1_key.pem",
+          "cert_chain_file": "/etc/sensu/ssl/client1_cert.pem"
+        },
+        "port": 5671,
+        "host": "192.168.1.108",
+        "user": "sensu",
+        "password": "mypass",
+        "vhost": "/sensu"
+      }
+    }
+</code></pre>
+
+<p>Now create the  &#8220;client.json&#8221; in the &#8220;/etc/sensu/conf.d/&#8221; folder.</p>
+
+<pre><code>        {
+              "client": {
+              "name": "client1.test.com",
+              "address": "192.168.1.212",
+              "subscriptions": [ "vmmaster" ]
+             }
+           }
+</code></pre>
+
+<p>Restart the the sensu-clinet, and check the &#8220;/var/log/sensu/sensu-client.log&#8221;, if things goes fine, we can see client connecting to the RabbitMQ server also we can see the config is getting applied.</p>
+
+<pre><code>{"timestamp":"2013-04-23T22:53:27.870728+0530","level":"warn","message":"config file applied changes","config_file":"/etc/sensu/conf.d/client.json","changes":{"client":[null,{"name":"client1.test.        com","address":"192.168.1.212","subscriptions":["vmmaster"]}]}}
+{"timestamp":"2013-04-23T22:53:27.879671+0530","level":"info","message":"loaded extension","type":"mutator","name":"only_check_output","description":"returns check output"}
+{"timestamp":"2013-04-23T22:53:27.883504+0530","level":"info","message":"loaded extension","type":"handler","name":"debug","description":"outputs json event data"}
+</code></pre>
+
+<p>Once the Sensu Server and Client are configured successfully, then we can go ahead adding the check&#8217;s. One of the best thing of sensu, all the config&#8217;s are written in JSON format, which very easy for us to create as well as to understand things. In the next blog, i will explain on how to create the check&#8217;s and how to add these check&#8217;s to various clients, and how to add handler&#8217;s like Email alerts, Sending Metrics to graphite.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/14/haraka-a-nodejs-based-smtp-server/">HARAKA - a NodeJS Based SMTP Server</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-14T22:51:00+00:00" pubdate data-updated="true">Apr 14<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>MailServer</a>, <a class='category' href='/blog/categories/nodejs/'>Nodejs</a>, <a class='category' href='/blog/categories/smtp/'>SMTP</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Today i came across a very interesting project in GITHUB. <a href="https://github.com/baudehlo/Haraka.git">HARAKA</a> is an SMTP server written completely in <em>NodeJS</em>. Like the qpsmtpd, apart from the core SMTP features we can improve the functionality using small plugins. There are very good pluginsi for HARAKA, basically in javascripts. Like Postfix,Qmail, we can easily implements all sorts of checks and features with the help of these plugins.</p>
+
+<p>Setting up <code>HARAKA</code> is very simple. In my setup, i will be using HARAKA as my primary smtp server, where i will implement all my filterings and then i will relay to a qmail server for local delivery. There is plugin written by <a href="https://github.com/madeingnecca/haraka-plugins.git">@madeingnecca</a> in github, for directly delivering the mails to user&#8217;s INBOX (mail box should be in <em>MAILDIR</em> format). In the real server&#8217;s we use LDAP backend for storing all the USER databases. So before putting HARAKA into production, i need a to rebuild the auth plugin so that HARAKA can talk to LDAP for user authentication in SMTP.</p>
+
+<p>So first we need to install <strong>NodeJS</strong> and <strong>NPM (Node Package Manager)</strong>. There are several ways for installing NodeJS. We can compile it from the source, or we can use <strong><em>NVM (Node Version Manager)</em></strong>, or we can install the packages from APT in Debian machines. But i prefer source code, because official APT repo has older versions of NodeJS, which will create compatibility issue. Current version is <em>&#8220;v0.10.4&#8221;</em>. Building NodeJS from source is pretty simple.</p>
+
+<p>Just Download the latest source code from <strong>&#8220;http://nodejs.org/download/&#8221;</strong></p>
+
+<pre><code>$ wget http://nodejs.org/dist/v0.10.4/node-v0.10.4.tar.gz
+
+$ tar xvzf node-v0.10.4.tar.gz &amp;&amp; cd node-v0.10.4
+
+$  ./compile 
+
+$ make &amp;&amp; make install
+</code></pre>
+
+<p>Once NodeJS is installed, we can go ahead with <code>HARAKA</code>.</p>
+
+<pre><code>$ git clone https://github.com/baudehlo/Haraka.git
+</code></pre>
+
+<p>Now go inside to the <em>Haraka</em> folder and run the below command. All the dependency packages are mentioned in the <strong>package.json</strong> file.</p>
+
+<pre><code>$ npm install
+</code></pre>
+
+<p>The above command will install all the necessary modules mentioned in the package.json file and will setup HARAKA. Now we can setup a separate service folder for HARAKA.</p>
+
+<pre><code>$ haraka -i /etc/heraka     
+</code></pre>
+
+<p> The above  command will create the heraka folder in <strong>/etc/</strong> and it will create  creates config and plugin directories in there, and automatically sets the host name used by Haraka to the output of the hostname command. Now we need to setup up the <em>port number</em> and <em>ip</em> which HARAKA SMTP service should listen. Go to config folder in the newly created haraka service folder and open the <strong>&#8220;smtp.ini&#8221;</strong> file, and mention the port number and ip.</p>
+
+<p>Now before starting the smtp service, first let&#8217;s disable all the plugins, so that we can go in steps. In the config folder, open the <em>&#8220;plugin&#8221;</em> file, and comment out all the plugins, because by default haraka will not create any plugin scripts, so most of them mentioned in that will not work. So we will start using the plugins, once we have copied the corresponding plugin&#8217;s js files to the plugin directory inside our service directory.</p>
+
+<p>Let&#8217;s try running the <code>HARAKA</code> foreground and see if it starts and listens on the port we mentioned.</p>
+
+<pre><code>$ haraka -c /etc/haraka
+</code></pre>
+
+<p>Once <code>HARAKA</code> SMTP service starts, we can see the line &#8221;<strong>[NOTICE] [-] [core] Listening on :::25</strong>&#8221; in the STDOUT, which means HARAKA is listening on port 25. We can just Telnet to port 25 and see if we are getting SMTP banner.</p>
+
+<p>Now we can try out a plugin. Heraka has a <em>spamassassin</em> plugin. So will try it out. So first install spamassassin and start the spam filtering.</p>
+
+<pre><code>$ apt-get install spamassassin spamc
+</code></pre>
+
+<p>Now from the plugin folder inside the git source folder of HARAKA, copy the <strong>spamassassin.js</strong> and copy it to the plugin folder of our service directory. By default plugin folder is not created inside the service directory, so create it. Now we need to enable the service. Inside the config folder of our service directory, create a config file <strong>&#8220;spamassassin.ini&#8221;</strong>, and inside the file fill in the necessary details like, <strong>&#8220;reject_thresold&#8221;, &#8220;subject_prefix&#8221;, &#8220;spamd_socket&#8221;</strong>. Now before starting the plugin, we need to add it in the plugin, inside the config folder. Once spamassassin plugin is added, we can start the HARAKA smtp service. If the plugin is added properly, then we can see the below lines in the stdout,</p>
+
+<pre><code>[INFO] [-] [core] Loading plugin: spamassassin
+[DEBUG] [-] [core] registered hook data_post to spamassassin.hook_data_post
+</code></pre>
+
+<p>Now using swaks, we can send a test mail see, if spam assassin is putting scores for the emails. Like this we can enable all other plugins, based on our needs.</p>
+
+<p>Since i&#8217;m going to relay the mails, i need to make HARAKA to accept mails for all my domains. For that i need to define all my domains on HARAKA. In the config folder, open the file <strong>&#8220;host_list&#8221;</strong>, and add all the domains for which HARAKA should accept mails. There also a regular expression option available for, which can be done in <strong>&#8220;host_list_regex&#8221;</strong> file.</p>
+
+<p>Now we need to add, smtp relay, for that edit the <em>&#8220;smtp_forward.ini&#8221;</em> file and mention the relay host ip, port number and auth details(if required). Now we can restart the <code>HARAKA</code> service and we can check SMTP relay by sending test mails using swaks.</p>
+
+<p>I haven&#8217;t tried the Auth plugin yet, but soon i will be trying it. If possible, i will try to use LDAP backend for authentication, so that HARAKA can be used a full fledged SMTP service. More developments are happening in this, hope it wil become a good competitor &#8230;</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/04/11/monitoring-with-zenoss/">Monitoring With ZENOSS</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-11T17:03:00+00:00" pubdate data-updated="true">Apr 11<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/centos/'>Centos</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/zenoss/'>Zenoss</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s being a year since i have really played with Centos or any Redhat based Distro&#8217;s. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar&#8217;s, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
+
+<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It&#8217;s a bash script. We can download it from the below link.</p>
+
+<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
+</code></pre>
+
+<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
+
+<p>Once done, we can start the installer script.</p>
+
+<pre><code>$ ./core-autodeploy.sh
+</code></pre>
+
+<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>&#8220;connection reset&#8221;</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
+
+<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
+accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
+
+=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
+closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
+{channel0_error,starting,
+            {amqp_error,access_refused,
+                        "PLAIN login refused: user 'zenoss' - invalid credentials",
+                        'connection.start_ok'}}
+</code></pre>
+
+<p>The error says that the zenoss user credential is wrong. So using <strong><em>&#8220;rabbitmqctl&#8221;</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>&#8220;/opt/zenoss/etc&#8221;</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
+
+<pre><code>$ service zenoss start
+</code></pre>
+
+<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>&#8220;http://server_ip:8080&#8221;</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I&#8217;ve added my vps as well as few of my local server&#8217;s with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground &#8230;</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/07/setting-up-apache-cloudstack/">Setting Up Apache CloudStack</a></h1>
     
     
@@ -622,667 +1306,6 @@ posted in
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/02/25/monitoring-servers-using-icinga/">Monitoring Server&#8217;s Using Icinga</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-25T21:44:00+00:00" pubdate data-updated="true">Feb 25<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/icinga/'>icinga</a>, <a class='category' href='/blog/categories/monitoring/'>monitoring</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Last week we had severe outage in our US vps. The <em>load</em> was getting too high in the server, since it&#8217;s a hosting server, and so many of our clients are hosting their DNS, website and mail server in it. So i decided to implement a monitoring system. And i decided it to extend it to all of our client server&#8217;s so that we can have a fully fledged monitoring system in our company. I&#8217;m a great fan of Sensu and i play with it regularly, but this time i decided to setup <a href="http://icinga.org">Icinga</a> monitoring system, which can be used any System admin very easily. In this post i will be explaining on how to setup the <strong><em>icinga</em></strong> with it&#8217;s newest web interface called icinga-web. This setup works perfectly in <em>Debian</em> based OS. In my next post, i will be explaining on how to setup <em>SNMP</em> to work with icinga.</p>
-
-<p>By default Ubuntu and Debian repositories has icinga packages.</p>
-
-<pre><code>$ apt-get install icinga icinga-cgi icinga-common icinga-core icinga-idoutils icinga-web icinga-web-pnp mysql-server
-</code></pre>
-
-<p>Once the installation is completed, by default icinga has already created a config file for the local host, which can be found in <code>/etc/icinga/objects/</code>. Now we can access the default icinga web interface with <code>http://yoursystemip/icinga</code>. The default user will be <strong><em>icingaadmin</em></strong> and password will be the default password which we have setup during the installation. Now we can create the config files for other hosts and we should restart the icinga service. This will add the host&#8217;s to our default web interface. All the check commands are defined in the <code>/etc/nagios-plugins/config/</code> folder.</p>
-
-<p>Now we need to set a contact so that icinga can send alerts to the specified email id. In the <code>/etc/icinga/objects/</code> there is a file called <strong><em>contacts_icinga.cfg</em></strong>, where we have to define the contact info.</p>
-
-<pre><code>define contact{
-    contact_name                    your_contact_name
-    alias                           alias
-    service_notification_period     24x7
-    host_notification_period        24x7
-    service_notification_options    w,u,c,r
-    host_notification_options       d,r
-    service_notification_commands   notify-service-by-email
-    host_notification_commands      notify-host-by-email
-    email                           your_contact_email_id
-    }
-</code></pre>
-
-<p> The <strong><em>notify-service-by-email</em></strong> and <strong><em>notify-host-by-email</em></strong> commands are defined in the <code>/etc/icinga/commands.cfg</code> file. We can make changes to the format of the email alert by modifying this file. the &#8220;icinga-web&#8221; package will setup the basic config for the new icinga-web interface. Before starting the new interface we need to check a few settings for the new interface. First is the Database for the new interface. Ensure that the DB icinga-web and a user called icinga-web is created in the mysql. Now we need ensure that the database settings are correctly mentioned in the icinga-web settings. The settings are available in <code>/etc/icinga-web/conf.d/</code>. Now ensure that the database,user, and password are correctly mentioned in the <code>databases.xml</code> file. Now we need to ensure that the broker modules are enabled in the icinga.cfg file. comment out the below line in the icinga.cfg file to enable the idmod to enable the idomod broker module.</p>
-
-<pre><code>broker_module=/usr/lib/icinga/idomod.so config_file=/etc/icinga/idomod.cfg
-</code></pre>
-
-<p>Also increase the log level to debug in both icinga as well as idomod, which helps to identify error if any. Now restart the icing and idomod services. Now go to the new interface by going to the following url, <code>http://ip/icinga-web</code>. the default user name is &#8220;root&#8221; and the passwod will be the one which we have given during installation</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/01/26/building-mailserver-with-postfix/">Building Mailserver With Postfix</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-26T14:28:00+00:00" pubdate data-updated="true">Jan 26<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/mailserver/'>Mailserver</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>It&#8217;s been a week since i started playing around with <code>Postfix</code>. Though we are qmail lovers, a few days back one of my friend asked me to help him to build a Mail server. But he wanted to use Postfix as the MTA. I decided to integrate <em>LDAP</em>  also, so that he can have a centralized user management. So in this blog i will be explaining on how to set up postfix to use LDAP for user lookup as well as using <strong><em>Dovecot SASL</em></strong> for SMTP auth and <strong><em>Dovecot&#8217;s lda</em></strong> for delivering the mails to the user&#8217;s Mailboxes. I&#8217;m using Debian 6.4 as the base os. I&#8217;ve also installed <em>SLAPD</em>, and i&#8217;ve a few test user&#8217;s in it. My LDAP setup has two OU&#8217;s, People and Groups respectively.</p>
-
-<p>First we will setup <em>Dovecot</em>. The Debian Squeeze repository has Dovecot 1.2, so i will be installing those.</p>
-
-<pre><code>$ apt-get install dovecot-common dovecot-pop3d dovecot-imapd
-</code></pre>
-
-<p>Once dovecot is installed, we need to enable dovecot&#8217;s LDA and the dovecot&#8217;s SASL auth. Modify the dovecot.conf file as below. Since i&#8217;m using a virtual user <strong><em>vmail</em></strong>, i need to define the <em>mail_uid and mail_gid</em> as the vmail&#8217;s corresponding uid and gid. Also <em>login_user</em> must be <strong><em>postfix</em></strong></p>
-
-<p>In the <em>lda</em> section,</p>
-
-<pre><code>protocol lda {
- postmaster_address = postmaster@&lt;domain_name&gt;
- mail_plugin_dir = /usr/lib/dovecot/modules/lda
- deliver_log_format = msgid=%m: %$
- sendmail_path = /usr/sbin/sendmail
- rejection_subject = Rejected: %s
- auth_socket_path = /var/run/dovecot/auth-master
- log_path = /var/log/dovecot-deliver.log
- info_log_path = /var/log/dovecot-deliver.log
-}
-</code></pre>
-
-<p>In the <em>auth</em> section,</p>
-
-<pre><code>auth default {
- mechanisms = plain
-
-  passdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  userdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  socket listen {
-         master {  
-    path = /var/run/dovecot/auth-master
-        mode = 0666
-        # Default user/group is the one who started dovecot-auth (root)
-        user = vmail
-        group = vmail   
-        }
-
-     client {
-        path = /var/spool/postfix/private/auth
-        mode = 0660
-        user = postfix
-        group = postfix
-        }
-</code></pre>
-
-<p>Below is the content of my <em>dovecot-ldap.conf</em></p>
-
-<pre><code>hosts = localhost
-dn =  &lt;ldap_bind_dn&gt;
-dnpass = &lt;ldap_bind_pwd&gt;
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = &lt;ldap_base_dn&gt;
-auth_bind = yes
-pass_attrs = uid=user
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,mailQuotaSize=quota=dirsize:storage
-user_filter = (&amp;(objectClass=posixAccount)(|(mail=%u)(mailAlternateAddress=%u)(uid=%u)))
-</code></pre>
-
-<p>So now Dovecot is ready, we need to go ahead with Postfix installation. We need to install the below packages.</p>
-
-<pre><code>$ apt-get install postfix postfix-ldap
-</code></pre>
-
-<p>Once the packages are installed, we need to configure the main config file of postfix ie, <strong>main.cf</strong>. Below is the my configuration,</p>
-
-<pre><code>myhostname = vagratn-postifx-box
-smtpd_banner = &lt;smtp_banner&gt;
-biff = no
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
-smtpd_tls_key_file=/etc/ssl/private/server.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
-mydestination = localhost
-relayhost =
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-home_mailbox = Maildir/
-virtual_mailbox_maps = ldap:/etc/postfix/ldap_virtual_users.cf          #This ldap lookup will return user's MAilbox as the result from LDAPv
-virtual_alias_maps = ldap:/etc/postfix/ldap_virtual_mailalt.cf      #This ldap lookup will return uid from LDAP
-$alias_maps = hash:/etc/aliases,ldap:/etc/postfix/ldap_virtual_mailalt.cf
-local_recipient_maps = $alias_maps
-smtpd_sender_login_maps = ldap:/etc/postfix/ldap_senders.cf     #This ldap lookup will return uid attribute from LDAP
-smtpd_sasl_type = dovecot
-smtpd_sasl_path = private/auth
-smtpd_sasl_auth_enable = yes
-mailbox_transport = dovecot
-dovecot_destination_recipient_limit = 1
-virtual_mailbox_domains = &lt;add virtual domains here&gt;
-virtual_transport = dovecot
-</code></pre>
-
-<p>We can also mention the SMTP sender and recipient restrictions in the above file,</p>
-
-<pre><code>smtpd_client_restrictions=
-        permit_mynetworks,
-
-smtpd_recipient_restrictions=
-        permit_mynetworks,
-        permit_sasl_authenticated,
-        reject_unverified_recipient,
-        reject_invalid_hostname,
-        reject_non_fqdn_hostname,
-        reject_non_fqdn_sender,
-        reject_non_fqdn_recipient,
-        reject_unknown_sender_domain,
-        reject_unknown_recipient_domain,
-        reject_unauth_pipelining,
-        permit_auth_destination,
-        reject_unauth_destination,
-
-smtpd_sender_restrictions=
-        reject_unknown_sender_domain,
-        reject_unlisted_sender,
-        reject_authenticated_sender_login_mismatch,
-</code></pre>
-
-<p>Below are the contents of the various LDAP lookup file&#8217;s contents. We can verify this lookup&#8217;s using postmap command. &#8221;<strong><em>postmap -q <query> ldap:/<lookupfile></em></strong>&#8221;</p>
-
-<pre><code>########ldap_virtual_mailalt.cf########
-
-    server_host = ldap://localhost
-    version = 3
-    search_base = &lt;ldap_base_dn&gt;
-    bind_dn = &lt;ldap_bind_dn&gt;
-    bind_pw = &lt;ldap_bind_password&gt;
-    bind = yes
-    debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid 
-
-
-########ldap_virtual_users.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid
-    result_format = %s/Maildir/
-
-
-########ldap_senders.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-        query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))            
-    result_attribute = uid
-</code></pre>
-
-<p>Now we need to allow dovecot for delivery, so we need to add the following entry to <strong>master.cf</strong></p>
-
-<pre><code>dovecot   unix  -       n       n       -       -       pipe
-    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${recipient}
-</code></pre>
-
-<p>I&#8217;m using recipient email id completely as the delivery option, because, in the multi domain setup, ifthere exist two different user&#8217;s with same name say &#8220;abc&#8221;, LDAP dn is always unique, so we cannot have same user name for two different user&#8217;s, in such cases, we uses the full email id as the username for the second user, so in such scenario, we cannot use the user parameter as delivery option, because the it dovecot will remove the @domain part and takes the rest as the user, so if we use full email id, it will not deliver to the actual user.</p>
-
-<p>This setup has worked perfectly with Debian Squeeze and as well as Debian Vagrant Boxes. I&#8217;m writing a puppet module which will automate LDAP,Postfix and Dovecot installation and configuration and will have a ready to use mail server. Soon i will upload it into my <a href="http://github.com/deepakmdass88">github</a> account.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/01/21/building-custom-vagrant-boxes/">Building Custom Vagrant Boxes</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-21T16:52:00+00:00" pubdate data-updated="true">Jan 21<span>st</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>Vagrant</code> has become a common tool used by most of the sys admins who play around with computers. It has made virtualization so easy. Seriously it&#8217;s a must have tool. <strong><em>Vagrant</em></strong> supports <strong>Puppet/Chef</strong> provisioning, which makes it even more powerfull. We just need the base boxes to play around with Vagrant. In this blog i will be explaing about creating custom Vagrant Boxes. I work for <a href="http://www.deeproot.in">DeepRootLinux</a>, developers of the deepOfix Mail Server, a Debian based GNU/Linux distribution. I will be using our distribution for creating base box. It will help us to deploy deepOfix VM in a faster way and we it helps us to test our custom puppet modules into our operating system.</p>
-
-<p>SO first we need to create a base VM in the Virtualbox. Ensure that the network controller is set to <strong><em>&#8220;NAT&#8221;</em></strong>. For port forwarding to work properly, NAT must be used. There a few point to remember, As per the Vagrant&#8217;s Documentation, Vagrant makes some assumptions,</p>
-
-<ul>
-<li>The root password is &#8221;<strong><em>Vagrant</em></strong>&#8221;</li>
-<li>One user account &#8221;<strong><em>vagrant</em></strong>&#8221; with password &#8221;<strong><em>vagrant</em></strong>&#8221;.</li>
-<li>Domain is &#8221;<strong><em>vagrantup.com</em></strong>&#8221;</li>
-<li>Hostname is  &#8221;<strong><em>vagrant-[os-name]</em></strong>&#8221;, e.g. vagrant-debian-lenny</li>
-</ul>
-
-
-<p>If any different values are being used, it has to be specified in the <code>Vagrantfile</code>. I&#8217;ve used custom domain name and hostname and i did not mentioned it in my Vagrant file. But it did not created any problem. Anyways Vagrant is using key-based authentication for SSH. So once we SSH into the system, we will login in to the system as the <strong><em>Main user</em></strong>, in our case &#8221;<em>vagrant</em>&#8221; user. So we should make this &#8221;<em>vagrant</em>&#8221; user as a member of the &#8221;<strong><em>sudo (super user doers)</em></strong>&#8221; group, so that we can use &#8220;sudo su&#8221; to switch to the root user.</p>
-
-<p>Normally, using sudo will always prompt for the user password, we can remove this by modifying the <code>/etc/sudoers</code> file. We just need to add one line into the file &#8221;<strong><em>%sudo ALL=NOPASSWD: ALL</em></strong>&#8221;. This will prevent password prompt for the user&#8217;s who are the member&#8217;s of the sudo group. Once the file is edited, we need to do &#8221;<strong><em>/etc/init.d/sudo restart</em></strong>&#8221; to reflect the changes.We can verify that sudo works without a password, but logging into the sudo user account, then sudo which sudo. We should get output similar to &#8220;/usr/bin/sudo&#8221;.</p>
-
-<p>Now we need to setup <em>Virtualbox Guest Additions</em>. So, first we need to build the necessary packages.</p>
-
-<pre><code>apt-get install linux-headers-$(uname -r) build-essential    # for root user
-
-sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo user's
-</code></pre>
-
-<p> We need to insert the guest additions image by using the GUI and clicking on &#8221;<strong><em>Devices</em></strong>&#8221; followed by &#8221;<strong><em>Install Guest Additions</em></strong>&#8221;. And we need to mount the CDROM.</p>
-
-<pre><code>mount /dev/hd0 /media/cdrom     # where /dev/hd0 is the CDROM block device in deepOfix
-</code></pre>
-
-<p>And finally, run the shell <em>script</em> which matches our system.</p>
-
-<pre><code>sh /media/cdrom/VBoxLinuxAdditions.run
-</code></pre>
-
-<p>Since Vagrant only supports <em>key-based authentication for SSH</em>, we must setup the SSH user to use key-based authentication. We need to copy a public key into &#8221;<strong><em>~/.ssh/authorized_keys</em></strong>&#8221; of the &#8221;<em>vagrant</em>&#8221; user. Vagrant provides an &#8221;<em>insecure</em>&#8221; pair of public and private keys which are available <a href="https://github.com/mitchellh/vagrant/tree/master/keys/">here</a>. Once the public key is copied, we can shut down our VM. And we can start building our base box.</p>
-
-<pre><code>vagrant package --base &lt;box_name&gt;
-</code></pre>
-
-<p>If there is any custom option to be set like, using a specific port port forwarding, or a specific SSH keys, we can create a <code>Vagrantfile</code> with all custom options and we can use it during the packaging.</p>
-
-<pre><code>vagrant package --base &lt;bxo_name&gt; --vagrantfile Vagrantfile
-</code></pre>
-
-<p>If everything goes fine, it will generate a base box file. We can use this base box file anywhere with the vagrant.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster With Qmail and Dovecot Proxy</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-20T16:50:00+00:00" pubdate data-updated="true">Jan 20<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/cluster/'>Cluster</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/qmail/'>Qmail</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>This New year started with a new requirement, one of our client wanted a Mail cluster with 3 nodes, one node in US, a VPS, and the rest two in INDIA. Their primary server is one of the server in india. They have 3 category of USERS, all abroad user&#8217;s Mailboxes will be hosted in the VPS. For the rest, one set will be in one server and the rest in other. They want all the users to access directly the primary server not their respective server&#8217;s. I guess their Admins dont want to work much. Anyways, We decided to go ahead with it.</p>
-
-<p>Since we are Qmail lover&#8217;s, we decided to ue the Qmail clustering by using DJB&#8217;s <strong><em>qmqpd</em></strong> protocol. In the LDAP, each user will have an attribute called &#8221;<code>mailHost</code>&#8221;, whose value will be the FQDN of the server where their mailboxes are hosted. so the <strong><em>qmqpd</em></strong> will use this, <code>mailHost</code> attribute and transfers the mails between nodes to user&#8217;s corresponding  mailboxes. We use&#8217;s Qmail with LDAP patch. In all the 3 nodes, LDAP will be synchronising all the time.Once we have the normal qmail setup running, in order to make cluster we need mainly 3 things.</p>
-
-<p>1) We need to setup the <strong><em>qmqpd</em></strong> service in all the nodes.</p>
-
-<p>2) We need to enable LDAP cluster. This can be done by creating a file <code>ldapcluster</code> in &#8221;<strong><em>/var/qmail/control</em></strong>&#8221; folder. If the content of the file is &#8221;<strong><em>1</em></strong>&#8221;, then it means cluster is active, &#8221;<strong><em>0</em></strong>&#8221; cluster is deactive.</p>
-
-<p>3) We need a dns server that can resolve all the 3 mailhost&#8217;s FQDN&#8217;s. We usually run DJB&#8217;s <code>Tinydns</code> in all our Mail server&#8217;s.</p>
-
-<p>Once all the above 3 steps are done, we have a working Qmail Cluster. Mails will be delivered to each user according to the <code>mailHost</code> attribute mentioned in the LDAP.</p>
-
-<p>Next Major thing is IMAP/POP3 services. Since all user&#8217;s will be be using the primary server as their incoming server in their MUA like outook,thunderbird, and even webmail user&#8217;s will also access the primary server, we decided to use the Dovecot&#8217;s Proxy feature, which can proxy the request&#8217;s based on the &#8221;<code>mailHost</code>&#8221; attribute. When ever a user&#8217;s login request comes, Dovecot will check for the user&#8217;s &#8221;<code>mailHost</code>&#8221; attribute from the LDAP. The dovecot will then proxy pass the request to the corresponding server.</p>
-
-<p>Enabling Proxy in Dovecot is very simple. We need to add the <code>host</code> as well as the <code>proxy</code> variable in the dovecot-ldap userdb and passdb config file. Below is the content of our <code>dovecot-ldap.conf</code>.</p>
-
-<pre><code>hosts = localhost
-dn =  uid=dummyuser,ou=People,dc=example,dc=com
-dnpass = dummy_password
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = dc=example,dc=com
-auth_bind = yes
-pass_attrs = uid=user,`mailHost`=host,qmailUID=proxy_maybe
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=dirsize:storage,`mailHost`=host,qmailUID=proxy_maybe
-</code></pre>
-
-<p>This proxy is working perfectly in dovecot2.0 onwards. But in dovecot1.2, the proxy fails, when the <code>mailHost</code> attributes has a FQDN value. But if we mention ip instead of the FQDN, proxy seems to we working. But some times <strong><em>qmqpd</em></strong> will not work properly. That is because the dovecot is expecting values as ip, but we are supplying a FQDN. But in dovecot2.0 onwards, they have added a dnslookup function. But there is <a href="http://www.mail-archive.com/dovecot@dovecot.org/msg26781.html">patch</a>. We haven&#8217;t tested this patch, as we are using dovecot2.0</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/">Using Mongo Discovery Method in MCollective</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-29T21:48:00+00:00" pubdate data-updated="true">Nov 29<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/mcollective/'>MCollective</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>I&#8217;ve been playing around with  <strong><em>MCollective</em></strong> for the past few months. But this time i wanted to try out the <code>Mongo</code> discovery method. The response time was quite faster for the <code>Mongo</code> discovery method. So i really wanted to try it out. Setting out MCollective Server/Client is prettyl simple. You can go through  my previous <a href="http://beingasysadmin.wordpress.com/2012/09/10/setting-up-mcollective-with-activemq-in-ubuntu-12-04/">blog</a>. Now we need to install the <strong>Meta</strong> registration plugin on all the MCollective Servers. Just Download and Copy <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/registration/meta.rb">meta.rb</a> in the MCollective registration plugin folder. In my case, i&#8217;ve Debian based machine&#8217;s, so the location is, <code>/usr/share/mcollective/plugins/mcollective/registration/</code>. This will make the metadata available to other nodes.</p>
-
-<p>Now add the below three lines into the <code>server.cfg</code> of all the MCollective server&#8217;s.</p>
-
-<pre><code>registration = Meta
-registerinterval = 300
-factsource = facter
-</code></pre>
-
-<p>Now install the <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/agent/registration-mongodb/agent/registration.rb">mongodb registration agent</a> on one of the nodes, which will be our slave node.. Do not install this on all the nodes. There is a small <a href="http://projects.puppetlabs.com/issues/16447">bug</a> in this agent. So follow the steps mentioned <a href="http://projects.puppetlabs.com/issues/16447">here</a> and modify the <code>registration.rb</code> file. Now install mongoDB server on the slave node. Also add the below lines to the <strong><em>server.cfg</em></strong> in the slave machine.</p>
-
-<pre><code>plugin.registration.mongohost = localhost
-plugin.registration.mongodb = puppet
-plugin.registration.collection = nodes
-</code></pre>
-
-<p>Now restart the mcollective service. If we increase the log level to <strong>debug</strong>, then we can see the below lines in the <code>mcollective.log</code>. This indicates that the plugin is getting activated and it is receiving request from the machines, whose fqdn is shown in the below line.</p>
-
-<pre><code>D, [2012-11-29T15:51:34.391762 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host vagrant-debian-squeeze.vagrantup.com with id 50b650d4454bc346e4000002 in 0.0027310848236084s
-D, [2012-11-29T15:50:05.810180 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host ubuntults.vargrantup.com with id 50b650c0454bc346e4000001 in 0.00200200080871582s
-</code></pre>
-
-<p>Initially, i used the default <code>registration.rb</code> file which i downloaded from the github. But it was giving me an error <code>handlemsg Got stats without a FQDN in facts</code>. So don&#8217;t forget to modify the <code>registration.rb</code></p>
-
-<p>Now go connect to mongoDB and verify that the nodes are getting registered in it.</p>
-
-<pre><code>$ mongo
- MongoDB shell version: 2.0.4
- connecting to: test
- &gt; use puppet
- switched to db puppet
- &gt; db.nodes.find().count()
- 2
-</code></pre>
-
-<p>So, now both my master and slave have been registered into the mongoDB. Now in order to use the <strong><em>Mongo Discovery Method</em></strong>, we need to install the <a href="https://github.com/puppetlabs/mcollective-plugins/tree/261ac8ef8433df98f3a9179778182807b916bc46/agent/registration-mongodb/discovery">mongodb discovery plugin</a> and also we need to enable the <strong><em>direct addressing mode</em></strong>. so we need to add <code>direct_addressing = 1</code> in the <code>server.cfg</code> file.</p>
-
-<p>Now we can use the <strong>&#8211;dm</strong> option to specify the discovery method.</p>
-
-<pre><code>$ mco rpc rpcutil ping --dm=mongo -v
-  Discovering hosts using the mongo method .... 2
-
-  * [ ========================================================&gt; ] 2 / 2
-
-
-  vagrant-debian-squeeze                  : OK
-    {:pong=&gt;1354187911}
-
-  ubuntults                               : OK
-        {:pong=&gt;1354187880}
-
-
-
-  ---- rpcutil#ping call stats ----
-            Nodes: 2 / 2
-      Pass / Fail: 2 / 0
-      Start Time: Thu Nov 29 16:48:00 +0530 2012
-  Discovery Time: 68.48ms
-      Agent Time: 108.35ms
-      Total Time: 176.83ms
-
-$ mco rpc rpcutil ping --dm=mc -v
-  Discovering hosts using the mc method for 2 second(s) .... 2
-
-  * [ ========================================================&gt; ] 2 / 2
-
-
-  vagrant-debian-squeeze                  : OK
-        {:pong=&gt;1354188083}
-
-  ubuntults                               : OK
-        {:pong=&gt;1354188053}
-
-
-
-  ---- rpcutil#ping call stats ----
-            Nodes: 2 / 2
-      Pass / Fail: 2 / 0
-      Start Time: Thu Nov 29 16:50:52 +0530 2012
-  Discovery Time: 2004.24ms
-      Agent Time: 104.28ms
-      Total Time: 2108.51ms
-</code></pre>
-
-<p>From the above commands, we can see the difference in the <strong><em>Discovery Time</em></strong>.</p>
-
-<p>Now for those who want <strong><em>GUI</em></strong>, <a href="http://www.devco.net/">R.I.Pienaar</a> has develeoped a web gui called <a href="https://github.com/ripienaar/mco_rpc_web.git">Mco-Rpc-Web</a>. He has uploaded a few <a href="http://www.screenr.com/user/ripienaar">screencasts</a>, which will give us a short demo on all of these.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1310,23 +1333,23 @@ $ mco rpc rpcutil ping --dm=mc -v
     <ul class="recent_posts">
       
         <li>
-          <a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard with Kibana and Elasticsearch</a>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
         </li>
       
         <li>
-          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
         </li>
       
     </ul>

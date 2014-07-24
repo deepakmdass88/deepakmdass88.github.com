@@ -97,6 +97,667 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/02/25/monitoring-servers-using-icinga/">Monitoring Server&#8217;s Using Icinga</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-25T21:44:00+00:00" pubdate data-updated="true">Feb 25<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/icinga/'>icinga</a>, <a class='category' href='/blog/categories/monitoring/'>monitoring</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Last week we had severe outage in our US vps. The <em>load</em> was getting too high in the server, since it&#8217;s a hosting server, and so many of our clients are hosting their DNS, website and mail server in it. So i decided to implement a monitoring system. And i decided it to extend it to all of our client server&#8217;s so that we can have a fully fledged monitoring system in our company. I&#8217;m a great fan of Sensu and i play with it regularly, but this time i decided to setup <a href="http://icinga.org">Icinga</a> monitoring system, which can be used any System admin very easily. In this post i will be explaining on how to setup the <strong><em>icinga</em></strong> with it&#8217;s newest web interface called icinga-web. This setup works perfectly in <em>Debian</em> based OS. In my next post, i will be explaining on how to setup <em>SNMP</em> to work with icinga.</p>
+
+<p>By default Ubuntu and Debian repositories has icinga packages.</p>
+
+<pre><code>$ apt-get install icinga icinga-cgi icinga-common icinga-core icinga-idoutils icinga-web icinga-web-pnp mysql-server
+</code></pre>
+
+<p>Once the installation is completed, by default icinga has already created a config file for the local host, which can be found in <code>/etc/icinga/objects/</code>. Now we can access the default icinga web interface with <code>http://yoursystemip/icinga</code>. The default user will be <strong><em>icingaadmin</em></strong> and password will be the default password which we have setup during the installation. Now we can create the config files for other hosts and we should restart the icinga service. This will add the host&#8217;s to our default web interface. All the check commands are defined in the <code>/etc/nagios-plugins/config/</code> folder.</p>
+
+<p>Now we need to set a contact so that icinga can send alerts to the specified email id. In the <code>/etc/icinga/objects/</code> there is a file called <strong><em>contacts_icinga.cfg</em></strong>, where we have to define the contact info.</p>
+
+<pre><code>define contact{
+    contact_name                    your_contact_name
+    alias                           alias
+    service_notification_period     24x7
+    host_notification_period        24x7
+    service_notification_options    w,u,c,r
+    host_notification_options       d,r
+    service_notification_commands   notify-service-by-email
+    host_notification_commands      notify-host-by-email
+    email                           your_contact_email_id
+    }
+</code></pre>
+
+<p> The <strong><em>notify-service-by-email</em></strong> and <strong><em>notify-host-by-email</em></strong> commands are defined in the <code>/etc/icinga/commands.cfg</code> file. We can make changes to the format of the email alert by modifying this file. the &#8220;icinga-web&#8221; package will setup the basic config for the new icinga-web interface. Before starting the new interface we need to check a few settings for the new interface. First is the Database for the new interface. Ensure that the DB icinga-web and a user called icinga-web is created in the mysql. Now we need ensure that the database settings are correctly mentioned in the icinga-web settings. The settings are available in <code>/etc/icinga-web/conf.d/</code>. Now ensure that the database,user, and password are correctly mentioned in the <code>databases.xml</code> file. Now we need to ensure that the broker modules are enabled in the icinga.cfg file. comment out the below line in the icinga.cfg file to enable the idmod to enable the idomod broker module.</p>
+
+<pre><code>broker_module=/usr/lib/icinga/idomod.so config_file=/etc/icinga/idomod.cfg
+</code></pre>
+
+<p>Also increase the log level to debug in both icinga as well as idomod, which helps to identify error if any. Now restart the icing and idomod services. Now go to the new interface by going to the following url, <code>http://ip/icinga-web</code>. the default user name is &#8220;root&#8221; and the passwod will be the one which we have given during installation</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/01/26/building-mailserver-with-postfix/">Building Mailserver With Postfix</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-26T14:28:00+00:00" pubdate data-updated="true">Jan 26<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/mailserver/'>Mailserver</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s been a week since i started playing around with <code>Postfix</code>. Though we are qmail lovers, a few days back one of my friend asked me to help him to build a Mail server. But he wanted to use Postfix as the MTA. I decided to integrate <em>LDAP</em>  also, so that he can have a centralized user management. So in this blog i will be explaining on how to set up postfix to use LDAP for user lookup as well as using <strong><em>Dovecot SASL</em></strong> for SMTP auth and <strong><em>Dovecot&#8217;s lda</em></strong> for delivering the mails to the user&#8217;s Mailboxes. I&#8217;m using Debian 6.4 as the base os. I&#8217;ve also installed <em>SLAPD</em>, and i&#8217;ve a few test user&#8217;s in it. My LDAP setup has two OU&#8217;s, People and Groups respectively.</p>
+
+<p>First we will setup <em>Dovecot</em>. The Debian Squeeze repository has Dovecot 1.2, so i will be installing those.</p>
+
+<pre><code>$ apt-get install dovecot-common dovecot-pop3d dovecot-imapd
+</code></pre>
+
+<p>Once dovecot is installed, we need to enable dovecot&#8217;s LDA and the dovecot&#8217;s SASL auth. Modify the dovecot.conf file as below. Since i&#8217;m using a virtual user <strong><em>vmail</em></strong>, i need to define the <em>mail_uid and mail_gid</em> as the vmail&#8217;s corresponding uid and gid. Also <em>login_user</em> must be <strong><em>postfix</em></strong></p>
+
+<p>In the <em>lda</em> section,</p>
+
+<pre><code>protocol lda {
+ postmaster_address = postmaster@&lt;domain_name&gt;
+ mail_plugin_dir = /usr/lib/dovecot/modules/lda
+ deliver_log_format = msgid=%m: %$
+ sendmail_path = /usr/sbin/sendmail
+ rejection_subject = Rejected: %s
+ auth_socket_path = /var/run/dovecot/auth-master
+ log_path = /var/log/dovecot-deliver.log
+ info_log_path = /var/log/dovecot-deliver.log
+}
+</code></pre>
+
+<p>In the <em>auth</em> section,</p>
+
+<pre><code>auth default {
+ mechanisms = plain
+
+  passdb ldap {
+        args = /etc/dovecot/dovecot-ldap.conf
+  }
+
+  userdb ldap {
+        args = /etc/dovecot/dovecot-ldap.conf
+  }
+
+  socket listen {
+         master {  
+    path = /var/run/dovecot/auth-master
+        mode = 0666
+        # Default user/group is the one who started dovecot-auth (root)
+        user = vmail
+        group = vmail   
+        }
+
+     client {
+        path = /var/spool/postfix/private/auth
+        mode = 0660
+        user = postfix
+        group = postfix
+        }
+</code></pre>
+
+<p>Below is the content of my <em>dovecot-ldap.conf</em></p>
+
+<pre><code>hosts = localhost
+dn =  &lt;ldap_bind_dn&gt;
+dnpass = &lt;ldap_bind_pwd&gt;
+sasl_bind = no
+auth_bind = yes
+ldap_version = 3
+base = &lt;ldap_base_dn&gt;
+auth_bind = yes
+pass_attrs = uid=user
+pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
+user_attrs = homeDirectory=home,mailQuotaSize=quota=dirsize:storage
+user_filter = (&amp;(objectClass=posixAccount)(|(mail=%u)(mailAlternateAddress=%u)(uid=%u)))
+</code></pre>
+
+<p>So now Dovecot is ready, we need to go ahead with Postfix installation. We need to install the below packages.</p>
+
+<pre><code>$ apt-get install postfix postfix-ldap
+</code></pre>
+
+<p>Once the packages are installed, we need to configure the main config file of postfix ie, <strong>main.cf</strong>. Below is the my configuration,</p>
+
+<pre><code>myhostname = vagratn-postifx-box
+smtpd_banner = &lt;smtp_banner&gt;
+biff = no
+# TLS parameters
+smtpd_tls_cert_file=/etc/ssl/certs/server.pem
+smtpd_tls_key_file=/etc/ssl/private/server.key
+smtpd_use_tls=yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+myorigin = /etc/mailname
+mydestination = localhost
+relayhost =
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_interfaces = all
+home_mailbox = Maildir/
+virtual_mailbox_maps = ldap:/etc/postfix/ldap_virtual_users.cf          #This ldap lookup will return user's MAilbox as the result from LDAPv
+virtual_alias_maps = ldap:/etc/postfix/ldap_virtual_mailalt.cf      #This ldap lookup will return uid from LDAP
+$alias_maps = hash:/etc/aliases,ldap:/etc/postfix/ldap_virtual_mailalt.cf
+local_recipient_maps = $alias_maps
+smtpd_sender_login_maps = ldap:/etc/postfix/ldap_senders.cf     #This ldap lookup will return uid attribute from LDAP
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+mailbox_transport = dovecot
+dovecot_destination_recipient_limit = 1
+virtual_mailbox_domains = &lt;add virtual domains here&gt;
+virtual_transport = dovecot
+</code></pre>
+
+<p>We can also mention the SMTP sender and recipient restrictions in the above file,</p>
+
+<pre><code>smtpd_client_restrictions=
+        permit_mynetworks,
+
+smtpd_recipient_restrictions=
+        permit_mynetworks,
+        permit_sasl_authenticated,
+        reject_unverified_recipient,
+        reject_invalid_hostname,
+        reject_non_fqdn_hostname,
+        reject_non_fqdn_sender,
+        reject_non_fqdn_recipient,
+        reject_unknown_sender_domain,
+        reject_unknown_recipient_domain,
+        reject_unauth_pipelining,
+        permit_auth_destination,
+        reject_unauth_destination,
+
+smtpd_sender_restrictions=
+        reject_unknown_sender_domain,
+        reject_unlisted_sender,
+        reject_authenticated_sender_login_mismatch,
+</code></pre>
+
+<p>Below are the contents of the various LDAP lookup file&#8217;s contents. We can verify this lookup&#8217;s using postmap command. &#8221;<strong><em>postmap -q <query> ldap:/<lookupfile></em></strong>&#8221;</p>
+
+<pre><code>########ldap_virtual_mailalt.cf########
+
+    server_host = ldap://localhost
+    version = 3
+    search_base = &lt;ldap_base_dn&gt;
+    bind_dn = &lt;ldap_bind_dn&gt;
+    bind_pw = &lt;ldap_bind_password&gt;
+    bind = yes
+    debug_level = 3
+    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
+    result_attribute = uid 
+
+
+########ldap_virtual_users.cf########
+
+    server_host = ldap://localhost
+        version = 3
+        search_base = &lt;ldap_base_dn&gt;
+        bind_dn = &lt;ldap_bind_dn&gt;
+        bind_pw = &lt;ldap_bind_password&gt;
+        bind = yes
+        debug_level = 3
+    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
+    result_attribute = uid
+    result_format = %s/Maildir/
+
+
+########ldap_senders.cf########
+
+    server_host = ldap://localhost
+        version = 3
+        search_base = &lt;ldap_base_dn&gt;
+        bind_dn = &lt;ldap_bind_dn&gt;
+        bind_pw = &lt;ldap_bind_password&gt;
+        bind = yes
+        debug_level = 3
+        query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))            
+    result_attribute = uid
+</code></pre>
+
+<p>Now we need to allow dovecot for delivery, so we need to add the following entry to <strong>master.cf</strong></p>
+
+<pre><code>dovecot   unix  -       n       n       -       -       pipe
+    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${recipient}
+</code></pre>
+
+<p>I&#8217;m using recipient email id completely as the delivery option, because, in the multi domain setup, ifthere exist two different user&#8217;s with same name say &#8220;abc&#8221;, LDAP dn is always unique, so we cannot have same user name for two different user&#8217;s, in such cases, we uses the full email id as the username for the second user, so in such scenario, we cannot use the user parameter as delivery option, because the it dovecot will remove the @domain part and takes the rest as the user, so if we use full email id, it will not deliver to the actual user.</p>
+
+<p>This setup has worked perfectly with Debian Squeeze and as well as Debian Vagrant Boxes. I&#8217;m writing a puppet module which will automate LDAP,Postfix and Dovecot installation and configuration and will have a ready to use mail server. Soon i will upload it into my <a href="http://github.com/deepakmdass88">github</a> account.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/01/21/building-custom-vagrant-boxes/">Building Custom Vagrant Boxes</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-21T16:52:00+00:00" pubdate data-updated="true">Jan 21<span>st</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/vagrant/'>vagrant</a>, <a class='category' href='/blog/categories/virtualization/'>virtualization</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Vagrant</code> has become a common tool used by most of the sys admins who play around with computers. It has made virtualization so easy. Seriously it&#8217;s a must have tool. <strong><em>Vagrant</em></strong> supports <strong>Puppet/Chef</strong> provisioning, which makes it even more powerfull. We just need the base boxes to play around with Vagrant. In this blog i will be explaing about creating custom Vagrant Boxes. I work for <a href="http://www.deeproot.in">DeepRootLinux</a>, developers of the deepOfix Mail Server, a Debian based GNU/Linux distribution. I will be using our distribution for creating base box. It will help us to deploy deepOfix VM in a faster way and we it helps us to test our custom puppet modules into our operating system.</p>
+
+<p>SO first we need to create a base VM in the Virtualbox. Ensure that the network controller is set to <strong><em>&#8220;NAT&#8221;</em></strong>. For port forwarding to work properly, NAT must be used. There a few point to remember, As per the Vagrant&#8217;s Documentation, Vagrant makes some assumptions,</p>
+
+<ul>
+<li>The root password is &#8221;<strong><em>Vagrant</em></strong>&#8221;</li>
+<li>One user account &#8221;<strong><em>vagrant</em></strong>&#8221; with password &#8221;<strong><em>vagrant</em></strong>&#8221;.</li>
+<li>Domain is &#8221;<strong><em>vagrantup.com</em></strong>&#8221;</li>
+<li>Hostname is  &#8221;<strong><em>vagrant-[os-name]</em></strong>&#8221;, e.g. vagrant-debian-lenny</li>
+</ul>
+
+
+<p>If any different values are being used, it has to be specified in the <code>Vagrantfile</code>. I&#8217;ve used custom domain name and hostname and i did not mentioned it in my Vagrant file. But it did not created any problem. Anyways Vagrant is using key-based authentication for SSH. So once we SSH into the system, we will login in to the system as the <strong><em>Main user</em></strong>, in our case &#8221;<em>vagrant</em>&#8221; user. So we should make this &#8221;<em>vagrant</em>&#8221; user as a member of the &#8221;<strong><em>sudo (super user doers)</em></strong>&#8221; group, so that we can use &#8220;sudo su&#8221; to switch to the root user.</p>
+
+<p>Normally, using sudo will always prompt for the user password, we can remove this by modifying the <code>/etc/sudoers</code> file. We just need to add one line into the file &#8221;<strong><em>%sudo ALL=NOPASSWD: ALL</em></strong>&#8221;. This will prevent password prompt for the user&#8217;s who are the member&#8217;s of the sudo group. Once the file is edited, we need to do &#8221;<strong><em>/etc/init.d/sudo restart</em></strong>&#8221; to reflect the changes.We can verify that sudo works without a password, but logging into the sudo user account, then sudo which sudo. We should get output similar to &#8220;/usr/bin/sudo&#8221;.</p>
+
+<p>Now we need to setup <em>Virtualbox Guest Additions</em>. So, first we need to build the necessary packages.</p>
+
+<pre><code>apt-get install linux-headers-$(uname -r) build-essential    # for root user
+
+sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo user's
+</code></pre>
+
+<p> We need to insert the guest additions image by using the GUI and clicking on &#8221;<strong><em>Devices</em></strong>&#8221; followed by &#8221;<strong><em>Install Guest Additions</em></strong>&#8221;. And we need to mount the CDROM.</p>
+
+<pre><code>mount /dev/hd0 /media/cdrom     # where /dev/hd0 is the CDROM block device in deepOfix
+</code></pre>
+
+<p>And finally, run the shell <em>script</em> which matches our system.</p>
+
+<pre><code>sh /media/cdrom/VBoxLinuxAdditions.run
+</code></pre>
+
+<p>Since Vagrant only supports <em>key-based authentication for SSH</em>, we must setup the SSH user to use key-based authentication. We need to copy a public key into &#8221;<strong><em>~/.ssh/authorized_keys</em></strong>&#8221; of the &#8221;<em>vagrant</em>&#8221; user. Vagrant provides an &#8221;<em>insecure</em>&#8221; pair of public and private keys which are available <a href="https://github.com/mitchellh/vagrant/tree/master/keys/">here</a>. Once the public key is copied, we can shut down our VM. And we can start building our base box.</p>
+
+<pre><code>vagrant package --base &lt;box_name&gt;
+</code></pre>
+
+<p>If there is any custom option to be set like, using a specific port port forwarding, or a specific SSH keys, we can create a <code>Vagrantfile</code> with all custom options and we can use it during the packaging.</p>
+
+<pre><code>vagrant package --base &lt;bxo_name&gt; --vagrantfile Vagrantfile
+</code></pre>
+
+<p>If everything goes fine, it will generate a base box file. We can use this base box file anywhere with the vagrant.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/01/20/mail-cluster-with-qmail-and-dovecot-proxy/">Mail Cluster With Qmail and Dovecot Proxy</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-01-20T16:50:00+00:00" pubdate data-updated="true">Jan 20<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/cluster/'>Cluster</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/qmail/'>Qmail</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>This New year started with a new requirement, one of our client wanted a Mail cluster with 3 nodes, one node in US, a VPS, and the rest two in INDIA. Their primary server is one of the server in india. They have 3 category of USERS, all abroad user&#8217;s Mailboxes will be hosted in the VPS. For the rest, one set will be in one server and the rest in other. They want all the users to access directly the primary server not their respective server&#8217;s. I guess their Admins dont want to work much. Anyways, We decided to go ahead with it.</p>
+
+<p>Since we are Qmail lover&#8217;s, we decided to ue the Qmail clustering by using DJB&#8217;s <strong><em>qmqpd</em></strong> protocol. In the LDAP, each user will have an attribute called &#8221;<code>mailHost</code>&#8221;, whose value will be the FQDN of the server where their mailboxes are hosted. so the <strong><em>qmqpd</em></strong> will use this, <code>mailHost</code> attribute and transfers the mails between nodes to user&#8217;s corresponding  mailboxes. We use&#8217;s Qmail with LDAP patch. In all the 3 nodes, LDAP will be synchronising all the time.Once we have the normal qmail setup running, in order to make cluster we need mainly 3 things.</p>
+
+<p>1) We need to setup the <strong><em>qmqpd</em></strong> service in all the nodes.</p>
+
+<p>2) We need to enable LDAP cluster. This can be done by creating a file <code>ldapcluster</code> in &#8221;<strong><em>/var/qmail/control</em></strong>&#8221; folder. If the content of the file is &#8221;<strong><em>1</em></strong>&#8221;, then it means cluster is active, &#8221;<strong><em>0</em></strong>&#8221; cluster is deactive.</p>
+
+<p>3) We need a dns server that can resolve all the 3 mailhost&#8217;s FQDN&#8217;s. We usually run DJB&#8217;s <code>Tinydns</code> in all our Mail server&#8217;s.</p>
+
+<p>Once all the above 3 steps are done, we have a working Qmail Cluster. Mails will be delivered to each user according to the <code>mailHost</code> attribute mentioned in the LDAP.</p>
+
+<p>Next Major thing is IMAP/POP3 services. Since all user&#8217;s will be be using the primary server as their incoming server in their MUA like outook,thunderbird, and even webmail user&#8217;s will also access the primary server, we decided to use the Dovecot&#8217;s Proxy feature, which can proxy the request&#8217;s based on the &#8221;<code>mailHost</code>&#8221; attribute. When ever a user&#8217;s login request comes, Dovecot will check for the user&#8217;s &#8221;<code>mailHost</code>&#8221; attribute from the LDAP. The dovecot will then proxy pass the request to the corresponding server.</p>
+
+<p>Enabling Proxy in Dovecot is very simple. We need to add the <code>host</code> as well as the <code>proxy</code> variable in the dovecot-ldap userdb and passdb config file. Below is the content of our <code>dovecot-ldap.conf</code>.</p>
+
+<pre><code>hosts = localhost
+dn =  uid=dummyuser,ou=People,dc=example,dc=com
+dnpass = dummy_password
+sasl_bind = no
+auth_bind = yes
+ldap_version = 3
+base = dc=example,dc=com
+auth_bind = yes
+pass_attrs = uid=user,`mailHost`=host,qmailUID=proxy_maybe
+pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
+user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=dirsize:storage,`mailHost`=host,qmailUID=proxy_maybe
+</code></pre>
+
+<p>This proxy is working perfectly in dovecot2.0 onwards. But in dovecot1.2, the proxy fails, when the <code>mailHost</code> attributes has a FQDN value. But if we mention ip instead of the FQDN, proxy seems to we working. But some times <strong><em>qmqpd</em></strong> will not work properly. That is because the dovecot is expecting values as ip, but we are supplying a FQDN. But in dovecot2.0 onwards, they have added a dnslookup function. But there is <a href="http://www.mail-archive.com/dovecot@dovecot.org/msg26781.html">patch</a>. We haven&#8217;t tested this patch, as we are using dovecot2.0</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/">Using Mongo Discovery Method in MCollective</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-11-29T21:48:00+00:00" pubdate data-updated="true">Nov 29<span>th</span>, 2012</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/mcollective/'>MCollective</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>I&#8217;ve been playing around with  <strong><em>MCollective</em></strong> for the past few months. But this time i wanted to try out the <code>Mongo</code> discovery method. The response time was quite faster for the <code>Mongo</code> discovery method. So i really wanted to try it out. Setting out MCollective Server/Client is prettyl simple. You can go through  my previous <a href="http://beingasysadmin.wordpress.com/2012/09/10/setting-up-mcollective-with-activemq-in-ubuntu-12-04/">blog</a>. Now we need to install the <strong>Meta</strong> registration plugin on all the MCollective Servers. Just Download and Copy <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/registration/meta.rb">meta.rb</a> in the MCollective registration plugin folder. In my case, i&#8217;ve Debian based machine&#8217;s, so the location is, <code>/usr/share/mcollective/plugins/mcollective/registration/</code>. This will make the metadata available to other nodes.</p>
+
+<p>Now add the below three lines into the <code>server.cfg</code> of all the MCollective server&#8217;s.</p>
+
+<pre><code>registration = Meta
+registerinterval = 300
+factsource = facter
+</code></pre>
+
+<p>Now install the <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/agent/registration-mongodb/agent/registration.rb">mongodb registration agent</a> on one of the nodes, which will be our slave node.. Do not install this on all the nodes. There is a small <a href="http://projects.puppetlabs.com/issues/16447">bug</a> in this agent. So follow the steps mentioned <a href="http://projects.puppetlabs.com/issues/16447">here</a> and modify the <code>registration.rb</code> file. Now install mongoDB server on the slave node. Also add the below lines to the <strong><em>server.cfg</em></strong> in the slave machine.</p>
+
+<pre><code>plugin.registration.mongohost = localhost
+plugin.registration.mongodb = puppet
+plugin.registration.collection = nodes
+</code></pre>
+
+<p>Now restart the mcollective service. If we increase the log level to <strong>debug</strong>, then we can see the below lines in the <code>mcollective.log</code>. This indicates that the plugin is getting activated and it is receiving request from the machines, whose fqdn is shown in the below line.</p>
+
+<pre><code>D, [2012-11-29T15:51:34.391762 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host vagrant-debian-squeeze.vagrantup.com with id 50b650d4454bc346e4000002 in 0.0027310848236084s
+D, [2012-11-29T15:50:05.810180 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host ubuntults.vargrantup.com with id 50b650c0454bc346e4000001 in 0.00200200080871582s
+</code></pre>
+
+<p>Initially, i used the default <code>registration.rb</code> file which i downloaded from the github. But it was giving me an error <code>handlemsg Got stats without a FQDN in facts</code>. So don&#8217;t forget to modify the <code>registration.rb</code></p>
+
+<p>Now go connect to mongoDB and verify that the nodes are getting registered in it.</p>
+
+<pre><code>$ mongo
+ MongoDB shell version: 2.0.4
+ connecting to: test
+ &gt; use puppet
+ switched to db puppet
+ &gt; db.nodes.find().count()
+ 2
+</code></pre>
+
+<p>So, now both my master and slave have been registered into the mongoDB. Now in order to use the <strong><em>Mongo Discovery Method</em></strong>, we need to install the <a href="https://github.com/puppetlabs/mcollective-plugins/tree/261ac8ef8433df98f3a9179778182807b916bc46/agent/registration-mongodb/discovery">mongodb discovery plugin</a> and also we need to enable the <strong><em>direct addressing mode</em></strong>. so we need to add <code>direct_addressing = 1</code> in the <code>server.cfg</code> file.</p>
+
+<p>Now we can use the <strong>&#8211;dm</strong> option to specify the discovery method.</p>
+
+<pre><code>$ mco rpc rpcutil ping --dm=mongo -v
+  Discovering hosts using the mongo method .... 2
+
+  * [ ========================================================&gt; ] 2 / 2
+
+
+  vagrant-debian-squeeze                  : OK
+    {:pong=&gt;1354187911}
+
+  ubuntults                               : OK
+        {:pong=&gt;1354187880}
+
+
+
+  ---- rpcutil#ping call stats ----
+            Nodes: 2 / 2
+      Pass / Fail: 2 / 0
+      Start Time: Thu Nov 29 16:48:00 +0530 2012
+  Discovery Time: 68.48ms
+      Agent Time: 108.35ms
+      Total Time: 176.83ms
+
+$ mco rpc rpcutil ping --dm=mc -v
+  Discovering hosts using the mc method for 2 second(s) .... 2
+
+  * [ ========================================================&gt; ] 2 / 2
+
+
+  vagrant-debian-squeeze                  : OK
+        {:pong=&gt;1354188083}
+
+  ubuntults                               : OK
+        {:pong=&gt;1354188053}
+
+
+
+  ---- rpcutil#ping call stats ----
+            Nodes: 2 / 2
+      Pass / Fail: 2 / 0
+      Start Time: Thu Nov 29 16:50:52 +0530 2012
+  Discovery Time: 2004.24ms
+      Agent Time: 104.28ms
+      Total Time: 2108.51ms
+</code></pre>
+
+<p>From the above commands, we can see the difference in the <strong><em>Discovery Time</em></strong>.</p>
+
+<p>Now for those who want <strong><em>GUI</em></strong>, <a href="http://www.devco.net/">R.I.Pienaar</a> has develeoped a web gui called <a href="https://github.com/ripienaar/mco_rpc_web.git">Mco-Rpc-Web</a>. He has uploaded a few <a href="http://www.screenr.com/user/ripienaar">screencasts</a>, which will give us a short demo on all of these.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2012/11/26/vagrant-make-virtualization-easier/">Vagrant: Make Virtualization Easier</a></h1>
     
     
@@ -505,23 +1166,23 @@ posted in
     <ul class="recent_posts">
       
         <li>
-          <a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard with Kibana and Elasticsearch</a>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
         </li>
       
         <li>
-          <a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring using Logstash + StatsD + Riemann</a>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server using Kamailio</a>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio with FreeSwitch</a>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
         </li>
       
         <li>
-          <a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking with PLIVO and FreeSwitch</a>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
         </li>
       
     </ul>

@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>UCHIWA - An awesome dashboard for Sensu - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="It&#8217;s been more than a year since i&#8217;ve started playing with Sensu. It was one of coolest monitoring projects that i&#8217;ve ever worked &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="UCHIWA - An awesome dashboard for Sensu" />
+  <meta name="og:description" content="It&#8217;s been more than a year since i&#8217;ve started playing with Sensu. It was one of coolest monitoring projects that i&#8217;ve ever worked &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">
+  
+  <meta name="subject" content="DevOpsMonitoringSensusensu-dashboard"/>
+  <meta name="category" content="DevOpsMonitoringSensusensu-dashboard"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">UCHIWA - an Awesome Dashboard for Sensu</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-19T06:42:00+00:00" pubdate data-updated="true">May 19<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/devops/'>DevOps</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>, <a class='category' href='/blog/categories/sensu-dashboard/'>sensu-dashboard</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s been more than a year since i&#8217;ve started playing with <code>Sensu</code>. It was one of coolest monitoring projects that i&#8217;ve ever worked with. Perfect for <em>Cloud</em> infrastructure and backed by a cool community. Though Sensu is still in <em>Juvenile</em> (v 0.12) state, its mature enough to tackle majority of the monitoring issues. Recently i started migrating all our monitoring from traditional Nagios to Sensu and the pretty cool thing with sensu is, we can directly use the Nagios plugins with Sensu. That&#8217;s an easy task for migration. We don&#8217;t have to rebuild all the check&#8217;s to make with Sensu. But most of the people outside was pointing to the sensu&#8217;s default dashboard. Though the dashboard doesn&#8217;t looks pretty fancy, it can do all the functions. But having a good dashboard which can display the current status is always a time saver.</p>
+
+<p>So i was being searching for a good dashboard and the first choice on the google search was <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. A Rails project, which needs a backend DB. But still i was not satisfied with it, and i started looking out for something different. The second choice was <a href="https://github.com/cloudant/sabisu">sabisu</a>. Sabisu uses Cloudant&#8217;s hosted Couchdb with Lucene. We just need to store all the events in a Redis List and a custom script which reads the data from the Redis List and pushes it to the Cloudant&#8217;s CouchDB. So we basically need a Cloudant account and the Webapp makes Lucene queries to the Cloudant DB and displays the results on the Sabisu dashboard. Though i tried to rebuild the same setup locally, like running a CouchDB+Lucene locally and sending the same data to the local couchdb. With some codehack&#8217;s i was able to make the webapp talk to my local CouchDB and display the results on the dashboard.</p>
+
+<p>But then, I found a super cool dashboard project called <a href="https://github.com/palourde/uchiwa">UCHIWA</a> which was started in Github a few days back by <a href="https://github.com/palourde">Simon Plourde</a>. <a href="https://github.com/palourde/uchiwa">Uchiwa</a> is simple dashboard built with <em>NodeJS</em> and uses <em>SocketIO</em> for real time updates. The screenshot&#8217;s looks super cool and i decided to give it a try. It has only one dependency, NodeJS, no backend DB&#8217;s required as it talks to the Sensu&#8217;s API in realtime.</p>
+
+<h2>Setting Up NodeJS</h2>
+
+<p>For Ubuntu, we can use the chris-lea&#8217;s PPA.</p>
+
+<pre><code>apt-get install python-software-properties        # required for "apt-add-repository" binary
+
+apt-add-repository ppa:chris-lea/node.js
+
+apt-get update
+
+apt-get install nodejs
+</code></pre>
+
+<p>now we have the latest NodeJS on our system, we can start setting up Uchiwa.</p>
+
+<h2>Setting Up Uchiwa Dashboard</h2>
+
+<p><code>Uchiwa</code>&#8217;s source is available in Github.</p>
+
+<pre><code>git clone https://github.com/palourde/uchiwa.git
+</code></pre>
+
+<p>Once  cloned, the repository contains the &#8220;package.json&#8221; file which contains the list of necessary dependencies. We can use &#8220;npm&#8221; (node package manager) to install all these.</p>
+
+<pre><code>cd uchiwa
+
+npm install
+</code></pre>
+
+<p>Now we need to create a config file for the app. There is a sample config file available in the repo. So we need to mention the Sensu&#8217;s API IP and Port number and also the auth credentials if any. Plus auth credentials for accessing Uchiwa Dashboard page.</p>
+
+<p>once all these are set, we are done. We just need to start the service.</p>
+
+<pre><code>node app.js 
+</code></pre>
+
+<p>We can access the page via <em>http://localhost:3000/</em>,  or we can proxy pass from the webserver. Instructions for <em>Nginx</em> is available on the Readme of the project. Now we need to keep this app running all the time. So it&#8217;s better to create a init/upstart process for the same, so that the process will start automatically when the system reboots. There is a cool Node project called <a href="https://github.com/nodejitsu/forever">forever</a> which is a  simple CLI tool for ensuring that a given script runs continuously.</p>
+
+<p>I&#8217;ve created an upstart script for Uchiwa, bu putting a conf file &#8220;uchiwa.conf&#8221; in the &#8220;/etc/init&#8221; directory. Below is the content for the conf file. Once the file is in place, we have to do a reload of the upstart configuration. <code>initctl reload-configuration</code> will do the trick.</p>
+
+<pre><code>description "uchiwa - dashboard for sensu"
+env APP_PATH = "/usr/local/uchiwa/"
+
+start on startup
+stop on shutdown
+
+script
+  cd $APP_PATH
+  exec forever start app.js
+end script
+</code></pre>
+
+<p>Uchiwa looks pretty cool and neat and it has the stash support also. There are couple of addons required like &#8220;Downtime&#8221;, but Uchiwa is a pretty new project and i&#8217;m sure that this project is gonna grow soon. It has already received 99 stars on the Github. Kudos to <a href="https://github.com/palourde">Simon Plourde</a> for Open Sourcing this awesome project.</p>
+
+<p><img src="/images/uchiwa1.png"></p>
+
+<p><img src="/images/uchiwa2.png"></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-19T06:42:00+00:00" pubdate data-updated="true">May 19<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/devops/'>DevOps</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>, <a class='category' href='/blog/categories/sensu-dashboard/'>sensu-dashboard</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/" title="Previous Post: Extending ELK stack to VOIP Infrastructure">&laquo; Extending ELK stack to VOIP Infrastructure</a>
+    
+    
+      <a class="pull-right" href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/" title="Next Post: Dockerizing Freeswitch - Docker Enters Telephony">Dockerizing Freeswitch - Docker Enters Telephony &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Telephony | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/telephony/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-07-24T21:31:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Dockerizing Freeswitch - Docker Enters Telephony]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/"/>
+    <updated>2014-06-10T11:39:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony</id>
+    <content type="html"><![CDATA[<p><code>Docker</code> has became one of the hottest topics in IT now a days. <code>Docker</code> is an open-source project that automates the deployment of applications inside software containers. Docker extends a common container format called <em>Linux Containers</em> (LXC), with a high-level API providing lightweight virtualization that runs processes in isolation.Docker uses <em>LXC, cgroups,</em> and the <em>Linux kernel</em> itself. Though i coudn't make out to the DockerCon 2014 in SF, a lot new developments were announced on the DockerCon. Especially three new Opensource Projects <a href="https://github.com/docker/libcontainer">libcontainer</a>, <a href="https://github.com/docker/libchan">libchan</a> and <a href="https://github.com/docker/libswarm">libswarn</a>. Docker is indeed creating a revolution in the container space, creating a next generation of scalable platform management. There are a lot PAAS services like <a href="http://deis.io/">Deis</a>, <a href="http://signup.resin.io/">resin.io</a>, <a href="https://github.com/progrium/dokku">Dokku</a> which are already using Docker in production. Another important and exciting project is <a href="https://coreos.com/">CoreOS</a>. CoreOS uses tools like <a href="http://www.freedesktop.org/wiki/Software/systemd/">SystemD</a>, <a href="https://github.com/coreos/fleet">Fleet</a>, <a href="https://github.com/coreos/etcd">EtcD</a> to build a fully scalabale docker based cluster management system. I definitely need a separate blog to write about CoreOS, it's really a super exciting project to play with.</p>
+
+<p>Last week Docker Team released Version 1.0 of Docker. So i'll be using the same in this new set up. It's been almost 6 Month's since i've been working @ <a href="http://plivo.com">Plivo</a> as a DevOps Engineer. Telephony was really a very new platform for me. And my first companion was offcourse <a href="http://freeswitch.org/">FreeSwitch</a>,a scalable open source cross-platform telephony platform designed to route and interconnect popular communication protocols using audio, video, text or any other form of media. I was heavily using Vagrant for all my experiments in my mac. But after started using Docker, it really made me crazy. I've played for some time wiht LXC's long back. So this was like a leap back to the container world.</p>
+
+<p>There are a lot of concerns on using Virtual Machines in Telephony world. Especially for the server's that handles the Real Time voice packets, as voice quality is pretty important in Telephony. Docker's again more light weight isolated environment, and i decide to see how Docker can perform with such issues. If Docker handle Freeswitch smoothly, then i'm sure that we can use Docker for other telephony app's like OpenSIPS/Kamailio etc, as they handle only sessions not the Media traffic. I know there are a lot of concerns like CPU load, Network etc, but this is like an initial move to test Docker into Telephony.</p>
+
+<h2>Setting Up Docker </h2>
+
+<p>Docker 1.0 is available from the Official Docker repo.</p>
+
+<pre><code>$ echo "deb http://get.docker.io/ubuntu docker main" &gt; /etc/apt/sources.list.d/docker.list
+
+$ apt-get update &amp;&amp; apt-get install lxc-docker
+</code></pre>
+
+<p>Now we can check the Docker version using the docker binary itself.</p>
+
+<pre><code>$ docker version
+
+Client version: 1.0.0
+Client API version: 1.12
+Go version (client): go1.2.1
+Git commit (client): 63fe64c
+Server version: 1.0.0
+Server API version: 1.12
+Go version (server): go1.2.1
+Git commit (server): 63fe64c
+</code></pre>
+
+<p>Now Docker is installed, but we need some OS images to use with docker. We can build custom images using debootstrap etc. But there are official minimal images available in Docker <a href="https://registry.hub.docker.com/">HUB</a>. We can search for the repositories and can pull those images via docker binary itself.</p>
+
+<p>For example to pull the entire Ubuntu images, we can just do,</p>
+
+<pre><code>$ docker pull ubuntu
+</code></pre>
+
+<p>But this will download all the ubuntu images available in the repo. We can also do selective download by using the tag.</p>
+
+<pre><code>$ docker pull ubuntu:14:04
+</code></pre>
+
+<p>Once the images are downloaded, we can use images option in docker binary to see all the downloaded images.</p>
+
+<pre><code>$ docker images
+
+REPOSITORY                      TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+ubuntu                          14.04               ad892dd21d60        10 days ago         275.5 MB
+</code></pre>
+
+<p>Here i'm not going to daemonize the container, i'll be using the interactive option. But first, let's start a new container.</p>
+
+<pre><code>$ docker run -t -i ubuntu:14.04 /bin/bash
+</code></pre>
+
+<p>This command will start a conatiner and will open up a bash session for us and we will be inside the bash session. Now to use an application we need to open up corresponding ports to outside world. We can use the "-p" option while starting a docker container to enable port forwarding. Under the hood, docker is using IPtables for the same. In the case of Freeswitch, we need to open 5060,5080 for the default Sofia profiles (Internal and External). Also we need to open the RTP ports. In this test i'll be opening a predefined set of ports ie from "16384" to "16394". (As my Docker host resides on Azure, creating an Endpoint for each port forward is really a pain, so i decided to open only a few). And also i'll be opening port 22, so that we can have an ssh server inside the container.</p>
+
+<pre><code>$ docker run -t -i -p 2223:22 -p 5060:5060/tcp -p 5060:5060/udp -p 16384:16384/udp -p 16385:16385/udp -p 16386:16386/udp -p 16387:16387/udp -p 16388:16388/udp -p 16389:16389/udp -p 16390:16390/udp -p 16391:16391/udp -p 16392:16392/udp -p 16393:16393/udp -p 5080:5080/tcp -p 5080:5080/udp ubuntu:14.04 /bin/bash
+</code></pre>
+
+<p>This will start a new container and Docker by default will setup the IPtables for port forwarding. So now my IPtables looks like this.</p>
+
+<pre><code>Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+   43 16850 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:5080
+    0     0 ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:5080
+  988  198K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16392
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16389
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16385
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16393
+ 2026  405K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16388
+ 8817 1763K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16384
+12144 8684K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:5060
+ 4359  257K ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:5060
+ 9917 1983K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16390
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16387
+    0     0 ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:22
+   38  4848 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16391
+    1   152 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16386
+    0     0 ACCEPT     all  --  *      lxcbr0  0.0.0.0/0            0.0.0.0/0
+    0     0 ACCEPT     all  --  lxcbr0 *       0.0.0.0/0            0.0.0.0/0
+ 431K  630M ACCEPT     all  --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+ 128K   19M ACCEPT     all  --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0
+   16  2460 ACCEPT     all  --  docker0 docker0  0.0.0.0/0            0.0.0.0/0
+</code></pre>
+
+<p>Now we can go ahead with Freeswitch compilation. In my previous <a href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">blog</a>, i've mentioned how to compile and set up freeswitch. Once freeswitch is ready, we need to make a few changes. By default, Freeswitch uses STUN to route through NAT, but this doesn't work with Docker. So we have to set the external IP manually. In the Freeswitch installed folder, edit <code>conf/autoload_configs/switch.conf.xml</code>. In this file we can set the External IP manually. Add the below lines to switch_conf.xml.</p>
+
+<pre><code>&lt;X-PRE-PROCESS cmd="set" data="external_sip_ip=&lt;YOUR_EXTERNAL_IP&gt;"/&gt;
+&lt;X-PRE-PROCESS cmd="set" data="external_rtp_ip=&lt;YOUR_EXTERNAL_IP&gt;"/&gt;
+</code></pre>
+
+<p>Also we need to modify the Default Sofia Profiles and need to set the <em>ext-rtp-ip</em> and <em>ext-sip-ip</em> to use our external IP added in the <code>switch_conf.xml</code> file while establishing connections. Add the below lines to the <code>conf/sip_profiles/internal.xml</code> and <code>conf/sip_profiles/external.xml</code></p>
+
+<pre><code>&lt;param name="ext-rtp-ip" value="$${external_rtp_ip}"/&gt;
+&lt;param name="ext-sip-ip" value="$${external_sip_ip}"/&gt;
+</code></pre>
+
+<p>Now we need to set teh RTP ip range to the range which we have forwarded while creting the container. So we need to edit <code>conf/autoload_configs/switch.conf.xml</code></p>
+
+<pre><code>&lt;param name="rtp-start-port" value="16384"/&gt;
+&lt;param name="rtp-end-port" value="16394"/&gt;
+</code></pre>
+
+<p>Once the changes are made, we can start the FreeSwitch service. Now to make sure that the External IP is working properly, we can check the sofia profile status using fs_cli. below is a sample output of the sofia profile status.</p>
+
+<pre><code>freeswitch@internal&gt; sofia status profile internal
+=================================================================================================
+Name                internal
+Domain Name         N/A
+Auto-NAT            false
+DBName              sofia_reg_internal
+Pres Hosts          172.17.0.6,172.17.0.6
+Dialplan            XML
+Context             public
+Challenge Realm     auto_from
+RTP-IP              172.17.0.6
+Ext-RTP-IP          &lt;my_external_ip&gt;
+SIP-IP              172.17.0.6
+Ext-SIP-IP          &lt;my_external_ip&gt;
+URL                 sip:mod_sofia@&lt;my_external_ip&gt;:5060
+BIND-URL            sip:mod_sofia@&lt;my_external_ip&gt;:5060;maddr=172.17.0.6;transport=udp,tcp
+HOLD-MUSIC          local_stream://moh
+OUTBOUND-PROXY      N/A
+CODECS IN           OPUS,G722,PCMU,PCMA,GSM
+CODECS OUT          OPUS,G722,PCMU,PCMA,GSM
+TEL-EVENT           101
+DTMF-MODE           rfc2833
+CNG                 13
+SESSION-TO          0
+MAX-DIALOG          0
+NOMEDIA             false
+LATE-NEG            true
+PROXY-MEDIA         false
+ZRTP-PASSTHRU       true
+AGGRESSIVENAT       false
+CALLS-IN            0
+FAILED-CALLS-IN     0
+CALLS-OUT           0
+FAILED-CALLS-OUT    0
+REGISTRATIONS       1
+</code></pre>
+
+<p>Now freeswitch ahs started successfully. We can test some basic calls using softphones like Xlite, Telephone etc. By default, there are some default extensions and user's available, so we can use the same for testing the calls. But i really wanted to try trunkning also and wanted to see the quality of the voice. So i created <a href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP trunking in Freeswitch using Plivo</a>. And i tested a couple of calls to US and India DID's and no issues were detected in the quality. But again i need to test the laod of the server's when it startes handling concurrent calls and also the voice quality. But i decied to d oit as a Phase II. But as of now, Docker FreeSwitch is working perfectly like a physical machine with out issues.</p>
+
+<p>So now we have a working FreeSwitch container, now here comes the main advantage of the Docker. We can create a new image with all these changes, so that nex time i dont need to work from scratch. I can use this saved image and a readymade Docker Freeswitch container can be launched in seconds. Since we are in interactive mode, we should not quit the session before it's saved or else all the things will be lost,becoz dokcer will destroy the same. So open up a new shell on the docker host and use the commit option. But to use the commit command, we need to know the container id, so here docker ps command comes handy.</p>
+
+<pre><code>$ docker ps
+
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS           NAMES
+
+e7f3c02346d4        a4196763d248        /bin/bash           32 hours ago        Up 32 hours         0.0.0.0:2223-&gt;22/tcp, 0.0.0.0:5060-&gt;5060/tcp, 0.0.0.0:5060-&gt;5060/udp, 0.0.0.0:5080-&gt;5080/tcp, 0.0.0.0:5080-&gt;5080/udp, 0.0.0.0:16384-&gt;16384/udp, 0.0.0.0:16385-&gt;16385/udp, 0.0.0.0:16386-&gt;16386/udp, 0.0.0.0:16387-&gt;16387/udp, 0.0.0.0:16388-&gt;16388/udp, 0.0.0.0:16389-&gt;16389/udp, 0.0.0.0:16390-&gt;16390/udp, 0.0.0.0:16391-&gt;16391/udp, 0.0.0.0:16392-&gt;16392/udp, 0.0.0.0:16393-&gt;16393/udp   silly_turing
+</code></pre>
+
+<p>In my case "e7f3c02346d4" is the container ID. So i can use the same for commit. I won't be commiting to the base Ubuntu image, as i can use the same for other purposes, so here i'll commiting to a new image say "ubntu-fs-docker"</p>
+
+<pre><code>$ docker commit -m "&lt;commit message&gt;" e7f3c02346d4 ubntu-fs-docker
+</code></pre>
+
+<p>Now we can use this "ubntu-fs-docker" image to launch a ready made FreeSwitch server's.</p>
+
+<p>Docker is a very juvenile project about more than a year old. But the use cases are expanding heavily in the Modern IT world. Docker is fueling up a new generation of scalable servers. Wishing all the best for Docker and kudos to <a href="https://twitter.com/solomonstre">Solomon Hykes</a> and the DotCloud team for opensourcing such a powerfull project</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: DevOps | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/devops/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-07-24T21:31:05+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[UCHIWA - An awesome dashboard for Sensu]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/"/>
+    <updated>2014-05-19T06:42:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu</id>
+    <content type="html"><![CDATA[<p>It's been more than a year since i've started playing with <code>Sensu</code>. It was one of coolest monitoring projects that i've ever worked with. Perfect for <em>Cloud</em> infrastructure and backed by a cool community. Though Sensu is still in <em>Juvenile</em> (v 0.12) state, its mature enough to tackle majority of the monitoring issues. Recently i started migrating all our monitoring from traditional Nagios to Sensu and the pretty cool thing with sensu is, we can directly use the Nagios plugins with Sensu. That's an easy task for migration. We don't have to rebuild all the check's to make with Sensu. But most of the people outside was pointing to the sensu's default dashboard. Though the dashboard doesn't looks pretty fancy, it can do all the functions. But having a good dashboard which can display the current status is always a time saver.</p>
+
+<p>So i was being searching for a good dashboard and the first choice on the google search was <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. A Rails project, which needs a backend DB. But still i was not satisfied with it, and i started looking out for something different. The second choice was <a href="https://github.com/cloudant/sabisu">sabisu</a>. Sabisu uses Cloudant's hosted Couchdb with Lucene. We just need to store all the events in a Redis List and a custom script which reads the data from the Redis List and pushes it to the Cloudant's CouchDB. So we basically need a Cloudant account and the Webapp makes Lucene queries to the Cloudant DB and displays the results on the Sabisu dashboard. Though i tried to rebuild the same setup locally, like running a CouchDB+Lucene locally and sending the same data to the local couchdb. With some codehack's i was able to make the webapp talk to my local CouchDB and display the results on the dashboard.</p>
+
+<p>But then, I found a super cool dashboard project called <a href="https://github.com/palourde/uchiwa">UCHIWA</a> which was started in Github a few days back by <a href="https://github.com/palourde">Simon Plourde</a>. <a href="https://github.com/palourde/uchiwa">Uchiwa</a> is simple dashboard built with <em>NodeJS</em> and uses <em>SocketIO</em> for real time updates. The screenshot's looks super cool and i decided to give it a try. It has only one dependency, NodeJS, no backend DB's required as it talks to the Sensu's API in realtime.</p>
+
+<h2>Setting Up NodeJS</h2>
+
+<p>For Ubuntu, we can use the chris-lea's PPA.</p>
+
+<pre><code>apt-get install python-software-properties        # required for "apt-add-repository" binary
+
+apt-add-repository ppa:chris-lea/node.js
+
+apt-get update
+
+apt-get install nodejs
+</code></pre>
+
+<p>now we have the latest NodeJS on our system, we can start setting up Uchiwa.</p>
+
+<h2>Setting Up Uchiwa Dashboard</h2>
+
+<p><code>Uchiwa</code>'s source is available in Github.</p>
+
+<pre><code>git clone https://github.com/palourde/uchiwa.git
+</code></pre>
+
+<p>Once  cloned, the repository contains the "package.json" file which contains the list of necessary dependencies. We can use "npm" (node package manager) to install all these.</p>
+
+<pre><code>cd uchiwa
+
+npm install
+</code></pre>
+
+<p>Now we need to create a config file for the app. There is a sample config file available in the repo. So we need to mention the Sensu's API IP and Port number and also the auth credentials if any. Plus auth credentials for accessing Uchiwa Dashboard page.</p>
+
+<p>once all these are set, we are done. We just need to start the service.</p>
+
+<pre><code>node app.js 
+</code></pre>
+
+<p>We can access the page via <em>http://localhost:3000/</em>,  or we can proxy pass from the webserver. Instructions for <em>Nginx</em> is available on the Readme of the project. Now we need to keep this app running all the time. So it's better to create a init/upstart process for the same, so that the process will start automatically when the system reboots. There is a cool Node project called <a href="https://github.com/nodejitsu/forever">forever</a> which is a  simple CLI tool for ensuring that a given script runs continuously.</p>
+
+<p>I've created an upstart script for Uchiwa, bu putting a conf file "uchiwa.conf" in the "/etc/init" directory. Below is the content for the conf file. Once the file is in place, we have to do a reload of the upstart configuration. <code>initctl reload-configuration</code> will do the trick.</p>
+
+<pre><code>description "uchiwa - dashboard for sensu"
+env APP_PATH = "/usr/local/uchiwa/"
+
+start on startup
+stop on shutdown
+
+script
+  cd $APP_PATH
+  exec forever start app.js
+end script
+</code></pre>
+
+<p>Uchiwa looks pretty cool and neat and it has the stash support also. There are couple of addons required like "Downtime", but Uchiwa is a pretty new project and i'm sure that this project is gonna grow soon. It has already received 99 stars on the Github. Kudos to <a href="https://github.com/palourde">Simon Plourde</a> for Open Sourcing this awesome project.</p>
+
+<p><img src="/images/uchiwa1.png"></p>
+
+<p><img src="/images/uchiwa2.png"></p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,413 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Managing Docker Clusters using Mesos and Marathon - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Docker has became one of my favourite tool. It&#8217;s super cool and super easy tool to manage linux containers. LXC&#8217;s are around in IT world &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Managing Docker Clusters using Mesos and Marathon" />
+  <meta name="og:description" content="Docker has became one of my favourite tool. It&#8217;s super cool and super easy tool to manage linux containers. LXC&#8217;s are around in IT world &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">
+  
+  <meta name="subject" content="containerizationdockerdocker-clustermarathonmesos"/>
+  <meta name="category" content="containerizationdockerdocker-clustermarathonmesos"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Managing Docker Clusters Using Mesos and Marathon</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-27T07:31:00+00:00" pubdate data-updated="true">Jun 27<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/containerization/'>containerization</a>, <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/docker-cluster/'>docker-cluster</a>, <a class='category' href='/blog/categories/marathon/'>marathon</a>, <a class='category' href='/blog/categories/mesos/'>mesos</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> has became one of my favourite tool. It&#8217;s super cool and super easy tool to manage linux containers. LXC&#8217;s are around in IT world for some time, but by the entry of Docker last year, the wave started rising. Thanks to <a href="https://github.com/dotcloud/docker">Docker</a> team and <a href="https://twitter.com/solomonstre">Solomon Hykes</a> for open sourcing such a wonderfull project. I&#8217;ve already mentioned a lot of stuffs about Docker in my previos blogs, so today im going explain how Docker can be used as a Cluster. There are some interesting tools like <a href="https://coreos.com/">CoreOS</a>, <a href="https://github.com/spotify/helios">Helios</a> etc for managing Docker as a cluster. But today i&#8217;m going to explain on how to set up a Docker cluster using Apache <a href="http://mesos.apache.org/">Mesos</a>. CoreOS is a custom linux os which comes with SystemD. But the restriction is, we have to use that custom images of coreos.. Indeed CoreOS team open sourced some exciting tools like etcd fleet which works with CoreOS for managing Docker clusters. But Mesos is quite simple, we can install it via package, or even using tar balls available in thier Github repo onto most of the Linux Distro&#8217;s and it&#8217;s quite easy to configure also. Mesos is heavily used by Twitter to manage their data center&#8217;s. And now <a href="http://mesosphere.io/">Mesosphere</a> has opensourced a new tool called <a href="https://github.com/mesosphere/marathon">Mararthon</a> which now provides a UI and a Rest API for maaging and scheduling Mesos Frameworks aka jobs, in this case containers as a service.</p>
+
+<p>A few weeks ago, Mesos 0.19 was released which comes with an official support for Docker coantiners by intergrating <a href="https://github.com/mesosphere/deimos">Deimos</a> into it. And a few days ago Marathon has released their new version 0.6.0 supports launching any task in a Docker container via Mesos 0.19+</p>
+
+<h2>Setting up Mesos Cluster</h2>
+
+<p>In this test setup, i&#8217;m going to setup both Mesos master/slave and Zookeeper on the same Ubuntu 14.04 vagrant node. First we can install the dependencies,</p>
+
+<pre><code>$ apt-get install curl python-setuptools python-pip python-dev python-protobuf
+</code></pre>
+
+<p>Now we can install Zookeeper</p>
+
+<pre><code>$ apt-get install zookeeperd
+</code></pre>
+
+<p>After the installation, ZooKeeper has 1 configuration. Each Zookeeper needs to know its position in the quorum.</p>
+
+<pre><code>$ echo 1 | sudo dd of=/var/lib/zookeeper/myid
+</code></pre>
+
+<p>Now we can setup Docker</p>
+
+<pre><code>$ echo "deb http://get.docker.io/ubuntu docker main" &gt; /etc/apt/sources.list.d/docker.list
+
+$ apt-get update &amp;&amp; apt-get install lxc-docker
+
+$ docker version
+
+   Client version: 1.0.0
+   Client API version: 1.12
+   Go version (client): go1.2.1
+   Git commit (client): 63fe64c
+   Server version: 1.0.0
+   Server API version: 1.12
+   Go version (server): go1.2.1
+   Git commit (server): 63fe64c
+</code></pre>
+
+<p>Let&#8217;s pull some basic ubuntu images from Docker Hub so that we can use the same for testing.</p>
+
+<pre><code>$ docker pull libmesos/ubuntu
+</code></pre>
+
+<p>Now we can configure Mesos</p>
+
+<pre><code>$ curl -fL http://downloads.mesosphere.io/master/ubuntu/14.04/mesos_0.19.0~ubuntu14.04%2B1_amd64.deb -o /tmp/mesos.deb
+
+$ dpkg -i /tmp/mesos.deb
+
+$ mkdir -p /etc/mesos-master
+
+$ echo in_memory | sudo dd of=/etc/mesos-master/registry
+
+## Mesos Python egg for use in authoring frameworks
+
+$ curl -fL http://downloads.mesosphere.io/master/ubuntu/14.04/mesos-0.19.0_rc2-py2.7-linux-x86_64.egg -o /tmp/mesos.egg
+
+$ easy_install /tmp/mesos.egg
+</code></pre>
+
+<p>We can download the latest Marathon 0.6 from <a href="http://downloads.mesosphere.io/marathon/marathon-0.6.0/marathon-0.6.0.tgz">here</a></p>
+
+<pre><code>$ tar xvzf marathon-0.6.0.tgz
+</code></pre>
+
+<p>Mesos uses Deimos for managing dockers, Deimos can installed via pip</p>
+
+<pre><code>$ pip install deimos
+</code></pre>
+
+<p>Also, we need to configure mesos to use Deimos,</p>
+
+<pre><code>$ mkdir -p /etc/mesos-slave
+
+$ echo /usr/local/bin/deimos | sudo dd of=/etc/mesos-slave/containerizer_path
+
+$ echo external | sudo dd of=/etc/mesos-slave/isolation
+</code></pre>
+
+<p>Now we can start all the services.</p>
+
+<pre><code>$ initctl reload-configuration
+
+$ service docker start
+
+$ service zookeeper start
+
+$ service mesos-master start
+
+$ service mesos-slave start
+
+##### Starting Marathon #####
+
+$ cd marathon-0.6.0
+
+$ ./bin/start --master zk://localhost:2181/mesos --zk_hosts localhost:2181
+</code></pre>
+
+<p>Marathon will now start listening to port <em>8080</em>, We can access the UI from the browser via this port, also via rest API using the same port.</p>
+
+<pre><code>curl localhost:8080/help   # gives us some details about the API's
+</code></pre>
+
+<p>I just went through the Deimos code, so under the hood they are using <code>docker run</code> with some default parameters like <code>--sig-proxy</code>,  <code>--rm</code>,  <code>--cidfile</code>,  <code>-v</code>, <code>-w</code> and extra parameters that we are passing while creating the task via Marathon.</p>
+
+<p>As of now, we still can&#8217;t pass details like Container image, Docker options via Marathon GUI. So we can use the Rest API for the time being. Below is a sample curl request for launcing a single container,</p>
+
+<pre><code>curl -X POST -H "Accept: application/json" -H "Content-Type: application/json" \
+    localhost:8080/v2/apps -d '{
+        "container": {"image": "docker:///libmesos/ubuntu", "options": ["--privileged"]},
+        "cpus": 0.5,
+        "cmd": "sleep 500",
+        "id": "docker-tester",
+        "instances": 1,
+        "mem": 300
+    }'
+</code></pre>
+
+<p>We can pass custom options to the docker run command via &#8220;options&#8221;. After making the curl request, we can check the syslog, as mesos will be logging into syslog by default. We can even see the Docker run command on the same.</p>
+
+<pre><code>Jun 27 07:24:58 vagrant-ubuntu-trusty-64 deimos[19227]: deimos.containerizer.docker.launch() exit 0 // docker run --sig-proxy --rm --cidfile /tmp/deimos/mesos/00d459fb-22ca-4af7-9a97-ef8a510905f2/cid -w /tmp/mesos-sandbox -v /tmp/deimos/mesos/00d459fb-22ca-4af7-9a97-ef8a510905f2/fs:/tmp/mesos-sandbox --privileged -p 31498:31498 -c 512 -m 300m -e PORT=31498 -e PORT0=31498 -e PORTS=31498 libmesos/ubuntu sh -c 'sleep 500'
+</code></pre>
+
+<p>We can also use the Marathon Rest API to check the status of the job which we started.</p>
+
+<pre><code>curl -X GET -H "Content-Type: application/json" localhost:8080/v2/apps
+</code></pre>
+
+<p>Below is the screenshort for the same from the Marathon UI.</p>
+
+<p><img src="/images/marathon1.png"></p>
+
+<p>We can also check if the container is launched via <code>docker ps</code> command.</p>
+
+<p><img src="/images/docker1.png"></p>
+
+<p>A more detailed report about the Docker job which we have launched can be viewed via the default Mesos GUI listening on port <em>5050</em> on the Mesos master. Now we can test the scalability of the Job. Currently we have only one container running. So now we can try scaling say adding one more node. We can do it in two ways, like via PUT request using curl or using GUI</p>
+
+<pre><code>curl -X PUT -H "Content-Type: application/json" localhost:8080/v2/apps/docker-tester \
+    "container": {"image": "docker:///libmesos/ubuntu", "options": ["--privileged"]},
+            "cpus": 0.5,
+            "cmd": "sleep 500",
+            "id": "docker-tester",
+            "instances": 2,     # increasing the instance count to 2
+            "mem": 300
+            }'
+</code></pre>
+
+<p>Now we can use the <code>docker ps</code> command to see if the new container is launched or not. Also we can see that status in UI also.</p>
+
+<p><img src="/images/docker2.png"></p>
+
+<p><img src="/images/marathon2.png"></p>
+
+<p>Similarly, we can scale down also. I&#8217;ve tested the same and all seems to be good. Marathon ensures that the docker process will be running. So incase if the process crashes Marathon will restart the same and ensures that the instances are up and running as per our configuration. There are a few other Open Sourced Mesos Scheduler&#8217;s  like Apache Aurora, Airbnb&#8217;s Chronos. But for my requirement marathon is pretty straight and simple and also provides a very good Rest API layer for managing containers. Mesos, Marathon and Docker are still young, but provides a killer combination for managing clusters built over Docker containers.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-27T07:31:00+00:00" pubdate data-updated="true">Jun 27<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/containerization/'>containerization</a>, <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/docker-cluster/'>docker-cluster</a>, <a class='category' href='/blog/categories/marathon/'>marathon</a>, <a class='category' href='/blog/categories/mesos/'>mesos</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/" title="Previous Post: Dockerizing Freeswitch - Docker Enters Telephony">&laquo; Dockerizing Freeswitch - Docker Enters Telephony</a>
+    
+    
+      <a class="pull-right" href="/blog/2014/07/24/load-test-on-docker-freeswitch/" title="Next Post: Load Test on Docker Freeswitch">Load Test on Docker Freeswitch &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

@@ -163,11 +163,39 @@
         <lastmod>2014-04-07T12:00:15+00:00</lastmod>
     </url>
     <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/
+        </loc>
+        <lastmod>2014-05-09T04:42:10+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/
+        </loc>
+        <lastmod>2014-05-19T07:47:48+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/
+        </loc>
+        <lastmod>2014-06-10T13:34:52+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/
+        </loc>
+        <lastmod>2014-06-27T09:50:33+00:00</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2014/07/24/load-test-on-docker-freeswitch/</loc>
+        <lastmod>2014-07-24T21:30:08+00:00</lastmod>
+    </url>
+    <url>
         <loc>http://beingasysadmin.com/</loc>
-        <lastmod>2014-04-07T12:00:15+00:00</lastmod>
+        <lastmod>2014-07-24T21:30:08+00:00</lastmod>
     </url>
     <url>
         <loc>http://beingasysadmin.com/blog/archives/</loc>
-        <lastmod>2014-04-07T12:00:15+00:00</lastmod>
+        <lastmod>2014-07-24T21:30:08+00:00</lastmod>
     </url>
 </urlset>

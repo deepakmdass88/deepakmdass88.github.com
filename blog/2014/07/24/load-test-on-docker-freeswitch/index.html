@@ -1,0 +1,391 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Load Test on Docker Freeswitch - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Docker is a very powerfull tool for managing Linux containers. In my previous blog i&#8217;ve explaind on how to setup a Docker Freeswitch. Docker &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/07/24/load-test-on-docker-freeswitch/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Load Test on Docker Freeswitch" />
+  <meta name="og:description" content="Docker is a very powerfull tool for managing Linux containers. In my previous blog i&#8217;ve explaind on how to setup a Docker Freeswitch. Docker &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/07/24/load-test-on-docker-freeswitch/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/07/24/load-test-on-docker-freeswitch/">
+  
+  <meta name="subject" content="dockerfreeswitch"/>
+  <meta name="category" content="dockerfreeswitch"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Load Test on Docker Freeswitch</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-07-24T11:45:00+00:00" pubdate data-updated="true">Jul 24<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> is a very powerfull tool for managing Linux containers. In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/16/dockerizing-freeswitch-docker-enters-telephony-world/">blog</a> i&#8217;ve explaind on how to setup a Docker Freeswitch. Docker is very mature now, version 1.0 has already been released. Docker is now supported by all major cloud vendors. Docker was showing promising results when i was performing my initial testing. So this time i decided to perform a heavy load test on the Freeswitch container to ensure that Docker can really enter Telephony. Like any normal sys admin, i was googling for Freeswitch load test, and most of the results were pointing to Sipp, an Open Source test tool / traffic generator for the SIP protocol. For me Sipp didnt helped me as it started throwing errors beyond 320 simultaneous calls. The UDP connections were timing out. I tried increasing the timeout, which didn&#8217;t helped much.</p>
+
+<p>So next choice is to use a Freeswitch itself, to generate calls. Using the FreeSwitch&#8217;s <em>originate</em> command to generate simultaneous calls and hit the Docker Freeswitch container. I also decided to collect all system metrics, so that i knows how the machine behaves under various load tests conditions. For this i deciced to use <em>CollectD</em> and <em>Graphite</em> combo. Collectd 5+ has an inbuild graphite plugin which can send the collectd metrics to a graphite server.</p>
+
+<p>I&#8217;ve already setup an Ubuntu-Freeswitch Docker <a href="https://registry.hub.docker.com/u/deepakmdass88/fs-ubuntu/">image</a>. First we need to pull the images from the Docker hub.</p>
+
+<pre><code>$ docker pull deepakmdass88/fs-ubuntu
+</code></pre>
+
+<p>Now i&#8217;m going to start the Docker FreeSwitch container in foreground.</p>
+
+<pre><code>$ docker run --rm --privilieged -i -t -p 5060:5060/tcp -p 5060:5060/udp -p 16384:16384/udp -p 16385:16385/udp -p 16386:16386/udp -p 16387:16387/udp -p 16388:16388/udp -p 16389:16389/udp -p 16390:16390/udp -p 16391:16391/udp -p 16392:16392/udp -p 16393:16393/udp -p 5080:5080/tcp -p 5080:5080/udp deepakmdass88/fs-ubuntu /bin/bash
+</code></pre>
+
+<p>The <code>privilieged</code> option was enabled because, the FreeSwitch init script sets some custom <strong>ulimit</strong> values, so the container has to be given special privileges. Corresponding SIP and RTP ports are forwarded from the host to the container.</p>
+
+<p>Now before starting the Freeswitch service, we can set up the CollectD agent. By default, the Ubuntu repostiry contains CollectD versio 4.10, but the Graphite plugin is available from version 5.0+ onwards. So we can use somne PPA which has the corresponding version available.</p>
+
+<pre><code>$ apt-get install python-software-properties
+
+$ add-apt-repository ppa:joey-imbasciano/collectd5
+
+$ apt-get update &amp;&amp; apt-get install collectd
+</code></pre>
+
+<p>Now in the <code>/etc/collectd.conf</code>, uncomment <em>LoadPlugin write_graphite</em>. Also, in the same file and uncomment the plugin definition and fill in the server details.</p>
+
+<pre><code>&lt;Plugin write_graphite&gt;
+  &lt;Carbon&gt;
+        Host "dockergraphite.example.com"
+        Port "2003"
+        Protocol "tcp"
+        LogSendErrors true
+        Prefix "collectd."
+        StoreRates true
+        AlwaysAppendDS false
+        EscapeCharacter "_"
+  &lt;/Carbon&gt;
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>I&#8217;ve enabled a custom <a href="https://github.com/ReadyTalk/freeswitch-collectd-plugin">freeswitch</a> plugin, which will extract the current ongoing calls count from freeswitch and sends it to the graphite server. Once the config changes are done we can restart the CollectD service. Now we can check our graphite UI to see if the default metrics like memory, load, cpu etc. are reaching the graphite server. Once CollectD-Graphite setup is ready, we can go ahead with our load test. So, once the call has reached the server, we need some <em>Dialplan</em> to continue the calls. So the simplest method is to create an infinite loop of playing some file, or some conference. Below are some dialplans that i&#8217;ve created in the <code>public.xml</code></p>
+
+<pre><code># Infinite Play Loop
+
+ &lt;extension name="111222333"&gt;
+       &lt;condition field="destination_number" expression="^111222333$"&gt;
+         &lt;action application="answer"/&gt;
+         &lt;action application="playback" data="sounds/music/8000/got.wav"/&gt;
+         &lt;action application="transfer" data="111222333 XML public"/&gt;
+       &lt;/condition&gt;
+    &lt;/extension&gt;
+
+# Test conference
+
+  &lt;extension name="docker-fs-test-conf"&gt;
+    &lt;condition field="destination_number" expression="^112233"&gt;
+      &lt;action application="answer"/&gt;
+      &lt;action application="sleep" data="500"/&gt;
+      &lt;action application="conference" data="docker-test@public"/&gt;
+    &lt;/condition&gt;
+  &lt;/extension&gt;
+
+
+# Default IVR menu
+
+    &lt;extension name="ivr_demo"&gt;
+      &lt;condition field="destination_number" expression="^5000$"&gt;
+        &lt;action application="answer"/&gt;
+        &lt;action application="sleep" data="2000"/&gt;
+        &lt;action application="ivr" data="demo_ivr"/&gt;
+      &lt;/condition&gt;
+    &lt;/extension&gt;
+</code></pre>
+
+<p>Now, we have the dialplans ready, next is authentication. By default there are two ways, Digest auth and IP Whitelist. Here i&#8217;m going to use IP whitelist, so we need to whitelist our IP in the acl.conf file.</p>
+
+<pre><code> &lt;list name="domains" default="deny"&gt;
+      &lt;!-- domain= is special it scans the domain from the directory to build the ACL --&gt;
+      &lt;node type="allow" domain="$${domain}"/&gt;
+      &lt;node type="allow" cidr="xxx.xxx.xxx.xxx/32"/&gt;                 # IP of FS from which we are going to send the calls
+      &lt;!-- use cidr= if you wish to allow ip ranges to this domains acl. --&gt;
+      &lt;!-- &lt;node type="allow" cidr="192.168.0.0/24"/&gt; --&gt;
+ &lt;/list&gt;
+</code></pre>
+
+<p>Now we can start the Freeswitch service.</p>
+
+<pre><code>$ /etc/init.d/freeswitch start
+</code></pre>
+
+<p>We can check the freeswich service using the fs_cli command.</p>
+
+<pre><code>$ /usr/local/freeswitch/bin/fs_cli -x "show status"
+
+UP 0 years, 0 days, 6 hours, 34 minutes, 59 seconds, 648 milliseconds, 56 microseconds
+FreeSWITCH (Version 1.5.13b git 39200cd 2014-07-02 21:55:21Z 64bit) is ready
+1068 session(s) since startup
+0 session(s) - peak 299, last 5min 0
+0 session(s) per Sec out of max 30, peak 29, last 5min 0
+1000 session(s) max
+min idle cpu 0.00/100.00
+Current Stack Size/Max 240K/8192K
+</code></pre>
+
+<p>Now freeswitch is ready to accept the connection. We can start sending the calls from our Load test freeswitch. Below is the script that was used to originate the calls from the load test Freeswitch machine. This will create simultaneous calls towards the Docker FS.</p>
+
+<pre><code>IP_URI="sip:111222333@&lt;docker-fs-ip&gt;:5060"
+MAX_CALLS=$1
+
+while [ 1 ]; do
+
+set -i req
+req=$(/usr/local/freeswitch/bin/fs_cli -q -b -x "show channels count" | awk '{print $1}')
+if [ $req -lt $MAX_CALLS ]; then
+    /usr/local/freeswitch/bin/fs_cli -q -b -x "bgapi originate sofia/external/$SIP_URI loadtest"
+else
+    echo "sleep a bit ..."
+    sleep 10s
+
+fi
+</code></pre>
+
+<p>While bulk calls are being made from the Load test freeswitch machines, to test the Quality in real time, it&#8217;s better to dial to the extension directly from a Sip Phone/Client and ensure that voice quality is good. Below is my Graphite dashboard for the load test.</p>
+
+<p>Default Graphite UI</p>
+
+<p><img src="/images/Docker-FS-Loadtest.png"></p>
+
+<p><a href="https://github.com/urbanairship/tessera">Tessera</a> UI</p>
+
+<p><img src="/images/tessera-graphite.png"></p>
+
+<p>The FS was stable till 500 simultaneous calls, after that there was a sudden drop in calls and also the voice quality started dropping and in a minute the Freeswitch crashed due to Segmentation fault. I&#8217;m  going to analyze the core dump file to understand more about the crash. The other smaller drops that we see in the graph was caused by the Load test Freeswitch machine, as the load was getting high when the number of calls was increased. But 500 simultaneous calls are pretty decent and the there was no issue in voice quality till the number of calls crossed 500. Though it&#8217;s very difficult to make a final confirmation, i decided to go ahead with phase 2 load test.</p>
+
+<p>In the phase 2 test, i&#8217;m planning to use multiple FS load test machines to generate large simultaneous calls + running 2 separate FS containers on the same host and split the incoming calls to both these containers. Once the phase 2 test is completed, ill share the test results in an another blog post. Docker is still under heavy development, and i&#8217;m sure Docker will be entering Telephony soon.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-07-24T11:45:00+00:00" pubdate data-updated="true">Jul 24<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/" title="Previous Post: Managing Docker Clusters using Mesos and Marathon">&laquo; Managing Docker Clusters using Mesos and Marathon</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>
