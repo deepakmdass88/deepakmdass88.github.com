@@ -191,11 +191,37 @@
         <lastmod>2014-07-24T21:30:08+00:00</lastmod>
     </url>
     <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/
+        </loc>
+        <lastmod>2014-08-15T18:46:26+00:00</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus/</loc>
+        <lastmod>2014-08-25T13:32:33+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/
+        </loc>
+        <lastmod>2014-08-31T18:42:47+00:00</lastmod>
+    </url>
+    <url>
+        <loc>http://beingasysadmin.com/blog/2014/08/31/mesos-with-native-docker-support/</loc>
+        <lastmod>2014-08-31T18:46:34+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/
+        </loc>
+        <lastmod>2014-10-15T01:08:54+00:00</lastmod>
+    </url>
+    <url>
         <loc>http://beingasysadmin.com/</loc>
-        <lastmod>2014-07-24T21:30:08+00:00</lastmod>
+        <lastmod>2014-10-15T01:08:54+00:00</lastmod>
     </url>
     <url>
         <loc>http://beingasysadmin.com/blog/archives/</loc>
-        <lastmod>2014-07-24T21:30:08+00:00</lastmod>
+        <lastmod>2014-10-15T01:08:54+00:00</lastmod>
     </url>
 </urlset>

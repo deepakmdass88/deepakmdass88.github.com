@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Mesosphere | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/mesosphere/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-10-15T01:09:14+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Marathon Event Bus]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus/"/>
+    <updated>2014-08-25T13:02:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus</id>
+    <content type="html"><![CDATA[<p>It's almost 3 months since i've started with Mesos + Marathon. Yesterday, i was going through the <a href="https://mesosphere.github.io/marathon/docs">Marathon Doc Site</a>, and found that Marathon has a cool internal Event Bus. Currently Marathon has an ibuilt HTTP callback subscriber that POSTs events in JSON format to one or more endpoints. So i decided to give it a try to my Mesos test environment. More documentations of the <a href="https://mesosphere.github.io/marathon/docs/event-bus.html">Event Bus</a> are available in the Documentation page.</p>
+
+<p>Currently, in my test environment all the Mesos and Marathon are installed from the Mesosphere <a href="https://mesosphere.io/learn/install_ubuntu_debian/">Debian</a> packages. Whether we use the packaged <strong>init</strong> or <strong>upstart</strong> script, both of them are directly calling the <code>/usr/local/bin/marathon</code> binary. For the Event Bus with http callback, we need to enable two flags (--event_subscriber http_callback --http_endpoints http://host1/foo,http://host2/bar) while starting the Marathon service ie, <em>--event_subscriber</em>, the type of subscriber that we are going to use and <em>--http_endpoints</em>, endpoints corresponding to the subscriber.</p>
+
+<p>From the marathon binary, i found the it looks for files under the <code>/etc/marathon/conf/</code> folder, where each file is the <strong>name of the flag</strong> to be enabled and the <strong>content of the file is the flag values</strong>. So in our case, we need two files inside the "/etc/marathon/conf/", 1) <code>event_subscriber</code> and 2) <code>http_endpoints</code></p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ls /etc/marathon/conf/
+event_subscriber  http_endpoints
+</code></pre>
+
+<p>And the content of these files are,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/event_subscriber
+http_callback
+
+root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/http_endpoints
+http://localhost:1234/
+</code></pre>
+
+<p>Now for test purpose, lets start a minimal webserver using <code>netcat</code> listening to port <em>1234</em></p>
+
+<pre><code>$ nc -l -p 1234
+</code></pre>
+
+<p>Now netcat is listening on port 1234. Lets restart Marathon with our new flags.</p>
+
+<pre><code>$ service marathon restart
+</code></pre>
+
+<p>Now lets check if the flags are enabled properly,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ps axf | grep marathon | grep -v grep
+2780 ?        Sl     0:36 java -Xmx512m -Djava.library.path=/usr/local/lib -Djava.util.logging.SimpleFormatter.format=%2$s %5$s%6$s%n -cp /usr/local/bin/marathon mesosphere.marathon.Main --zk zk://localhost:2181,localhost:2182,localhost:2183/marathon --master zk://localhost:2181,localhost:2182,localhost:2183/mesos --http_endpoints http://localhost:1234/ --event_subscriber http_callback
+2791 ?        S      0:00  \_ logger -p user.info -t marathon[2780]
+2792 ?        S      0:00  \_ logger -p user.notice -t marathon[2780]
+</code></pre>
+
+<p>From the above <em>ps</em> command, it can be seen that the flags are enabled properly. Now i'm going to start a docker container. So as per the Event Bus documentation, Callbacks are Fired every time Marathon receives an API request that modifies an app (create, update, delete)</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+</code></pre>
+
+<p>where <code>ubuntu.json</code> is,</p>
+
+<pre><code>{
+    "container": {
+    "image": "docker:///libmesos/ubuntu",
+    "options" : []
+  },
+  "id": "ubuntu2",
+  "instances": "1",
+  "cpus": ".3",
+  "mem": "200",
+  "uris": [ ],
+  "ports": [9999],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}
+</code></pre>
+
+<p>Once the Marathon API is fired, we will get a POST request on our netcat with the Event details. Below is the Event received on my netcat server.</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/var/tmp# nc -l -p 1234
+POST / HTTP/1.1
+Host: localhost:1234
+Accept: application/json
+User-Agent: spray-can/1.2.1
+Content-Type: application/json; charset=UTF-8
+Content-Length: 427
+
+{"clientIp":"127.0.0.1","uri":"/v2/apps","appDefinition":{"id":"ubuntu2","cmd":"while sleep 10; do date -u +%T; done","env":{},"instances":1,"cpus":0.3,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"ports":[9999],"taskRateLimit":1.0,"container":{"image":"docker:///libmesos/ubuntu","options":[]},"healthChecks":[],"version":{"dateTime":{}}},"eventType":"api_post_event","timestamp":"2014-08-25T13:23:27.059Z"}
+</code></pre>
+
+<p>This Event bus is really usefull as it notifies us on all the Event changes happening on our Mesos cluster. We can also buit an Event notification system based on these callbacks. Though the current Events has very minimal details, i'm sure that more Event types will get added soon into Marathon.</p>
+]]></content>
+  </entry>
+  
+</feed>

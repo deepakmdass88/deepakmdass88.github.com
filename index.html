@@ -97,6 +97,740 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis Using CollectD and ELK</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-10-14T23:57:00+00:00" pubdate data-updated="true">Oct 14<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/elk/'>ELK</a>, <a class='category' href='/blog/categories/collectd/'>collectd</a>, <a class='category' href='/blog/categories/collectd-redis/'>collectd-redis</a>, <a class='category' href='/blog/categories/redis/'>redis</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Redis is an open-source, networked, in-memory, key-value data store. It&#8217;s being heavily used every where from Web stack to Monitoring to Message queues. Monitoring tools like Sensu already has some good scripts to Monitor Redis. Last Month during <a href="http://in.pycon.org/funnel/2014/245-sharq-an-api-queueing-system-built-at-plivo">PyCon 2014</a> <a href="https://twitter.com/plivo">@Plivo</a>, opensourced a new rate limited queue called <a href="http://sharq.io/">SHARQ</a> which is based on Redis. So apart from just Monitoring checks, we decided to have a tsdb of what&#8217;s happening in our Redis Cluster. Since we are heavily using ELK stack to visualize our infrastructure, we decided to go ahead with the same.</p>
+
+<h3>CollectD Redis Plugin</h3>
+
+<p>There is a cool CollectD <a href="https://github.com/powdahound/redis-collectd-plugin">plugin</a> for Redis. It pulls a verity of Data from Redis which includes, Memory used, Commands Processed, No. of Connected Clients and slaves, No. of blocked Clients, No. of Keys stored/db, uptime and challenges since last save. The installation is pretty simple and straight forward.</p>
+
+<pre><code>$ apt-get update &amp;&amp; apt-get install collectd
+
+$ git clone https://github.com/powdahound/redis-collectd-plugin.git /tmp/redis-collectd-plugin
+</code></pre>
+
+<p>Now place the <code>redis_info.py</code> file onto the collectd folder and enable the <em>Python</em> Plugins so that collectd can use this python file. Below is our collectd conf</p>
+
+<pre><code>Hostname    "&lt;redis-server-fqdn&gt;"
+Interval 10
+Timeout 4
+Include "/etc/collectd/filters.conf"
+Include "/etc/collectd/thresholds.conf"
+LoadPlugin network
+ReportStats true
+
+        LogLevel info
+
+Include "/etc/collectd/redis.conf"      # This is the configuration for the Redis plugin
+&lt;Plugin network&gt;
+    Server "&lt;logstash-fqdn&gt;" "&lt;logstash-collectd-port&gt;"
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>Now copy the redis python plugin and the conf file to collectd folder.</p>
+
+<pre><code>$ mkdir /etc/collectd/plugin            # This is where we are going to place our custom plugins
+
+$ cp /tmp/redis-collectd-plugin/redis_info.py /etc/collectd/plugin/
+
+$ cp /tmp/redis-collectd-plugin/redis.conf /etc/collectd/
+</code></pre>
+
+<p>By default, the plugin folder in the <code>redis.conf</code> is defined as <em>&#8216;/opt/collectd/lib/collectd/plugins/python&#8217;</em>. Make sure to replace this with the location where we are copying the plugin file, in our case <strong>&#8220;/etc/collectd/plugin&#8221;</strong>. Now lets restart the collectd daemon to enable the redis plugin.</p>
+
+<pre><code>$ /etc/init.d/collectd stop
+
+$ /etc/init.d/collectd start
+</code></pre>
+
+<p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/05/11/extending-elk-stack-to-voip-infrastructure/">Blog</a>, i&#8217;ve mentioned how to enable and use the ColectD input plugin in Logstash and to use Kibana to plot the data coming from the collectd. Below are the Data&#8217;s that we are receiving from the CollectD on Logstash,</p>
+
+<pre><code>  1) type_instance: blocked_clients
+  2) type_instance: evicted_keys
+  3) type_instance: connected_slaves
+  4) type_instance: commands_processed
+  5) type_instance: connected_clients
+  6) type_instance: used_memory 
+  7) type_instance: &lt;dbname&gt;-keys
+  8) type_instance: changes_since_last_save
+  9) type_instance: uptime_in_seconds
+10) type_instance: connections_received
+</code></pre>
+
+<p>Now we need to Visualize these via Kibana. Lets create some ElasticSearch queries so that visualize them directly. Below are some sample queries created in Kibana UI.</p>
+
+<pre><code>1) type_instance: "commands_processed" AND host: "&lt;redis-host-fqdn&gt;"
+2) type_instance: "used_memory" AND host: "&lt;redis-host-fqdn&gt;"
+3) type_instance: "connections_received" AND host: "&lt;redis-host-fqdn&gt;"
+4) type_instance: "&lt;dbname&gt;-keys" AND host: "&lt;redis-host-fqdn&gt;"
+</code></pre>
+
+<p><img src="/images/Kibana_ES_Query.png"></p>
+
+<p>Now We have some sample queries, lets visualize them.</p>
+
+<p><img src="/images/ES_graph.png"></p>
+
+<p><img src="/images/ES_graph2.png"></p>
+
+<p>Now create histograms in the same procedure by changing the Selected Queries.</p>
+
+<p><img src="/images/ES_graph3.png"></p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos With Native Docker Support</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-08-31T17:34:00+00:00" pubdate data-updated="true">Aug 31<span>st</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">blog</a>, i&#8217;ve explained how to manage Docker cluster using Mesos and Marathon. Now Mesos has released 0.20 with Native Docker support. Till Mesos 0.19, we had to use mesosphere&#8217;s <a href="https://github.com/mesosphere/deimos">Deimos</a> for running Docker containers on Mesos slaves. Now from Mesos 0.20, Mesos has the ability to run Docker containers directly. As per Mesos Documentation we can run containers in two ways. 1) as a Task and 2) as an Executor. Currently Mesos 0.20 supports only the host (&#8211;net=host) Docker networking mode.</p>
+
+<p>Install the latest Mesos 0.20 using the mesosphere&#8217;s Mesos <a href="http://mesosphere.io/downloads/">Debian</a> package. Once we have setup the Zookeeper and Docker, we need to make a few changes to enable the Mesos Native Docker support. We need to start all the Mesos-Slave with <code>--containerizers=docker,mesos</code> flag. For enabling this flag, we need to create a file <code>containerizers</code> in <em>/etc/mesos-slave/containerizers</em> with content &#8220;docker,mesos&#8221;. Mesos slave process, when starting up, will read the folder and enable this flag.</p>
+
+<pre><code>$ echo 'docker,mesos' &gt; /etc/mesos-slave/containerizers
+
+$ service mesos-master restart
+</code></pre>
+
+<p>I was trying to start a container with Port <strong>9999</strong> via Marathon REST API. But the task was keep on failing. Up on investigating the logs, i found that the slave when sends the allocatable resource details to mesos master was <strong>total allocatable: cpus(<em>):0.8; mem(</em>):801; disk(<em>):35164; ports(</em>):[31000-31099, 31101-32000]</strong>. So the allowed port range was [31000-31099, 31101-32000]. So if we wnat to use any other custom port, we need to define the same in the <em>/etc/mesos-slave</em> folder by creating a config file.</p>
+
+<pre><code>    $ echo "ports(*):[31000-31099, 31101-32000, 9998-9999]" &gt; "/etc/mesos-slave/resources"
+</code></pre>
+
+<p>Now, my new allocatable resource details sent to the Mesos master became <strong>total allocatable: ports(<em>):[31000-31099, 31101-32000, 9998-9998]; cpus(</em>):0.7; mem(<em>):801; disk(</em>):35164</strong>. The above config is crucial if we want to allocate our own custom range of ports. So this gave a good idea on how to control my resource allocation by creating custom configuration files. Now let&#8217;s restart Mesos-slave process.</p>
+
+<pre><code>    $ service mesos-master restart
+
+    $ ps axf | grep mesos-slave | grep -v grep
+     1889 ?        Ssl    0:26 /usr/local/sbin/mesos-slave --master=zk://localhost:2181,localhost:2182,localhost:2183/mesos --log_dir=/var/log/mesos --containerizers=docker,mesos --resources=ports(*):[31000-31099, 31101-32000, 9998-9999]
+     1900 ?        S      0:00  \_ logger -p user.info -t mesos-slave[1889]
+     1901 ?        S      0:00  \_ logger -p user.err -t mesos-slave[1889]
+</code></pre>
+
+<p>Now we have the Mesos slave running with Native Docker support. But the current stable version of Marathon still don&#8217;t support the native Docker feature of Mesos. So we need to setup Marathon 0.7 from scratch. I&#8217;ve written a <a href="https://beingasysadmin.wordpress.com/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">blog</a> for upgrading Marathon from 0.6.x to 0.7. Once we have setup the Marathon 0.7, we can start using Mesos with the Native Docker support. Let&#8217;s create a new App in Marathon via its REST API.</p>
+
+<p>create a JSON file in the new container format. say ubuntu.json</p>
+
+<pre><code>{
+    "id": "mesos-docker-test",
+    "container": {
+        "docker": {
+            "image": "ubuntu:14.04"
+        },
+        "type": "DOCKER",
+        "volumes": []
+    },
+    "cmd": "while sleep 10; do date -u +%T; done",
+    "cpus": 0.2,
+    "mem": 200,
+    "ports": [9999],
+    "requirePorts": true,
+    "instances": 1
+}
+</code></pre>
+
+<p>Now, we can use the Marathon API to launch the Docker task,</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+
+{"id":"/mesos-docker-test","cmd":"while sleep 10; do date -u +%T; done","args":null,"user":null,"env":{},"instances":1,"cpus":0.2,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"storeUrls":[],"ports":[9999],"requirePorts":true,"backoffSeconds":1,"backoffFactor":1.15,"container":{"type":"DOCKER","volumes":[],"docker":{"image":"ubuntu:14.04"}},"healthChecks":[],"dependencies":[],"upgradeStrategy":{"minimumHealthCapacity":1.0},"version":"2014-08-31T16:03:50.593Z"}
+
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS               NAMES
+25ba3950a9e1        ubuntu:14.04        /bin/sh -c 'while sl   2 minutes ago       Up 2 minutes                            mesos-a19af637-ffb9-4d3c-8b61-778d47087ace
+</code></pre>
+
+<p>Mesos UI</p>
+
+<p><img src="/images/mcomaster.png"></p>
+
+<p>Marathon UI</p>
+
+<p><img src="/images/mcomaster.png"></p>
+
+<p>With the new Native Docker support, Mesos is becoming more friendly with Docker. And this is a great achievement for people like me who are trying to use Mesos and Docker in our Infrastructure. A big kudos to Mesos and Mesosphere team for their great work :)</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">Upgrading Marthon for Mesos Native Docker Support</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-08-31T15:27:00+00:00" pubdate data-updated="true">Aug 31<span>st</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>A few days ago Mesos <code>0.20</code> version was released with native Docker support. Till that, Mesos Docker integration was performed using Mesosphere&#8217;s <a href="">Deimos</a> application. But with the new Mesos, there is no need for any external application for launching Docker containers in Mesos Slaves. As per Mesos <a href="http://mesos.apache.org/documentation/latest/docker-containerizer/">Documentation</a> we can run containers in two ways. 1) as a Task and 2) as an Executor. Currently Mesos 0.20 supports only the <code>host (--net=host)</code> Docker networking mode.</p>
+
+<p>The current stable release of Marathon is 0.6X. The debian package provided by the Mesosphere also provides the 0.6x version. The container format has been completely changed in  0.7.x version. So we cannot use the 0.6.x version along with Mesos 0.20. More details are available in the Marathon <a href="https://mesosphere.github.io/marathon/docs/upgrade/06xto070.html">Documentation</a></p>
+
+<p>The current Mesos Master branch is <code>version := "0.7.0-SNAPSHOT"</code>. So we need to compile Marathon from scratch. The only dependency for compiling Marathon is scala-sbt. Get the latest Debian package for sbt from <a href="http://www.scala-sbt.org/0.13/tutorial/Installing-sbt-on-Linux.html">here</a>. The current sbt version is 0.13.5.</p>
+
+<pre><code>$ wget http://dl.bintray.com/sbt/debian/sbt-0.13.5.deb
+
+$ dpkg -i sbt-0.13.5.deb
+</code></pre>
+
+<p>Now let&#8217;s clone the Marathon githib repo.</p>
+
+<pre><code>$ git clone https://github.com/mesosphere/marathon.git &amp;&amp; cd marathon
+
+$ sbt assembly
+
+$ ./bin/build-distribution  # for building jar file
+</code></pre>
+
+<p>The above build command will create an executable jar file &#8220;marathon-runnable.jar&#8221; under the &#8220;target&#8221; folder. We can use this jar file along with Marathon 0.6.x start script. If we check the upstart script of Marathon 0.6.x, it uses <code>/usr/local/bin/marathon</code> binary for starting the service. So we need to edit two lines in this file to use our latest version 0.7&#8217;s jar file.</p>
+
+<p>First let&#8217;s move our jar file to say &#8220;/opt/ folder.</p>
+
+<pre><code>$ cp marathon-runable.jar /opt/marathon.jar
+</code></pre>
+
+<p>Now let&#8217;s edit the Marathon binary. Make the below changes in the binary file,</p>
+
+<pre><code>marathon_jar="/opt/marathon.jar" # Line number 21
+
+and
+
+exec java "${vm_opts[@]}" -jar "$marathon_jar" "$@"  # -jar option added to use the jar file instead if the default -cp option. Line number 62
+</code></pre>
+
+<p>Now let&#8217;s restart the Marathon service.</p>
+
+<pre><code>$ service marathon restart
+</code></pre>
+
+<p>Now let&#8217;s use the <code>ps</code> command and verify the service status.</p>
+
+<pre><code>$ ps axf | grep marathon | grep -v grep
+
+22653 ?        Ssl    6:09 java -Xmx512m -Djava.library.path=/usr/local/lib -Djava.util.logging.SimpleFormatter.format=%2$s %5$s%6$s%n -jar /opt/marathon.jar --zk zk://localhost:2181,localhost:2182,localhost:2183/marathon --master zk://localhost:2181,localhost:2182,localhost:2183/mesos
+22663 ?        S      0:00  \_ logger -p user.info -t marathon[22653]
+22664 ?        S      0:00  \_ logger -p user.notice -t marathon[22653]
+</code></pre>
+
+<p>Now Marathon is running with the version 0.7 jar file. Let&#8217;s verify by creating a new Docker task. Make sure that the Mesos version 0.20 is running on the host and not the older versions of Mesos. More detail about the new container format is available in the Marathon <a href="https://mesosphere.github.io/marathon/docs/upgrade/06xto070.html">Documentation</a> page.</p>
+
+<p>create a JSON file in the new container format. say <code>ubuntu.json</code></p>
+
+<pre><code>{
+    "id": "mesos-docker-test",
+    "container": {
+        "docker": {
+            "image": "ubuntu:14.04"
+        },
+        "type": "DOCKER",
+        "volumes": []
+    },
+    "cmd": "while sleep 10; do date -u +%T; done",
+    "cpus": 0.2,
+    "mem": 200,
+    "ports": [9999],
+    "requirePorts": false,
+    "instances": 1
+}
+</code></pre>
+
+<p>Now, we can use the Marathon API to launch the Docker task,</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+
+{"id":"/mesos-docker-test","cmd":"while sleep 10; do date -u +%T; done","args":null,"user":null,"env":{},"instances":1,"cpus":0.2,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"storeUrls":[],"ports":[9999],"requirePorts":false,"backoffSeconds":1,"backoffFactor":1.15,"container":{"type":"DOCKER","volumes":[],"docker":{"image":"ubuntu:14.04"}},"healthChecks":[],"dependencies":[],"upgradeStrategy":{"minimumHealthCapacity":1.0},"version":"2014-08-31T16:03:50.593Z"}
+
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS               NAMES
+25ba3950a9e1        ubuntu:14.04        /bin/sh -c 'while sl   2 minutes ago       Up 2 minutes                            mesos-a19af637-ffb9-4d3c-8b61-778d47087ace
+</code></pre>
+
+<p>Here i&#8217;ve used Port number 9999. But by default, in Mesos 0.20, default port range resourced for Mesos master is [31000-32000]. Please refer my next Blog post on how to modify and set a custom port range.</p>
+
+<p>With the new Native Docker support, Mesos is becoming more friendly with Docker. And this is a great achievement for people like me who are trying to use Mesos and Docker in our Infrastructure. A big kudos to Mesos and Mesosphere team for their great work :)</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-08-25T13:02:00+00:00" pubdate data-updated="true">Aug 25<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>, <a class='category' href='/blog/categories/mesosphere/'>Mesosphere</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s almost 3 months since i&#8217;ve started with Mesos + Marathon. Yesterday, i was going through the <a href="https://mesosphere.github.io/marathon/docs">Marathon Doc Site</a>, and found that Marathon has a cool internal Event Bus. Currently Marathon has an ibuilt HTTP callback subscriber that POSTs events in JSON format to one or more endpoints. So i decided to give it a try to my Mesos test environment. More documentations of the <a href="https://mesosphere.github.io/marathon/docs/event-bus.html">Event Bus</a> are available in the Documentation page.</p>
+
+<p>Currently, in my test environment all the Mesos and Marathon are installed from the Mesosphere <a href="https://mesosphere.io/learn/install_ubuntu_debian/">Debian</a> packages. Whether we use the packaged <strong>init</strong> or <strong>upstart</strong> script, both of them are directly calling the <code>/usr/local/bin/marathon</code> binary. For the Event Bus with http callback, we need to enable two flags (&#8211;event_subscriber http_callback &#8211;http_endpoints http://host1/foo,http://host2/bar) while starting the Marathon service ie, <em>&#8211;event_subscriber</em>, the type of subscriber that we are going to use and <em>&#8211;http_endpoints</em>, endpoints corresponding to the subscriber.</p>
+
+<p>From the marathon binary, i found the it looks for files under the <code>/etc/marathon/conf/</code> folder, where each file is the <strong>name of the flag</strong> to be enabled and the <strong>content of the file is the flag values</strong>. So in our case, we need two files inside the &#8220;/etc/marathon/conf/&#8221;, 1) <code>event_subscriber</code> and 2) <code>http_endpoints</code></p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ls /etc/marathon/conf/
+event_subscriber  http_endpoints
+</code></pre>
+
+<p>And the content of these files are,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/event_subscriber
+http_callback
+
+root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/http_endpoints
+http://localhost:1234/
+</code></pre>
+
+<p>Now for test purpose, lets start a minimal webserver using <code>netcat</code> listening to port <em>1234</em></p>
+
+<pre><code>$ nc -l -p 1234
+</code></pre>
+
+<p>Now netcat is listening on port 1234. Lets restart Marathon with our new flags.</p>
+
+<pre><code>$ service marathon restart
+</code></pre>
+
+<p>Now lets check if the flags are enabled properly,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ps axf | grep marathon | grep -v grep
+2780 ?        Sl     0:36 java -Xmx512m -Djava.library.path=/usr/local/lib -Djava.util.logging.SimpleFormatter.format=%2$s %5$s%6$s%n -cp /usr/local/bin/marathon mesosphere.marathon.Main --zk zk://localhost:2181,localhost:2182,localhost:2183/marathon --master zk://localhost:2181,localhost:2182,localhost:2183/mesos --http_endpoints http://localhost:1234/ --event_subscriber http_callback
+2791 ?        S      0:00  \_ logger -p user.info -t marathon[2780]
+2792 ?        S      0:00  \_ logger -p user.notice -t marathon[2780]
+</code></pre>
+
+<p>From the above <em>ps</em> command, it can be seen that the flags are enabled properly. Now i&#8217;m going to start a docker container. So as per the Event Bus documentation, Callbacks are Fired every time Marathon receives an API request that modifies an app (create, update, delete)</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+</code></pre>
+
+<p>where <code>ubuntu.json</code> is,</p>
+
+<pre><code>{
+    "container": {
+    "image": "docker:///libmesos/ubuntu",
+    "options" : []
+  },
+  "id": "ubuntu2",
+  "instances": "1",
+  "cpus": ".3",
+  "mem": "200",
+  "uris": [ ],
+  "ports": [9999],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}
+</code></pre>
+
+<p>Once the Marathon API is fired, we will get a POST request on our netcat with the Event details. Below is the Event received on my netcat server.</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/var/tmp# nc -l -p 1234
+POST / HTTP/1.1
+Host: localhost:1234
+Accept: application/json
+User-Agent: spray-can/1.2.1
+Content-Type: application/json; charset=UTF-8
+Content-Length: 427
+
+{"clientIp":"127.0.0.1","uri":"/v2/apps","appDefinition":{"id":"ubuntu2","cmd":"while sleep 10; do date -u +%T; done","env":{},"instances":1,"cpus":0.3,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"ports":[9999],"taskRateLimit":1.0,"container":{"image":"docker:///libmesos/ubuntu","options":[]},"healthChecks":[],"version":{"dateTime":{}}},"eventType":"api_post_event","timestamp":"2014-08-25T13:23:27.059Z"}
+</code></pre>
+
+<p>This Event bus is really usefull as it notifies us on all the Event changes happening on our Mesos cluster. We can also buit an Event notification system based on these callbacks. Though the current Events has very minimal details, i&#8217;m sure that more Event types will get added soon into Marathon.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/">Managing Docker Cluster Using Multiple Mesos Masters</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-08-15T16:44:00+00:00" pubdate data-updated="true">Aug 15<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>, <a class='category' href='/blog/categories/zookeeper/'>Zookeeper</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">blog</a>, i&#8217;ve described how to manage Docker cluster using Mesos and Marathon. It was using a single Mesos Master. But for production, we cannot go with a single Mesos master, as it will result in a sinlge point of failure. Mesos supports Multi master via Zookeeper. So in this blog i&#8217;m going to explain how to setup a Multi Master Mesos Cluster using Zookeper for Automatic promotion of Mesos master when the current Active Mesos Master fails. This time i&#8217;m going to setup 3 Zookeeper services and 2 Mesos Master on a single Vagrant box.</p>
+
+<h1>Setting up ZooKeeper Cluster</h1>
+
+<p>First lets download the the latest stable Zookeeper source code.</p>
+
+<pre><code>$ wget http://mirrors.ukfast.co.uk/sites/ftp.apache.org/zookeeper/stable/zookeeper-3.4.6.tar.gz
+</code></pre>
+
+<p>Now extract the tar file and create 3 copies of the same, say zookeeper1, zookeeper2 and zookeeper3. Also Zookeeper needs Java on the machine, so let&#8217;s install java dependencies.</p>
+
+<pre><code>$ apt-get install openjdk-7-jdk openjdk-7-jre
+</code></pre>
+
+<p>Now inside, the extracted zookeeper source folder, we need to create a config file. So in our case, inside each Zookeeper folder, we need a <code>zoo.cfg</code> file.</p>
+
+<p>For zookeeper1 folder,</p>
+
+<pre><code># content of zoo.cfg
+tickTime=2000
+dataDir=/var/lib/zookeeper1/
+clientPort=2181
+initLimit=5
+syncLimit=2
+server.1=localhost:2888:3888
+server.2=localhost:2889:3889
+server.3=localhost:2890:3890
+</code></pre>
+
+<p>For zookeeper2 folder,</p>
+
+<pre><code># content of zoo.cfg
+tickTime=2000
+dataDir=/var/lib/zookeeper2/
+clientPort=2182
+initLimit=5
+syncLimit=2
+server.1=localhost:2888:3888
+server.2=localhost:2889:3889
+server.3=localhost:2890:3890
+</code></pre>
+
+<p>For zookeeper3 folder,</p>
+
+<pre><code>    # content of zoo.cfg
+tickTime=2000
+dataDir=/var/lib/zookeeper3/
+clientPort=2183
+initLimit=5
+syncLimit=2
+server.1=localhost:2888:3888
+server.2=localhost:2889:3889
+server.3=localhost:2890:3890
+</code></pre>
+
+<p>Here, since the 3 zookeeper services are running on the same host, i&#8217;ve assigned separate ports. If the zookeeper are running on separate instances, then we can have the same ports for all of the zookeeper nodes. There are two port numbers. The first followers use to connect to the leader, and the second is for leader election.</p>
+
+<p>Now we can start the Zookeeper in Foreground using the <code>./bin/zkServer.sh start-foreground</code> from each of the 3 zookeeper folders. <code>netstat -nltp | grep 288</code> will display the port of the zookeeper service which is the current master among the cluster. We can also check the connectivity using the zookeepr client binary available in the zookeeper source folder. Once zookeeper cluster is UP, we can go ahead setting up Mesos.</p>
+
+<h1>Setting up Multiple Mesos Masters</h1>
+
+<p>Mesossphere team has already built packages for Mesos,Marathon and Deimos. So one of my Mesos master will be from the package. But i also wanted to play with the Mesos Source, so i decided to build Mesos from the source. So my second Mesos Master will be from the scratch.</p>
+
+<p>First Master from the Mesosphere package.</p>
+
+<pre><code>$ apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
+
+$ DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+
+$ CODENAME=$(lsb_release -cs)
+
+# Add the repository
+$ echo "deb http://repos.mesosphere.io/${DISTRO} ${CODENAME} main" | sudo tee /etc/apt/sources.list.d/mesosphere.list
+
+$ apt-get -y update
+
+$ apt-get -y install mesos marathon deimos
+</code></pre>
+
+<p>Now we need to define the Zookeeper cluster details so that Mesos master and slave can connect. Edit <code>/etc/mesos/zk</code> and add <code>zk://localhost:2181,localhost:2182,localhost:2183/mesos</code>. More details about Zookeeper URL is available <a href="https://github.com/deepakmdass88/mesos-doc-test/blob/master/Using-ZooKeeper.textile">here</a>. Also More details about installing Mesos from Mesosphere&#8217;s Debian package is available in their <a href="http://mesosphere.io/docs/getting-started/debian-install/">website</a>.</p>
+
+<p>So now we have one master ready, we can start the Mesos Master, Mesos Slave and Marathon. ANd esnure that they can connect to our Zookeeper cluster properly. We can also see the connection status in the stdout of the zookeeper process as they are running in foreground.</p>
+
+<p>Now building the second Mesos master from scratch. First let&#8217;s download the Mesos Source Code.</p>
+
+<pre><code>$ wget http://archive.apache.org/dist/mesos/0.19.0/mesos-0.19.0.tar.gz
+
+$ tar xvzf mesos-0.19.0.tar.gz &amp;&amp; cd mesos-0.19.0
+
+$ ./bootstrap &amp;&amp; ./configure --prefix=/usr/local/mesos
+
+$ make &amp;&amp; make install
+</code></pre>
+
+<p>Once the Compilation is succeeded, we can start the new Mesos Master service. The default port 5050 is used by the existing master, so we need to run this new service on a different port.</p>
+
+<pre><code>$ /usr/local/mesos/sbin/mesos-master --zk=zk://localhost:2181,localhost:2182,localhost:2183/mesos --port=5054 --quorum=1 --registry=in_memory --work_dir=/var/lib/mesos/
+</code></pre>
+
+<p>Once the new Mesos Master is up, we can create a test container via Marathon Rest API. Create a simple json file called ubuntu.json</p>
+
+<pre><code>{
+    "container": {
+    "image": "docker:///libmesos/ubuntu",
+    "options" : []
+  },
+  "id": "ubuntu",
+  "instances": "1",
+  "cpus": ".3",
+  "mem": "200",
+  "uris": [ ],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}
+
+
+$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+</code></pre>
+
+<p>This will launch a single container. We can check the status of the container via the Marathon UI as well as via RestAPI also. Now comes the critical part for Production, What happens when the master fails. Mesos Documentation says, if the current master fails, in a Multi master Mesos Cluster, Zookeeper will elect a new Master, in our case the second Mesos master service. And Mesos Claims that the running services will not get crashed and the status will be taken by the newly promoted master. In our case, we have a Docker container running as a long running service.</p>
+
+<p><img src="https://beingasysadmin.files.wordpress.com/2014/06/marathon-1.png?w=6400"></p>
+
+<p>First i&#8217;ll stop one of the Mesos master service,</p>
+
+<pre><code>$ service mesos-master stop
+</code></pre>
+
+<p>Now immidiately on the stdout of the Zookeeper, we can see the logs corresponding to the Election process. Below is the same,</p>
+
+<pre><code>I0814 19:41:07.889044  9093 contender.cpp:243] New candidate (id='7') has entered the contest for leadership
+2014-08-14 19:41:07,896:9088(0x7ff8e2ffd700):ZOO_INFO@check_events@1750: session establishment complete on server [127.0.0.1:2183], sessionId=0x347d606d0d90003, negotiated timeout=10000
+I0814 19:41:07.899509  9092 group.cpp:310] Group process ((10)@10.0.2.15:5054) connected to ZooKeeper
+I0814 19:41:07.900049  9092 group.cpp:784] Syncing group operations: queue size (joins, cancels, datas) = (0, 0, 0)
+I0814 19:41:07.900069  9092 group.cpp:382] Trying to create path '/mesos' in ZooKeeper
+I0814 19:41:07.915621  9092 detector.cpp:135] Detected a new leader: (id='6')
+I0814 19:41:07.915699  9092 group.cpp:655] Trying to get '/mesos/info_0000000006' in ZooKeeper
+I0814 19:41:07.920266  9094 network.hpp:423] ZooKeeper group memberships changed
+I0814 19:41:07.920910  9094 group.cpp:655] Trying to get '/mesos/log_replicas/0000000003' in ZooKeeper
+I0814 19:41:07.924144  9095 network.hpp:461] ZooKeeper group PIDs: { log-replica(1)@10.0.2.15:5054 }
+I0814 19:41:07.926575  9092 detector.cpp:377] A new leading master (UPID=master@10.0.2.15:5054) is detected
+I0814 19:41:07.926679  9092 master.cpp:957] The newly elected leader is master@10.0.2.15:5054 with id 20140814-194033-251789322-5050-8808
+</code></pre>
+
+<p>As per the above logs, the second Mesos Master running at port 5054 was promoted as New Mesos Master. This will be reflected to Marathon also. We can go to the Marthon UI and make sure that the Docker process that we have started using the old Mesos master is still running fine. We can even try making some scaling changes and can make sure that the new master can alter the process.</p>
+
+<p>In my testing, i&#8217;ve tried stoping each of the service and ensured that only one Mesos master is running and also tried scaling the Apps from one Master service to make sure that the new Master was able to keep track of all these changes. The results were quite promising. Mesos + Marrthon + Docker indeed is killer combo. We can really built a cross vendor independent cluster with scaling capabilites.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a></h1>
     
     
@@ -956,728 +1690,6 @@ For Network usage -&gt; collectd_type:"if_octets" AND host:"test.plivo.com"
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/04/07/near-realtime-dashboard-with-kibana-and-elasticsearch/">Near RealTime Dashboard With Kibana and Elasticsearch</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-04-07T09:39:00+00:00" pubdate data-updated="true">Apr 7<span>th</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/elasticsearch/'>Elasticsearch</a>, <a class='category' href='/blog/categories/eventmonitoring/'>EventMonitoring</a>, <a class='category' href='/blog/categories/kibana/'>Kibana</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Being in <em>DevOps</em> it&#8217;s always Multi tasking. From Regular customer queries it goes through Monitoring, Troubleshooting etc. And offcourse when things breaks, it really becomes core multi tasking. Especially when you have a really scaling infrastructure, we should really understand what&#8217;s really happening in our infrastructure. Yes we do have many new generation cloud monitoring tools like Sensu, but what if we have a near real time system that can tell us the each and every events happeing in our infrastructure. Logs are the best places where we can keep track of the events, even if the monitoring tools has missed it. We have a lot of log aggregator tools like tool Logstash, Splunk, Apache Kafka etc. And for log based event collection the common choice will be always <strong>Logstash -> StatsD -> Graphite</strong>. And ElasticSearch for indexing these.</p>
-
-<p>My requirement was pretty straight. Record the events, aggregate them and keeps track of them in a timely manner. Kibana uses ElasticSearch facets for aggregating the search query results.Facets provide aggregated data based on a search query. So as a first task, i decided to visualize the location of user&#8217;s who are registering their SIP endpoints on our SIP registrar server. Kibana gives us a good interface for the 2D heat map as well as a new option called <em>BetterMap</em>. Bettermap uses geographic coordinates to create clusters of markers on map and shade them orange, yellow and green depending on the density of the cluster. So from the logs, i just extracted the register events, and used a custom regex patterns to extract the details like the Source IP, usernames etc using logstash. Using the logstash&#8217;s GeoIP filter, the Geo Locations of the IP can be identified. For the BetterMap, we need  coordinates, in geojson format. <em>GeoJSON</em> is <strong>[longitude,latitude]</strong> in an array. From the Geo Locations that we have identified in the GeoIP filter, we can create this GeoJSON for each event that we are receiving. Below is a sample code that i&#8217;ve used  in logstash.conf for creating the GeoJSON in Logstash.</p>
-
-<pre><code>if [source_ip]  {
-    geoip {
-      type =&gt; "kamailio-registers"
-      source =&gt; "source_ip"
-      target =&gt; "geoip"
-      add_field =&gt; ["[geoip][coordinates]","%{[geoip][longitude]}"]
-      add_field =&gt; ["[geoip][coordinates]","%{[geoip][latitude]}"]
-    }
-    mutate {
-      convert =&gt; [ "[geoip][coordinates]", "float" ]
-    }
-  }
-</code></pre>
-
-<p>The above filter will create a GeoJSON array &#8220;geoip.coordinates&#8221;. This array can be used for creating the BetterMap in Kibana. Below are the settings for creating a BetterMap panel in the Kibana dashboard. While adding a new panel, select &#8220;bettermap&#8221; as the panel type, and the co-ordinate filed should be the one which contains the GeoJSON data. Make sure that the data is of the format [longitude,latitude], ie Longitude first and then followed by latitude.</p>
-
-<p><img src="/images/bettermap_config.png"></p>
-
-<p><img src="/images/bettermap.png"></p>
-
-<p>Moving ahead, i decided to collect the events happening on our various other server&#8217;s. We were one of the earliest companies who started using SIP (Session Initiation Protocol). SIP employs design elements similar to the HTTP request/response transaction model. So similar to web traffic, i&#8217;ve decided to collect events related to 4XX, 5XX and 6XX error responses, as it is very important to us. Once the logs are shipped to logstash, i wrote another custom grok pattern, which extracts the Error Code and Error responses, including the server which returned the same. These data&#8217;s can be used for future analysis also. So i decided to store these on ElasticSearch. So now we have the real time event data&#8217;s stored, but how to visualize. Since i dont have to perform much mathematical analytics with data, i decided to to remove graphite. Kibana has a wonder full GUI for visualizing the data. So decided to go ahead with Kibana. One option is &#8220;histogram&#8221; panel time. Using histogram we can visualize the data via a regular bar graph, as well as using the area graph. There is another panel type called &#8220;terms&#8221; which can be used to display the agrregated events via pie chart, bar chart, or a table. And below is what i achieved with Kibana.</p>
-
-<p><img src="/images/SIP-kibana.png"></p>
-
-<p><img src="/images/SIP-pie.png"></p>
-
-<p>This is just an inital setup. I&#8217;m going to add more events to this. As of now Kibana + Elasticsearch proves to be a promising combination for displaying all near real time events happening in my Infrastructure.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/03/30/event-monitoring-using-logstash-plus-statsd-plus-riemann/">Event Monitoring Using Logstash + StatsD + Riemann</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-03-30T14:48:00+00:00" pubdate data-updated="true">Mar 30<span>th</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/logstash/'>logstash</a>, <a class='category' href='/blog/categories/riemann/'>riemann</a>, <a class='category' href='/blog/categories/statsd/'>statsd</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Being an OPS guy, i love Logs a lot. Logs contains lots of sensitive events recorded in it. Though a lot of people rely on monitoring tools, there are a lot of scenario where we still can&#8217;t rely on monitoring. In such scenarios, logs are the best sources to identify those events in a near real time fashion. A common scenario is Web Operations, where we need to count the the various 4xx, 5xx, Auth errors experienced by the user&#8217;s. I had a simliar requirement where i need to identify the 4xx, 5xx, 6xx errors and other similar failures on various SIP server&#8217;s. But apart from just visualising these error&#8217;s i also wanted a notification system which can notify me when the value crosses the threshold.</p>
-
-<p><code>Logstash</code> and <code>StasD</code> is a perfect combination for aggregating events from the logs. StatsD has a Graphite backend, where it sends the aggreagated metric values for visualizing. But when we have large number graphs, and offcourse when being a multi tasking Ops guy, it&#8217;s not possible to sit and watch all these graphs. So we need a notification system which alert&#8217;s us when things starts breaking. Here comes <a href="http://riemann.io/">RIEMANN</a>. Riemann aggregates events from your servers and applications with a powerful stream processing language. Riemann is pretty light weight, easy to configure monitoring framework. Logstash sents the filtered events from the logs to StatsD output plugin. Based on the flushInterval, statsD iterates through the received events sents the aggregated metric values to the Graphite. There is also a Riemann output plugin for Logstash, but we need to pass the state/metric to the plugin. In my case, logstash filters the event from the log, so i need to converts these events to time based metric values. Since statsD already has these events converted into time series metrics, i decided to write a small backend for statsD that can send these aggregated metrics to Riemann.</p>
-
-<p>The StatsD backend basically requires to main functions, one is &#8221;<em>flush_stats</em>&#8221; which will get invoked once the flush interval is reached. This function then iterates over the received metrics and passes these aggregated metrics to another function called &#8221;<em>post_stats</em>&#8221;, which sends the metrics to the corresponding aplications. In our case, we need to send the metrics to Riemann. There is a Riemann-Node plugin, which we can utilize here for sending the metrics to Riemann server. Below is the content for the &#8221;<em>flush_stats</em>&#8221; and &#8221;<em>post_stats</em>&#8221; functions. Currently i&#8217;ve added support only for counters. Soo i&#8217;ll be adding support for Counters and Timers also.</p>
-
-<pre><code>flush_stats function
---------------------
-
-var flush_stats = function riemann_flush(ts, metrics) {
-var statString = '';
-var numStats = 0;
-var key;
-
-var counters = metrics.counters;
-var gauges = metrics.gauges;
-var timers = metrics.timers;
-var pctThreshold = metrics.pctThreshold;
-
-for (key in counters) {
-    var value = counters[key];
-    var valuePerSecond = value / (flushInterval / 1000); // calculate "per second" rate
-
-    statsString = value;
-    service = key;
-    time_stamp = ts;
-    post_stats(statString, service_name, time_stamp);
-}
-}; 
-
-
-post_stats function
--------------------
-
-var post_stats = function riemann_post_metrics(statString, service_name, time_stamp) {
-
-riemannStats.last_exception = Math.round(new Date().getTime() / 1000);
-
-client.send(client.Event({
-  service: service_name,
-  metric:  statsString,
-  time: time_stamp
-}));
-};
-</code></pre>
-
-<p>So here i&#8217;m not gonna send the per second metrics. I&#8217;m using the default 10 sec flushInterval. So every seconds StatsD will send the incremented metrics to Riemann. The namespace, sender etc are defined in the logstash conf itself. The full plugin file is available in <a href="https://gist.github.com/deepakmdass88/9851437">here</a></p>
-
-<p>To use this Riemann backend, first we need to copy this file into the backend folder of the StatsD repo folder. Then we need to enable this plugin in the StatsD config file. Below is a sample config file which uses both graphite and Riemann backends.</p>
-
-<pre><code>{
-  riemannPort: 5555
-, riemannHost: "localhost"
-, graphitePort: 2003
-, graphiteHost: "localhost"
-, port: 8125
-, backends: [ "./backends/riemann", "./backends/graphite" ]
-}
-</code></pre>
-
-<p>So now StatsD will send out the incremented and the per second metric to Graphite and the Riemann backend will send the incremented metric to the Rieman server. No we can define the metric threshold and the notification method on the reimann config file. Below is my reimann metric threshold and notification.</p>
-
-<pre><code>(streams
-      (where (&gt;= metric 10)
-        (where (service #"SIP")
-          (email "deepakmdass88@gmail.com")))))
-</code></pre>
-
-<p>So whenever the recived metric value is beyond 10, Riemann will notify the same to my Email. I&#8217;ve done some dry testing with this setup. So far this setup never turned me down. Though there are some tweaks to be done, but this setup really suited to my requirement. being an OPS guy, my primary focus is to detect the outages at a very early stages to minimize the impact. Hope this guy will be an added defence layer for the same.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/02/23/building-im-server-using-kamailio/">Building IM Server Using Kamailio</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-02-23T14:59:00+00:00" pubdate data-updated="true">Feb 23<span>rd</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/im/'>IM</a>, <a class='category' href='/blog/categories/kamailio/'>Kamailio</a>, <a class='category' href='/blog/categories/sip/'>SIP</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Instant messaging (IM) is a type of online chat which offers real-time text transmission over the Internet. Like XMPP, we can also use SIP for real-time text transmission. The Kamailio PRESENCE module helps us built the same locally. We can convert a simple Kamailio server into a full fledged IM server.</p>
-
-<p>By default, all the registered endpoints will send a &#8220;PUBLISH&#8221; requests to the Presence server with their status and Presence server stores the status. Also the endpoints will send a &#8220;SUBSCRIBE&#8221; to other user&#8217;s status. For each &#8220;SUBSCRIBE&#8221; request, the Presence server will sent a &#8220;NOTIFY&#8221; request back with status of the user. This is how our UserAgent keeps track of each user&#8217;s status. Below is simple flow diagram for the same.</p>
-
-<p><img src="http://beingasysadmin.files.wordpress.com/2014/02/screen-shot-2014-02-23-at-4-34-59-pm.png" alt="Alt text" /></p>
-
-<h3>Setting up Kamailio</h3>
-
-<p>In my <a href="" title="http://beingasysadmin.wordpress.com/2014/02/23/integrating-kamailio-with-freeswitch/">previous blog</a>, i&#8217;ve explained how to install Kamailio from source. The only difference is we need to enable two more modules &#8221;<strong>presence</strong>&#8221; and &#8221;<strong>presence_xml</strong>&#8221;. If Kamailio is already installed, we need to add these two modules into <code>modules.lst</code> at the &#8221;<strong>include_modules</strong>&#8221; line. Once the module names are added, we need to run &#8221;<strong>make install</strong>&#8221; to install the two new modules. Once the module is added, we need to enable the module.</p>
-
-<p>Add &#8220;#!define WITH_PRESENCE&#8221; into the &#8220;kamailio.cfg&#8221; file. Then check if there is route logic defined for the &#8220;PRESENCE&#8221; module. By default there is a PRESENCE route defined in the default &#8220;kamailio.cfg&#8221; file. If it&#8217;s not there below is the route logic. Also we need to add &#8220;*route(PRESENCE)<strong>&#8221; in the &#8221;</strong>request_route**&#8221; section.</p>
-
-<pre><code># Presence server route
-route[PRESENCE] {
-        if(!is_method("PUBLISH|SUBSCRIBE"))
-                return;
-
-        if(is_method("SUBSCRIBE") &amp;&amp; $hdr(Event)=="message-summary") {
-                route(TOVOICEMAIL);
-                # returns here if no voicemail server is configured
-                sl_send_reply("404", "No voicemail service");
-                exit;
-        }
-
-#!ifdef WITH_PRESENCE
-        if (!t_newtran())
-        {
-                sl_reply_error();
-                exit;
-        }
-
-        if(is_method("PUBLISH"))
-        {
-                handle_publish();
-                t_release();
-        } else if(is_method("SUBSCRIBE")) {
-                handle_subscribe();
-                t_release();
-        }
-        exit;
-#!endif
-
-        # if presence enabled, this part will not be executed
-        if (is_method("PUBLISH") || $rU==$null)
-        {
-                xlog("@ 404 here 3");
-                sl_send_reply("404", "Not here");
-                exit;
-        }
-        return;
-}
-</code></pre>
-
-<p>Now start the Kamailio server. Now we need to add some users. For that we can use &#8221;<strong>kamctl</strong>&#8221; binary.</p>
-
-<pre><code>$ kamctl add user1@192.168.56.100 user1
-
-$ kamctl add user2@192.168.56.100 user2
-</code></pre>
-
-<p>Let&#8217;s go ahead and test the settings. For testing we need some IM clients. In my testing, i&#8217;ve used <strong>Jitsi</strong> and <strong>adium</strong> IM clients. Once the accounts are configured on the clients, it&#8217;s better to start a packet capture using wireshark, so that we can see these <strong>PUBLISH</strong>, <strong>SUBSCRIBE</strong> and <strong>NOTIFY</strong> requests between the clients and the Kamailio server. If you are using <strong>Adium</strong>, go to account options and check the &#8220;Publish Status to Everyone&#8221; so that it will start sending <strong>PUBLISH</strong> request to the Kamailio server. Now add the accounts to the Contact lists on the IM clients and then we will be able to see the users status (ONline/OFFline). Now we can start the chat conversation between the user&#8217;s.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/02/23/integrating-kamailio-with-freeswitch/">Integrating Kamailio With FreeSwitch</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-02-23T11:05:00+00:00" pubdate data-updated="true">Feb 23<span>rd</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/kamailio/'>Kamailio</a>, <a class='category' href='/blog/categories/openser/'>OPENSER</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>, <a class='category' href='/blog/categories/voip/'>voip</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>Kamailio</code> aka <code>OpenSER</code> is one of the most powerfull and popular Open Source SIP server. It can be used as <strong>SIP Proxy/Registrar/LB/Router</strong> etc. It also provides a lot of features <em>like WebSocket support for WebRTC, ; SIMPLE instant messaging and presence with embedded XCAP server and MSRP relay,IMS extensions,ENUM and offcourse AAA (accounting, authentication and authorization)</em> also. Kamailio is a modular system, ie, it has lot of modules which corresponds to particular functions. These modules can be easily installed and can be used easily in Kamailio. In this blog i&#8217;m going to use Kamailio as a proxy server. All the user&#8217;s are created in the Kamailio and FreeSwitch will be acting as a relay server for outbound calls. So Kamailio performs authentication and all the outbound calls wil be relayed to FreeSwitch.</p>
-
-<h3>Installing Kamailio</h3>
-
-<p>Lets download the latest version of Kamailio, now it&#8217;s 4.1</p>
-
-<pre><code>$ wget http://www.Kamailio.org/pub/Kamailio/latest/src/Kamailio-4.1.1_src.tar.gz
-
-$ tar xvzf Kamailio-4.1.1_src.tar.gz &amp;&amp; cd Kamailio-4.1.1
-</code></pre>
-
-<p>Before we start the build we need to install the basic dependencies.</p>
-
-<pre><code>$ apt-get install gcc flex bison libmysqlclient-dev make libxml2-dev libssl-dev
-</code></pre>
-
-<p>Now we have the dependencies installed, we can go ahead with the build.</p>
-
-<pre><code>$ make cfg      # generates config files for build system
-</code></pre>
-
-<p>Now open <code>modules.lst</code> and add the modules to be installed in &#8221;<strong>include_modules</strong>&#8221; section. In my case i&#8217;m going to use MySQL backend so it will be &#8221;<strong>include_modules= db_mysql</strong>&#8221; and then we can run the &#8221;<em>make all</em>&#8221;. The other way is we can mention the modules directly while running the &#8220;make&#8221; rather editing the modules.lst file.</p>
-
-<pre><code>$ make include_modules="db_mysql" cfg
-</code></pre>
-
-<p>Now we can install,</p>
-
-<pre><code>$ make install
-</code></pre>
-
-<p>The above command will install Kamailio to our system. There are four main binaries for Kamailio,</p>
-
-<pre><code>Kamailio - Kamailio SIP server
-kamdbctl - script to create and manage the Databases
-kamctl - script to manage and control Kamailio SIP server
-kamcmd - CLI - command line tool to interface with Kamailio SIP server
-</code></pre>
-
-<p>There is also one configuration file called &#8220;Kamailio.cfg&#8221; which is available by default at <code>/usr/local/etc/Kamailio/Kamailio.cfg</code></p>
-
-<p>Let&#8217;s go ahead with setting up MySQL server for Kamailio.</p>
-
-<pre><code>$ apt-get install mysql-server
-</code></pre>
-
-<p>Now edit the <code>/usr/local/etc/Kamailio/kamctlrc</code> Locate DBENGINE variable and set it to MYSQL by making &#8221;<strong>DBENGINE=MYSQL</strong>&#8221;. Now we can use the &#8220;kamdbctl&#8221; binary to craete the default tables and users.</p>
-
-<pre><code>$ /usr/local/sbin/kamdbctl create
-</code></pre>
-
-<p>The script will add two users in MySQL:</p>
-
-<ul>
-<li><p>Kamailio - (with default password &#8216;Kamailiorw&#8217;) - user which has full access rights to &#8216;Kamailio&#8217; database</p></li>
-<li><p>Kamailioro - (with default password &#8216;Kamailioro&#8217;) - user which has read-only access rights to &#8216;Kamailio&#8217; database</p></li>
-</ul>
-
-
-<p>There is a sample init.d script available along with Kamailio, which we can use it. We need to copy the sample init.d file to our system&#8217;s init.d folder. And the same for the system default file.</p>
-
-<pre><code>$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.init /etc/init.d/Kamailio
-
-$ cp /usr/local/src/Kamailio-4.1.1/pkg/Kamailio/deb/precise/Kamailio.default /etc/default/Kamailio
-
-$ chmod 755 /etc/init.d/Kamailio 
-</code></pre>
-
-<p>Edit the new init file and modify the $DAEMON and $CFGFILE values.</p>
-
-<pre><code>DAEMON=/usr/local/sbin/Kamailio
-CFGFILE=/usr/local/etc/Kamailio/Kamailio.cfg
-
-$ mkdir -p /var/run/Kamailio    # Directory for the pid file
-</code></pre>
-
-<p>Default setting is to run Kamailio as user &#8221;<em>Kamailio</em>&#8221; and group &#8221;<em>Kamailio</em>&#8221;. For that we need to create the user:</p>
-
-<pre><code>$ adduser --quiet --system --group --disabled-password \
-      --shell /bin/false --gecos "Kamailio" \
-      --home /var/run/Kamailio Kamailio
-
-$ chown Kamailio:Kamailio /var/run/Kamailio
-</code></pre>
-
-<h3>Setting up Kamailio</h3>
-
-<p>All the Kamailio configurations are mentioned in only one single file <code>/usr/local/etc/Kamailio/Kamailio.cfg</code>. All the logics are defined in this file, and Kamailio blindly executes this logics and perform the actions. It&#8217;s very important that the logics defined in the config should suit to our VOIP platform requirement.</p>
-
-<p>First we need to enable the modules and the necessary features, so add the below lines in the Kamailio.cfg</p>
-
-<pre><code>#!define WITH_MYSQL
-#!define WITH_AUTH
-#!define WITH_USRLOCDB
-#!define WITH_FREESWITCH
-</code></pre>
-
-<p>We need to define the FreeSwitch server IP and port, for that we can add the below parameters in the &#8220;Custom Parameters&#8221; section.</p>
-
-<pre><code>#!ifdef WITH_FREESWITCH
-freeswitch.bindip = "192.168.56.100" desc "FreeSWITCH IP Address"
-freeswitch.bindport = "5090" desc "FreeSWITCH Port"
-#!endif
-</code></pre>
-
-<p>Now we can go ahead to the &#8221;<strong>request_route</strong>&#8221; section which performs the routing logic. Here i&#8217;m going to add two more routing logic for the FreeSwitch relay. After the &#8221;<strong>request_route</strong>&#8221; section, we can see the definition for each routing options. Below that we need to add our new route definitions.</p>
-
-<pre><code>route[FSDISPATCH] {
-        # dial number selection
-        route(FSRELAY);
-        exit;
-}
-
-route[FSRELAY] {
-        $du = "sip:" + $sel(cfg_get.freeswitch.bindip) + ":" + $sel(cfg_get.freeswitch.bindport);
-        if($var(newbranch)==1)
-        {
-                append_branch();
-                $var(newbranch) = 0;
-        }
-        route(RELAY);
-        exit;
-}
-</code></pre>
-
-<p>By default, all the routes mentioned in the &#8220;request_route&#8221; will be executed line by line. There is a default route called &#8221;<strong>Location</strong>&#8221;, which splits the user part from the request URI and verifies if the user exists in the location table. But when we dial an outside number/user, this location check will fail, so i&#8217;m going to add a condition which checks if the user in the request URI contains a number with a length 9-15 will be relayed to the FreeSwitch. Again this is just a simple condition, we can create a more complex condition, like check the domain part, if the domain part contains a domain which doesnot belong to our Domain list, we can either decline the request, or we can relay to FreeSwitch or we can make DNS query and we can make Kamailio to process the request to that domain&#8217;s Proxy server. Like this we can define our own conditions in the config file, and Kamailio will execute it line by line.</p>
-
-<p>I&#8217;m going to add my check condition on the &#8221;<strong>LOCATION</strong>&#8221; route definition.</p>
-
-<pre><code>route[LOCATION] {
-
-    #!ifdef WITH_SPEEDDIAL
-        # search for short dialing - 2-digit extension
-        if($rU=~"^[0-9][0-9]$")
-                if(sd_lookup("speed_dial"))
-                        route(SIPOUT);
-    #!endif
-        if($rU=~"^[0-9]{9,15}$")        # checking for numbers in the Request URI
-                route(FSDISPATCH);
-    #!ifdef WITH_ALIASDB
-        # search in DB-based aliases
-        if(alias_db_lookup("dbaliases"))
-                route(SIPOUT);
-    #!endif
-        $avp(oexten) = $rU;
-        if (!lookup("location")) {
-                xlog("L_INFO", "CALL $rm $ci lookup here\n");
-                xlog("L_INFO", "$fU@$fd - Lookup contact location for $rm\n");
-                xlog("L_INFO", "rc is $var(rc)");
-                switch ($rc) {
-                        case -1:
-                        case -3:
-                                xlog("L_ERR", "$fU@$fd - No contact found\n");
-                                send_reply("404", "Not Found here");
-                                exit;
-                        case -2:
-                                send_reply("405", "Method Not Allowed");
-                                exit;
-                }
-        }
-
-        # when routing via usrloc, log the missed calls also
-        if (is_method("INVITE"))
-        {
-                setflag(FLT_ACCMISSED);
-        }
-        xlog("L_INFO", "CALL $rm $ci relay\n");
-        xlog("L_INFO", "$fU@$fd - Relaying $rm\n");
-            route(RELAY);
-        exit;
-}
-</code></pre>
-
-<p>So now all the calls coming with numbers of length 9-15 in the Request URI will be relayed to the FreeSwitch, and FreeSwitch will process the call based on the DialPlan configured in the FreeSwitch. Since i&#8217;m going to use IP authentication, i need to whitelist the Kamailio ip in &#8220;acl_conf.xml&#8221; file in the FreeSwitch autload conf directory, so that FreeSwitch will accept the invites from Kamailio. Again i&#8217;m not defining any Voicemail options here. If we have a Voice mail server, then we can create another route option and when the caller doesn&#8217;t pick the call we can route the call to the Voice Mail server.
-For example the below condition will route the failures to FreeSwitch Voice Mailbox.</p>
-
-<pre><code>if(is_method("INVITE"))
-        {
-            # in case of failure - re-route to FreeSWITCH VoiceMail
-            t_on_failure("FAIL_FSVBOX");        # where FSVBOX is a route definition
-        }
-</code></pre>
-
-<p>Kamailio has a lot of modules which really comes in handy. For example we can use LDAP module to use LDAP as a backend. There is a PRESENCE module which helps us to setup an Instant Messaging server using Kamailio. I&#8217;ll be writing a blog on how to use Kamailio as an IM server soon. One of the main advantage of Kamailio over OpenSIP is the WebSocket support. This just a basic configuration, but we can design much complex system using Kamailio. We can even remove the default route logics, and we can use our own routing logics. Kamailio doesnot depend on default routing logics, it blindly reads the route and executes it for each incoming connections.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP Trunking With PLIVO and FreeSwitch</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-02-14T15:05:00+00:00" pubdate data-updated="true">Feb 14<span>th</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/freeswitch/'>FreeSwitch</a>, <a class='category' href='/blog/categories/plivo/'>Plivo</a>, <a class='category' href='/blog/categories/siptrunking/'>SIPTrunking</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>It&#8217;s more than a month since i joined the DevOps family at <strong>Plivo</strong>, since i&#8217;m pretty new to the Telecom Technology, i was digging more around it. This time i decided to play around with <strong>FreeSwitch</strong>, a free and open source communications software for the creation of voice and messaging products. Thanks to <a href="http://www.linkedin.com/pub/anthony-minessale-ii/3a/403/942">Anthony Minessale</a> for designing and opensourcing such a powerfull powerfull application. FreeSwitch is well documented and there are pretty good blogs also available on how to setup a PBX using FreeSwitch. This time i&#8217;m going to explain on how to make a private Freeswitch server to use Plivo as a <em>SIP Trunking</em> service.</p>
-
-<p>A bit about <a href="plivo.com">Plivo</a>. Plivo is a cloud based API Platform for building <em>Voice</em> and <em>SMS</em> enabled Applications. Plivo provides <strong>Application Programming Interfaces</strong> (APIs) to <em>make and receive calls, send SMS, make a conference call</em>, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. We can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
-
-<p>First we need a valid Plivo account. Once we have the Plivo account, we can log into the Plivo Cloud service. Now go to the &#8221;<strong>Endpoints</strong>&#8221; tab and create a SIP endpoint and attach a DirectDial app to it. Once this is done we can go ahead and start setting up the FreeSwitch instance.</p>
-
-<h3>Installing FreeSwitch</h3>
-
-<p>Clone the Official FreeSwitch Github and Repo and compile from the source.</p>
-
-<pre><code>$ git clone git://git.freeswitch.org/freeswitch.git &amp;&amp; cd freeswitch
-
-$ ./bootstrap.sh &amp;&amp; ./configure --prefix=/usr/local/freeswitch
-
-$ make &amp;&amp; make install
-
-$  make all cd-sounds-install cd-moh-install    # optional, run this if you want IVR and Music on Hold features
-</code></pre>
-
-<p>Now if we have more than one ip address on the machine, and if we want to bind to a particular ip, we need to modify two files &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external.xml</em>&#8221; and &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/internal.xml</em>&#8221;. In both the files, change the parameters &#8221;<strong>name=&#8221;rtp-ip&#8221;</strong>&#8221; and &#8221;<strong>param name=&#8221;sip-ip&#8221;</strong>&#8221; with the <em>bind ip</em> as the values.</p>
-
-<p>By default, Freeswitch will create a set of users, which includes numerical usernames ie, 1000-1019. So we can test the basic connectivity between user&#8217;s by making a call between two user accounts. We can register two of the accounts in two SoftPhones and we can make a test call and make sure that FreeSwitch is working fine. We can use the FS binary file to start FreeSwitch service in forground.</p>
-
-<pre><code>$ /usr/local/freeswitch/bin/freeswitch
-</code></pre>
-
-<h3>Configuring Gateway</h3>
-
-<p>Once the FreeSwitch is working fine, we can start configuring the SIP trunking via Plivo. So first we need to create an external gateway to connect to Plivo. I&#8217;m going to use the SIP endpoint created on the Plivo Cloud to initiate the connection. The SIP domain for Plivo is &#8221;<strong>phone.plivo.com</strong>&#8221;. We need to create a gateway config. Go to &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external/</em>&#8221;, here we can create an XML gateway config file. My config file name is <strong>plivo</strong>. Below is the content for the same.</p>
-
-<pre><code>&lt;include&gt;
-  &lt;gateway name="plivo"&gt;
-  &lt;param name="realm" value="phone.plivo.com" /&gt;
-  &lt;param name="username" value="test88140105181635" /&gt;
-  &lt;param name="password" value="secret" /&gt;
-  &lt;param name="register" value="false" /&gt;
-  &lt;param name="ping" value="5" /&gt;
-  &lt;param name="ping-max" value="3" /&gt;
-  &lt;param name="retry-seconds" value="5" /&gt;
-  &lt;param name="expire-seconds" value="60" /&gt;
-  &lt;variables&gt;
-        &lt;variable name="verbose_sdp" value="true"/&gt;
-  &lt;/variables&gt;
-  &lt;/gateway&gt;
-&lt;/include&gt;
-</code></pre>
-
-<p>There are a lot of other parameters which we can add it here, like caller id etc. Replace the username and password with the Plivo endpoint credentials. If we want to keep this endpoint registered, we can set the register param as true and we can set the expiry time at expire-seconds, so that the Fs will keep on registering the Endpoint with Plivo&#8217;s Registrar server. once the gateway file is created, we can either restart the service or we can run &#8220;reload mod_sofia&#8221; on the FScli. If the FreeSwitch service si started in foreground, we will get the FScli, so we can run the reload command directly on it.</p>
-
-<h3>Setting up Dialplan</h3>
-
-<p>Now we have the Gateway added. Now we need to the setup the Dial Plan to route the outgoing calls through Plivo. Go to &#8221;<em>/usr/local/freeswitch/conf/dialplan/</em>&#8221; folder and add an extension on the &#8221;<strong>public.xml</strong>&#8221; file. Below is a sample extension config.</p>
-
-<pre><code>&lt;extension name="Calls to Plivo"&gt;
-      &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
-        &lt;action application="transfer" data="$1 XML default"/&gt;
-      &lt;/condition&gt;
-&lt;/extension&gt;
-</code></pre>
-
-<p>So now all calls matching to the Regex will be transferred to the default dial plan. Now on the the default dial plan, i&#8217;m creating an exntension and will use the FreeSwitch&#8217;s &#8221;<em>bridge</em>&#8221; application to brdige the call with Plivo using the Plivo Gateway. So on the &#8221;<em>default.xml</em>&#8221; add the below extension.</p>
-
-<pre><code>   &lt;extension name="Dial through Plivo"&gt;
-         &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
-           &lt;action application="bridge" data="sofia/gateway/plivo/$1"/&gt;
-         &lt;/condition&gt;
-       &lt;/extension&gt;
-</code></pre>
-
-<p>Now we can restart the FS service or we can reload &#8220;mod_dialplan_xml&#8221; from the FScli. Once the changes are into effect, we can test whether the call is getting routed via Plivo. Configure a soft phone with a default FS user and make an outbound call which matches the regex that we have mentioned for routing to Plivo. Now if all works we should get a call on the destination number. We can check the FS logs at &#8221;<em>/usr/local/freeswitch/log/freeswitch.log</em>&#8221;.</p>
-
-<p>If the Regex is matched, we can see the below lines in the log.</p>
-
-<pre><code>1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 parsing [public-&gt;Calls from BoxB] continue=false
-1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 transfer(xxxxxxxxxxxx XML default)
-1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Regex (PASS) [Dial through Plivo] destination_number(xxxxxxxxxxxx) =~ /^(xxxxxxxxxxxx)$/ break=on-false
-1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Action bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)   
-1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)
-1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4499 [zrtp_passthru] Setting a-leg inherit_codec=true
-1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4502 [zrtp_passthru] Setting b-leg absolute_codec_string=GSM@8000h@20i@13200b,PCMA@8000h@20i@64000b,PCMU@8000h@20i@64000b
-</code></pre>
-
-<p>We can also mention the CallerID on the Direct Dial app which we have mapped to the SIP endpoint. Now for Incoming calls, create a app that can forward the calls to one of the user&#8217;s present in the FreeSwitch, using the Plivo&#8217;s Dial XML. So the XML should look something like below. I will be writing a more detailed blog about Inbound calls once i&#8217;ve have tested it out completely.</p>
-
-<pre><code>&lt;Response&gt;
-  &lt;Dial&gt;
-    &lt;User&gt;FSuser@FSserverIP&lt;/User&gt;
-  &lt;/Dial&gt;
-&lt;/Response&gt;
-</code></pre>
-
-<p>But for security, we need to allow connections from Plivo server. So we need to allow those IP&#8217;s on the FS acl. We can allow the IP&#8217;s in the &#8221;<strong>acl.conf.xml</strong>&#8221; file at &#8221;<em>/usr/local/freeswitch/conf/autoload_configs</em>&#8221;. And make sure that the FS server is accessible via a public ip atleast for the Plivo server&#8217;s which will forward the calls.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1701,23 +1713,23 @@ $  make all cd-sounds-install cd-moh-install    # optional, run this if you want
     <ul class="recent_posts">
       
         <li>
-          <a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a>
+          <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
         </li>
       
         <li>
-          <a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters using Mesos and Marathon</a>
+          <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
         </li>
       
         <li>
-          <a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a>
+          <a href="/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">Upgrading Marthon for Mesos Native Docker Support</a>
         </li>
       
         <li>
-          <a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - An awesome dashboard for Sensu</a>
+          <a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a>
         </li>
       
         <li>
-          <a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK stack to VOIP Infrastructure</a>
+          <a href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/">Managing Docker Cluster using Multiple Mesos Masters</a>
         </li>
       
     </ul>

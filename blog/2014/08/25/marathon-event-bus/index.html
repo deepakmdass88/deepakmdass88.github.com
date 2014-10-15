@@ -1,0 +1,330 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Marathon Event Bus - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="It&#8217;s almost 3 months since i&#8217;ve started with Mesos + Marathon. Yesterday, i was going through the Marathon Doc Site, and found that &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Marathon Event Bus" />
+  <meta name="og:description" content="It&#8217;s almost 3 months since i&#8217;ve started with Mesos + Marathon. Yesterday, i was going through the Marathon Doc Site, and found that &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus/">
+  
+  <meta name="subject" content="MarathonMesosMesosphere"/>
+  <meta name="category" content="MarathonMesosMesosphere"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Marathon Event Bus</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-08-25T13:02:00+00:00" pubdate data-updated="true">Aug 25<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>, <a class='category' href='/blog/categories/mesosphere/'>Mesosphere</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s almost 3 months since i&#8217;ve started with Mesos + Marathon. Yesterday, i was going through the <a href="https://mesosphere.github.io/marathon/docs">Marathon Doc Site</a>, and found that Marathon has a cool internal Event Bus. Currently Marathon has an ibuilt HTTP callback subscriber that POSTs events in JSON format to one or more endpoints. So i decided to give it a try to my Mesos test environment. More documentations of the <a href="https://mesosphere.github.io/marathon/docs/event-bus.html">Event Bus</a> are available in the Documentation page.</p>
+
+<p>Currently, in my test environment all the Mesos and Marathon are installed from the Mesosphere <a href="https://mesosphere.io/learn/install_ubuntu_debian/">Debian</a> packages. Whether we use the packaged <strong>init</strong> or <strong>upstart</strong> script, both of them are directly calling the <code>/usr/local/bin/marathon</code> binary. For the Event Bus with http callback, we need to enable two flags (&#8211;event_subscriber http_callback &#8211;http_endpoints http://host1/foo,http://host2/bar) while starting the Marathon service ie, <em>&#8211;event_subscriber</em>, the type of subscriber that we are going to use and <em>&#8211;http_endpoints</em>, endpoints corresponding to the subscriber.</p>
+
+<p>From the marathon binary, i found the it looks for files under the <code>/etc/marathon/conf/</code> folder, where each file is the <strong>name of the flag</strong> to be enabled and the <strong>content of the file is the flag values</strong>. So in our case, we need two files inside the &#8220;/etc/marathon/conf/&#8221;, 1) <code>event_subscriber</code> and 2) <code>http_endpoints</code></p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ls /etc/marathon/conf/
+event_subscriber  http_endpoints
+</code></pre>
+
+<p>And the content of these files are,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/event_subscriber
+http_callback
+
+root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/http_endpoints
+http://localhost:1234/
+</code></pre>
+
+<p>Now for test purpose, lets start a minimal webserver using <code>netcat</code> listening to port <em>1234</em></p>
+
+<pre><code>$ nc -l -p 1234
+</code></pre>
+
+<p>Now netcat is listening on port 1234. Lets restart Marathon with our new flags.</p>
+
+<pre><code>$ service marathon restart
+</code></pre>
+
+<p>Now lets check if the flags are enabled properly,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ps axf | grep marathon | grep -v grep
+2780 ?        Sl     0:36 java -Xmx512m -Djava.library.path=/usr/local/lib -Djava.util.logging.SimpleFormatter.format=%2$s %5$s%6$s%n -cp /usr/local/bin/marathon mesosphere.marathon.Main --zk zk://localhost:2181,localhost:2182,localhost:2183/marathon --master zk://localhost:2181,localhost:2182,localhost:2183/mesos --http_endpoints http://localhost:1234/ --event_subscriber http_callback
+2791 ?        S      0:00  \_ logger -p user.info -t marathon[2780]
+2792 ?        S      0:00  \_ logger -p user.notice -t marathon[2780]
+</code></pre>
+
+<p>From the above <em>ps</em> command, it can be seen that the flags are enabled properly. Now i&#8217;m going to start a docker container. So as per the Event Bus documentation, Callbacks are Fired every time Marathon receives an API request that modifies an app (create, update, delete)</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+</code></pre>
+
+<p>where <code>ubuntu.json</code> is,</p>
+
+<pre><code>{
+    "container": {
+    "image": "docker:///libmesos/ubuntu",
+    "options" : []
+  },
+  "id": "ubuntu2",
+  "instances": "1",
+  "cpus": ".3",
+  "mem": "200",
+  "uris": [ ],
+  "ports": [9999],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}
+</code></pre>
+
+<p>Once the Marathon API is fired, we will get a POST request on our netcat with the Event details. Below is the Event received on my netcat server.</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/var/tmp# nc -l -p 1234
+POST / HTTP/1.1
+Host: localhost:1234
+Accept: application/json
+User-Agent: spray-can/1.2.1
+Content-Type: application/json; charset=UTF-8
+Content-Length: 427
+
+{"clientIp":"127.0.0.1","uri":"/v2/apps","appDefinition":{"id":"ubuntu2","cmd":"while sleep 10; do date -u +%T; done","env":{},"instances":1,"cpus":0.3,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"ports":[9999],"taskRateLimit":1.0,"container":{"image":"docker:///libmesos/ubuntu","options":[]},"healthChecks":[],"version":{"dateTime":{}}},"eventType":"api_post_event","timestamp":"2014-08-25T13:23:27.059Z"}
+</code></pre>
+
+<p>This Event bus is really usefull as it notifies us on all the Event changes happening on our Mesos cluster. We can also buit an Event notification system based on these callbacks. Though the current Events has very minimal details, i&#8217;m sure that more Event types will get added soon into Marathon.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-08-25T13:02:00+00:00" pubdate data-updated="true">Aug 25<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>, <a class='category' href='/blog/categories/mesosphere/'>Mesosphere</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/" title="Previous Post: Managing Docker Cluster using Multiple Mesos Masters">&laquo; Managing Docker Cluster using Multiple Mesos Masters</a>
+    
+    
+      <a class="pull-right" href="/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/" title="Next Post: Upgrading Marthon for Mesos Native Docker Support">Upgrading Marthon for Mesos Native Docker Support &raquo;</a>
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">Upgrading Marthon for Mesos Native Docker Support</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/">Managing Docker Cluster using Multiple Mesos Masters</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

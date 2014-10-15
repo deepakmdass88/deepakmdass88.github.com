@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Collectd | Welcome to My Nerd World]]></title>
+  <title><![CDATA[Category: collectd | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/collectd/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2014-07-24T21:31:05+00:00</updated>
+  <updated>2014-10-15T01:09:14+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -14,74 +14,88 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Extending ELK stack to VOIP Infrastructure]]></title>
-    <link href="http://beingasysadmin.com/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/"/>
-    <updated>2014-05-05T05:12:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure</id>
-    <content type="html"><![CDATA[<p>Being a <code>DevOps</code> guy, i always love metrics. Visualized metrics gives a good picture of what's happening in our live battle stations. There are now a quite lot of Open Source tools for monitoring and visualizing. It's more than a year since i've started using <em>Logstash</em>. It never turned me down. <code>ElasticSearch-Logstash-Kibana</code> (ELK) is a killer combination. Though i started Elasticsearch + Logstash as a log analyzer, later <a href="https://github.com/etsy/statsd/">StatsD</a> and <a href="http://graphite.wikidot.com/">Graphite</a> took it to the next level. When we have a simple infrastructure it's easy to monitor. But when the infra starts scaling, it becomes quite difficult to keep track of all the events happening inside each nodes. Though service checks can help, but there is still limitation for it. I faced a lot of scenarios where things breaks but service checks will be fine. Under such scenarios logs are the only hope. They have all these events captured.</p>
+    <title type="html"><![CDATA[Monitoring Redis using CollectD and ELK]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/"/>
+    <updated>2014-10-14T23:57:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk</id>
+    <content type="html"><![CDATA[<p>Redis is an open-source, networked, in-memory, key-value data store. It's being heavily used every where from Web stack to Monitoring to Message queues. Monitoring tools like Sensu already has some good scripts to Monitor Redis. Last Month during <a href="http://in.pycon.org/funnel/2014/245-sharq-an-api-queueing-system-built-at-plivo">PyCon 2014</a> <a href="https://twitter.com/plivo">@Plivo</a>, opensourced a new rate limited queue called <a href="http://sharq.io/">SHARQ</a> which is based on Redis. So apart from just Monitoring checks, we decided to have a tsdb of what's happening in our Redis Cluster. Since we are heavily using ELK stack to visualize our infrastructure, we decided to go ahead with the same.</p>
 
-<p>At Plivo, we manage a variety of servers from SIP, Media, Proxy, WebServers, DB's etc. Being a fully Cloud based system, i really wanted to have a system which can keep track of all the live events/status of what's really happening inside our infra. So my plan was to collect two important stats, 1) Server's events 2) Application events.</p>
+<h3>CollectD Redis Plugin</h3>
 
-<h4>Collectd and Logstash</h4>
+<p>There is a cool CollectD <a href="https://github.com/powdahound/redis-collectd-plugin">plugin</a> for Redis. It pulls a verity of Data from Redis which includes, Memory used, Commands Processed, No. of Connected Clients and slaves, No. of blocked Clients, No. of Keys stored/db, uptime and challenges since last save. The installation is pretty simple and straight forward.</p>
 
-<p><code>Collectd</code> is a daemon which collects system performance statistics periodically. Since we have a lot Server's which handle Realtime Media, it's a very critical component for us. We need to ensure that the server's are not getting overloaded and there is no latency in network. I've been using Logstash heavily for stashing all my logs. And there is a stable input plugin for collectd to send the all the system metrics to logstash.</p>
+<pre><code>$ apt-get update &amp;&amp; apt-get install collectd
 
-<p>First we need to enable the Network Plugin, and then we need to mention our Logstash server IP and port so that collectd can start injecting metrics. Below is a sample colectd configuration.</p>
+$ git clone https://github.com/powdahound/redis-collectd-plugin.git /tmp/redis-collectd-plugin
+</code></pre>
 
-<pre><code>Hostname    "test.plivo.com"
+<p>Now place the <code>redis_info.py</code> file onto the collectd folder and enable the <em>Python</em> Plugins so that collectd can use this python file. Below is our collectd conf</p>
+
+<pre><code>Hostname    "&lt;redis-server-fqdn&gt;"
 Interval 10
 Timeout 4
 Include "/etc/collectd/filters.conf"
 Include "/etc/collectd/thresholds.conf"
-ReportStats true
-    LogLevel info
-LoadPlugin interface
-LoadPlugin load
-LoadPlugin memory
 LoadPlugin network
-&lt;Plugin interface&gt;
-    Interface "eth0"
-    IgnoreSelected false
-&lt;/Plugin&gt;
+ReportStats true
+
+        LogLevel info
+
+Include "/etc/collectd/redis.conf"      # This is the configuration for the Redis plugin
 &lt;Plugin network&gt;
-    Server "{logstash_server_ip}" "logstash_server_port"    # if no port number is mentioned, it will take the default port number (25826)
+    Server "&lt;logstash-fqdn&gt;" "&lt;logstash-collectd-port&gt;"
 &lt;/Plugin&gt;
 </code></pre>
 
-<p>Now on the Logstash server, we need to add the CollectD plugin on to the input filter in the logstash's config file.</p>
+<p>Now copy the redis python plugin and the conf file to collectd folder.</p>
 
-<pre><code>input {
-      collectd {
-      port =&gt; "5555"    # default port is 25826
-      }
-}
+<pre><code>$ mkdir /etc/collectd/plugin            # This is where we are going to place our custom plugins
+
+$ cp /tmp/redis-collectd-plugin/redis_info.py /etc/collectd/plugin/
+
+$ cp /tmp/redis-collectd-plugin/redis.conf /etc/collectd/
 </code></pre>
 
-<p>Now we are set. Based the plugins enabled in the collectd config file, collctd will start sending the metrics to Logstash on the Interval mentioned in the config, default is 10s. So in my case, i wanted the Load, CPU usage, Memory usage, Bandiwdth (TX and RX) etc. There are default plugins for all these metrics, which we can just enable it in the config file. We also had some custom plugins to collect some custom metrics. BTW writing custom plugin is pretty easy in Collectd.</p>
+<p>By default, the plugin folder in the <code>redis.conf</code> is defined as <em>'/opt/collectd/lib/collectd/plugins/python'</em>. Make sure to replace this with the location where we are copying the plugin file, in our case <strong>"/etc/collectd/plugin"</strong>. Now lets restart the collectd daemon to enable the redis plugin.</p>
 
-<p>Now using the Logstash's Elasticsearch output plugin, we can keep these metrics in Elasticsearch. Now this where Kibana comes in. We can start visualizing these metrics via Kibana. We need to create a custom Lucene Query. Once we have the query, we can create a custom histogram's for each of these queries. Below aresome sample Lucene queries that we can use with Kibana.</p>
+<pre><code>$ /etc/init.d/collectd stop
 
-<pre><code>For Load -&gt; collectd_type:"load" AND host:"test.plivo.com"
-For Network usage -&gt; collectd_type:"if_octets" AND host:"test.plivo.com"
+$ /etc/init.d/collectd start
 </code></pre>
 
-<p>Below is the screenshot of  histogram for Load and Network (TX and RX)</p>
+<p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/05/11/extending-elk-stack-to-voip-infrastructure/">Blog</a>, i've mentioned how to enable and use the ColectD input plugin in Logstash and to use Kibana to plot the data coming from the collectd. Below are the Data's that we are receiving from the CollectD on Logstash,</p>
 
-<p><img src="/images/collectd.png"></p>
+<pre><code>  1) type_instance: blocked_clients
+  2) type_instance: evicted_keys
+  3) type_instance: connected_slaves
+  4) type_instance: commands_processed
+  5) type_instance: connected_clients
+  6) type_instance: used_memory 
+  7) type_instance: &lt;dbname&gt;-keys
+  8) type_instance: changes_since_last_save
+  9) type_instance: uptime_in_seconds
+10) type_instance: connections_received
+</code></pre>
 
-<h5>Log Events</h5>
+<p>Now we need to Visualize these via Kibana. Lets create some ElasticSearch queries so that visualize them directly. Below are some sample queries created in Kibana UI.</p>
 
-<p>Now next is to collect the events from the application logs. We use SIP protocol for all our VOIP sessions. So all our SIP server's are very critical for us. SIP is pretty similar to HTTP. The response codes are very similar to HTTP responses, ie 1xx, 2xx, 3xx, 4xx, 5xx, 6xx. So i wrote some custom grok patterns so keep track of all of these responses and stores the same on the Elasticsearch.</p>
+<pre><code>1) type_instance: "commands_processed" AND host: "&lt;redis-host-fqdn&gt;"
+2) type_instance: "used_memory" AND host: "&lt;redis-host-fqdn&gt;"
+3) type_instance: "connections_received" AND host: "&lt;redis-host-fqdn&gt;"
+4) type_instance: "&lt;dbname&gt;-keys" AND host: "&lt;redis-host-fqdn&gt;"
+</code></pre>
 
-<p>The second stats which i was interested was our SIP registrar server. We provide SIP endpoints to our customers so that they can use the same with SIP/Soft phones. So i was more interested on stats like Number of registrations/sec, Auth error rates. Plus using ElasticSearch's MAP facet's i can create BetterMap. In my previous blog post's i've mentioned on how to create these bettermaps using Kibana and Elasticsearch. Below bettermap screenshot shows us the SIP endpoint registrations from various locations in the last 2 hours.</p>
+<p><img src="/images/Kibana_ES_Query.png"></p>
 
-<p><img src="/images/bettermap.png"></p>
+<p>Now We have some sample queries, lets visualize them.</p>
 
-<p>Now using the Kibana we can start visualizing all these data's. Below is a sample of Dashboard that i've created using Kibana.</p>
+<p><img src="/images/ES_graph.png"></p>
 
-<p><img src="/images/event_logs.png"></p>
+<p><img src="/images/ES_graph2.png"></p>
 
-<p>ELK stack proved to be an amazing combination. We are currently injecting 3 million events every day and ElasticSearch was blazingly fast in indexing all theses.</p>
+<p>Now create histograms in the same procedure by changing the Selected Queries.</p>
+
+<p><img src="/images/ES_graph3.png"></p>
 ]]></content>
   </entry>
   

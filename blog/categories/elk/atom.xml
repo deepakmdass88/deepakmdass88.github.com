@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: ELK | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/elk/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-10-15T01:09:14+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Monitoring Redis using CollectD and ELK]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/"/>
+    <updated>2014-10-14T23:57:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk</id>
+    <content type="html"><![CDATA[<p>Redis is an open-source, networked, in-memory, key-value data store. It's being heavily used every where from Web stack to Monitoring to Message queues. Monitoring tools like Sensu already has some good scripts to Monitor Redis. Last Month during <a href="http://in.pycon.org/funnel/2014/245-sharq-an-api-queueing-system-built-at-plivo">PyCon 2014</a> <a href="https://twitter.com/plivo">@Plivo</a>, opensourced a new rate limited queue called <a href="http://sharq.io/">SHARQ</a> which is based on Redis. So apart from just Monitoring checks, we decided to have a tsdb of what's happening in our Redis Cluster. Since we are heavily using ELK stack to visualize our infrastructure, we decided to go ahead with the same.</p>
+
+<h3>CollectD Redis Plugin</h3>
+
+<p>There is a cool CollectD <a href="https://github.com/powdahound/redis-collectd-plugin">plugin</a> for Redis. It pulls a verity of Data from Redis which includes, Memory used, Commands Processed, No. of Connected Clients and slaves, No. of blocked Clients, No. of Keys stored/db, uptime and challenges since last save. The installation is pretty simple and straight forward.</p>
+
+<pre><code>$ apt-get update &amp;&amp; apt-get install collectd
+
+$ git clone https://github.com/powdahound/redis-collectd-plugin.git /tmp/redis-collectd-plugin
+</code></pre>
+
+<p>Now place the <code>redis_info.py</code> file onto the collectd folder and enable the <em>Python</em> Plugins so that collectd can use this python file. Below is our collectd conf</p>
+
+<pre><code>Hostname    "&lt;redis-server-fqdn&gt;"
+Interval 10
+Timeout 4
+Include "/etc/collectd/filters.conf"
+Include "/etc/collectd/thresholds.conf"
+LoadPlugin network
+ReportStats true
+
+        LogLevel info
+
+Include "/etc/collectd/redis.conf"      # This is the configuration for the Redis plugin
+&lt;Plugin network&gt;
+    Server "&lt;logstash-fqdn&gt;" "&lt;logstash-collectd-port&gt;"
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>Now copy the redis python plugin and the conf file to collectd folder.</p>
+
+<pre><code>$ mkdir /etc/collectd/plugin            # This is where we are going to place our custom plugins
+
+$ cp /tmp/redis-collectd-plugin/redis_info.py /etc/collectd/plugin/
+
+$ cp /tmp/redis-collectd-plugin/redis.conf /etc/collectd/
+</code></pre>
+
+<p>By default, the plugin folder in the <code>redis.conf</code> is defined as <em>'/opt/collectd/lib/collectd/plugins/python'</em>. Make sure to replace this with the location where we are copying the plugin file, in our case <strong>"/etc/collectd/plugin"</strong>. Now lets restart the collectd daemon to enable the redis plugin.</p>
+
+<pre><code>$ /etc/init.d/collectd stop
+
+$ /etc/init.d/collectd start
+</code></pre>
+
+<p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/05/11/extending-elk-stack-to-voip-infrastructure/">Blog</a>, i've mentioned how to enable and use the ColectD input plugin in Logstash and to use Kibana to plot the data coming from the collectd. Below are the Data's that we are receiving from the CollectD on Logstash,</p>
+
+<pre><code>  1) type_instance: blocked_clients
+  2) type_instance: evicted_keys
+  3) type_instance: connected_slaves
+  4) type_instance: commands_processed
+  5) type_instance: connected_clients
+  6) type_instance: used_memory 
+  7) type_instance: &lt;dbname&gt;-keys
+  8) type_instance: changes_since_last_save
+  9) type_instance: uptime_in_seconds
+10) type_instance: connections_received
+</code></pre>
+
+<p>Now we need to Visualize these via Kibana. Lets create some ElasticSearch queries so that visualize them directly. Below are some sample queries created in Kibana UI.</p>
+
+<pre><code>1) type_instance: "commands_processed" AND host: "&lt;redis-host-fqdn&gt;"
+2) type_instance: "used_memory" AND host: "&lt;redis-host-fqdn&gt;"
+3) type_instance: "connections_received" AND host: "&lt;redis-host-fqdn&gt;"
+4) type_instance: "&lt;dbname&gt;-keys" AND host: "&lt;redis-host-fqdn&gt;"
+</code></pre>
+
+<p><img src="/images/Kibana_ES_Query.png"></p>
+
+<p>Now We have some sample queries, lets visualize them.</p>
+
+<p><img src="/images/ES_graph.png"></p>
+
+<p><img src="/images/ES_graph2.png"></p>
+
+<p>Now create histograms in the same procedure by changing the Selected Queries.</p>
+
+<p><img src="/images/ES_graph3.png"></p>
+]]></content>
+  </entry>
+  
+</feed>

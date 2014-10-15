@@ -4,7 +4,7 @@
   <title><![CDATA[Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2014-07-24T21:31:05+00:00</updated>
+  <updated>2014-10-15T01:09:14+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,495 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Monitoring Redis using CollectD and ELK]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/"/>
+    <updated>2014-10-14T23:57:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/10/14/monitoring-redis-using-collectd-and-elk</id>
+    <content type="html"><![CDATA[<p>Redis is an open-source, networked, in-memory, key-value data store. It&#8217;s being heavily used every where from Web stack to Monitoring to Message queues. Monitoring tools like Sensu already has some good scripts to Monitor Redis. Last Month during <a href="http://in.pycon.org/funnel/2014/245-sharq-an-api-queueing-system-built-at-plivo">PyCon 2014</a> <a href="https://twitter.com/plivo">@Plivo</a>, opensourced a new rate limited queue called <a href="http://sharq.io/">SHARQ</a> which is based on Redis. So apart from just Monitoring checks, we decided to have a tsdb of what&#8217;s happening in our Redis Cluster. Since we are heavily using ELK stack to visualize our infrastructure, we decided to go ahead with the same.</p>
+
+<h3>CollectD Redis Plugin</h3>
+
+<p>There is a cool CollectD <a href="https://github.com/powdahound/redis-collectd-plugin">plugin</a> for Redis. It pulls a verity of Data from Redis which includes, Memory used, Commands Processed, No. of Connected Clients and slaves, No. of blocked Clients, No. of Keys stored/db, uptime and challenges since last save. The installation is pretty simple and straight forward.</p>
+
+<pre><code>$ apt-get update &amp;&amp; apt-get install collectd
+
+$ git clone https://github.com/powdahound/redis-collectd-plugin.git /tmp/redis-collectd-plugin
+</code></pre>
+
+<p>Now place the <code>redis_info.py</code> file onto the collectd folder and enable the <em>Python</em> Plugins so that collectd can use this python file. Below is our collectd conf</p>
+
+<pre><code>Hostname    "&lt;redis-server-fqdn&gt;"
+Interval 10
+Timeout 4
+Include "/etc/collectd/filters.conf"
+Include "/etc/collectd/thresholds.conf"
+LoadPlugin network
+ReportStats true
+
+        LogLevel info
+
+Include "/etc/collectd/redis.conf"      # This is the configuration for the Redis plugin
+&lt;Plugin network&gt;
+    Server "&lt;logstash-fqdn&gt;" "&lt;logstash-collectd-port&gt;"
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>Now copy the redis python plugin and the conf file to collectd folder.</p>
+
+<pre><code>$ mkdir /etc/collectd/plugin            # This is where we are going to place our custom plugins
+
+$ cp /tmp/redis-collectd-plugin/redis_info.py /etc/collectd/plugin/
+
+$ cp /tmp/redis-collectd-plugin/redis.conf /etc/collectd/
+</code></pre>
+
+<p>By default, the plugin folder in the <code>redis.conf</code> is defined as <em>&#8216;/opt/collectd/lib/collectd/plugins/python&#8217;</em>. Make sure to replace this with the location where we are copying the plugin file, in our case <strong>&#8220;/etc/collectd/plugin&#8221;</strong>. Now lets restart the collectd daemon to enable the redis plugin.</p>
+
+<pre><code>$ /etc/init.d/collectd stop
+
+$ /etc/init.d/collectd start
+</code></pre>
+
+<p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/05/11/extending-elk-stack-to-voip-infrastructure/">Blog</a>, i&#8217;ve mentioned how to enable and use the ColectD input plugin in Logstash and to use Kibana to plot the data coming from the collectd. Below are the Data&#8217;s that we are receiving from the CollectD on Logstash,</p>
+
+<pre><code>  1) type_instance: blocked_clients
+  2) type_instance: evicted_keys
+  3) type_instance: connected_slaves
+  4) type_instance: commands_processed
+  5) type_instance: connected_clients
+  6) type_instance: used_memory 
+  7) type_instance: &lt;dbname&gt;-keys
+  8) type_instance: changes_since_last_save
+  9) type_instance: uptime_in_seconds
+10) type_instance: connections_received
+</code></pre>
+
+<p>Now we need to Visualize these via Kibana. Lets create some ElasticSearch queries so that visualize them directly. Below are some sample queries created in Kibana UI.</p>
+
+<pre><code>1) type_instance: "commands_processed" AND host: "&lt;redis-host-fqdn&gt;"
+2) type_instance: "used_memory" AND host: "&lt;redis-host-fqdn&gt;"
+3) type_instance: "connections_received" AND host: "&lt;redis-host-fqdn&gt;"
+4) type_instance: "&lt;dbname&gt;-keys" AND host: "&lt;redis-host-fqdn&gt;"
+</code></pre>
+
+<p><img src="http://beingasysadmin.com/images/Kibana_ES_Query.png"></p>
+
+<p>Now We have some sample queries, lets visualize them.</p>
+
+<p><img src="http://beingasysadmin.com/images/ES_graph.png"></p>
+
+<p><img src="http://beingasysadmin.com/images/ES_graph2.png"></p>
+
+<p>Now create histograms in the same procedure by changing the Selected Queries.</p>
+
+<p><img src="http://beingasysadmin.com/images/ES_graph3.png"></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Mesos with Native Docker Support]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/08/31/mesos-with-native-docker-support/"/>
+    <updated>2014-08-31T17:34:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/08/31/mesos-with-native-docker-support</id>
+    <content type="html"><![CDATA[<p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">blog</a>, i&#8217;ve explained how to manage Docker cluster using Mesos and Marathon. Now Mesos has released 0.20 with Native Docker support. Till Mesos 0.19, we had to use mesosphere&#8217;s <a href="https://github.com/mesosphere/deimos">Deimos</a> for running Docker containers on Mesos slaves. Now from Mesos 0.20, Mesos has the ability to run Docker containers directly. As per Mesos Documentation we can run containers in two ways. 1) as a Task and 2) as an Executor. Currently Mesos 0.20 supports only the host (&#8211;net=host) Docker networking mode.</p>
+
+<p>Install the latest Mesos 0.20 using the mesosphere&#8217;s Mesos <a href="http://mesosphere.io/downloads/">Debian</a> package. Once we have setup the Zookeeper and Docker, we need to make a few changes to enable the Mesos Native Docker support. We need to start all the Mesos-Slave with <code>--containerizers=docker,mesos</code> flag. For enabling this flag, we need to create a file <code>containerizers</code> in <em>/etc/mesos-slave/containerizers</em> with content &#8220;docker,mesos&#8221;. Mesos slave process, when starting up, will read the folder and enable this flag.</p>
+
+<pre><code>$ echo 'docker,mesos' &gt; /etc/mesos-slave/containerizers
+
+$ service mesos-master restart
+</code></pre>
+
+<p>I was trying to start a container with Port <strong>9999</strong> via Marathon REST API. But the task was keep on failing. Up on investigating the logs, i found that the slave when sends the allocatable resource details to mesos master was <strong>total allocatable: cpus(<em>):0.8; mem(</em>):801; disk(<em>):35164; ports(</em>):[31000-31099, 31101-32000]</strong>. So the allowed port range was [31000-31099, 31101-32000]. So if we wnat to use any other custom port, we need to define the same in the <em>/etc/mesos-slave</em> folder by creating a config file.</p>
+
+<pre><code>    $ echo "ports(*):[31000-31099, 31101-32000, 9998-9999]" &gt; "/etc/mesos-slave/resources"
+</code></pre>
+
+<p>Now, my new allocatable resource details sent to the Mesos master became <strong>total allocatable: ports(<em>):[31000-31099, 31101-32000, 9998-9998]; cpus(</em>):0.7; mem(<em>):801; disk(</em>):35164</strong>. The above config is crucial if we want to allocate our own custom range of ports. So this gave a good idea on how to control my resource allocation by creating custom configuration files. Now let&#8217;s restart Mesos-slave process.</p>
+
+<pre><code>    $ service mesos-master restart
+
+    $ ps axf | grep mesos-slave | grep -v grep
+     1889 ?        Ssl    0:26 /usr/local/sbin/mesos-slave --master=zk://localhost:2181,localhost:2182,localhost:2183/mesos --log_dir=/var/log/mesos --containerizers=docker,mesos --resources=ports(*):[31000-31099, 31101-32000, 9998-9999]
+     1900 ?        S      0:00  \_ logger -p user.info -t mesos-slave[1889]
+     1901 ?        S      0:00  \_ logger -p user.err -t mesos-slave[1889]
+</code></pre>
+
+<p>Now we have the Mesos slave running with Native Docker support. But the current stable version of Marathon still don&#8217;t support the native Docker feature of Mesos. So we need to setup Marathon 0.7 from scratch. I&#8217;ve written a <a href="https://beingasysadmin.wordpress.com/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">blog</a> for upgrading Marathon from 0.6.x to 0.7. Once we have setup the Marathon 0.7, we can start using Mesos with the Native Docker support. Let&#8217;s create a new App in Marathon via its REST API.</p>
+
+<p>create a JSON file in the new container format. say ubuntu.json</p>
+
+<pre><code>{
+    "id": "mesos-docker-test",
+    "container": {
+        "docker": {
+            "image": "ubuntu:14.04"
+        },
+        "type": "DOCKER",
+        "volumes": []
+    },
+    "cmd": "while sleep 10; do date -u +%T; done",
+    "cpus": 0.2,
+    "mem": 200,
+    "ports": [9999],
+    "requirePorts": true,
+    "instances": 1
+}
+</code></pre>
+
+<p>Now, we can use the Marathon API to launch the Docker task,</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+
+{"id":"/mesos-docker-test","cmd":"while sleep 10; do date -u +%T; done","args":null,"user":null,"env":{},"instances":1,"cpus":0.2,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"storeUrls":[],"ports":[9999],"requirePorts":true,"backoffSeconds":1,"backoffFactor":1.15,"container":{"type":"DOCKER","volumes":[],"docker":{"image":"ubuntu:14.04"}},"healthChecks":[],"dependencies":[],"upgradeStrategy":{"minimumHealthCapacity":1.0},"version":"2014-08-31T16:03:50.593Z"}
+
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS               NAMES
+25ba3950a9e1        ubuntu:14.04        /bin/sh -c 'while sl   2 minutes ago       Up 2 minutes                            mesos-a19af637-ffb9-4d3c-8b61-778d47087ace
+</code></pre>
+
+<p>Mesos UI</p>
+
+<p><img src="http://beingasysadmin.com/images/mcomaster.png"></p>
+
+<p>Marathon UI</p>
+
+<p><img src="http://beingasysadmin.com/images/mcomaster.png"></p>
+
+<p>With the new Native Docker support, Mesos is becoming more friendly with Docker. And this is a great achievement for people like me who are trying to use Mesos and Docker in our Infrastructure. A big kudos to Mesos and Mesosphere team for their great work :)</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Upgrading Marthon for Mesos Native Docker Support]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/"/>
+    <updated>2014-08-31T15:27:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support</id>
+    <content type="html"><![CDATA[<p>A few days ago Mesos <code>0.20</code> version was released with native Docker support. Till that, Mesos Docker integration was performed using Mesosphere&#8217;s <a href="">Deimos</a> application. But with the new Mesos, there is no need for any external application for launching Docker containers in Mesos Slaves. As per Mesos <a href="http://mesos.apache.org/documentation/latest/docker-containerizer/">Documentation</a> we can run containers in two ways. 1) as a Task and 2) as an Executor. Currently Mesos 0.20 supports only the <code>host (--net=host)</code> Docker networking mode.</p>
+
+<p>The current stable release of Marathon is 0.6X. The debian package provided by the Mesosphere also provides the 0.6x version. The container format has been completely changed in  0.7.x version. So we cannot use the 0.6.x version along with Mesos 0.20. More details are available in the Marathon <a href="https://mesosphere.github.io/marathon/docs/upgrade/06xto070.html">Documentation</a></p>
+
+<p>The current Mesos Master branch is <code>version := "0.7.0-SNAPSHOT"</code>. So we need to compile Marathon from scratch. The only dependency for compiling Marathon is scala-sbt. Get the latest Debian package for sbt from <a href="http://www.scala-sbt.org/0.13/tutorial/Installing-sbt-on-Linux.html">here</a>. The current sbt version is 0.13.5.</p>
+
+<pre><code>$ wget http://dl.bintray.com/sbt/debian/sbt-0.13.5.deb
+
+$ dpkg -i sbt-0.13.5.deb
+</code></pre>
+
+<p>Now let&#8217;s clone the Marathon githib repo.</p>
+
+<pre><code>$ git clone https://github.com/mesosphere/marathon.git &amp;&amp; cd marathon
+
+$ sbt assembly
+
+$ ./bin/build-distribution  # for building jar file
+</code></pre>
+
+<p>The above build command will create an executable jar file &#8220;marathon-runnable.jar&#8221; under the &#8220;target&#8221; folder. We can use this jar file along with Marathon 0.6.x start script. If we check the upstart script of Marathon 0.6.x, it uses <code>/usr/local/bin/marathon</code> binary for starting the service. So we need to edit two lines in this file to use our latest version 0.7&#8217;s jar file.</p>
+
+<p>First let&#8217;s move our jar file to say &#8220;/opt/ folder.</p>
+
+<pre><code>$ cp marathon-runable.jar /opt/marathon.jar
+</code></pre>
+
+<p>Now let&#8217;s edit the Marathon binary. Make the below changes in the binary file,</p>
+
+<pre><code>marathon_jar="/opt/marathon.jar" # Line number 21
+
+and
+
+exec java "${vm_opts[@]}" -jar "$marathon_jar" "$@"  # -jar option added to use the jar file instead if the default -cp option. Line number 62
+</code></pre>
+
+<p>Now let&#8217;s restart the Marathon service.</p>
+
+<pre><code>$ service marathon restart
+</code></pre>
+
+<p>Now let&#8217;s use the <code>ps</code> command and verify the service status.</p>
+
+<pre><code>$ ps axf | grep marathon | grep -v grep
+
+22653 ?        Ssl    6:09 java -Xmx512m -Djava.library.path=/usr/local/lib -Djava.util.logging.SimpleFormatter.format=%2$s %5$s%6$s%n -jar /opt/marathon.jar --zk zk://localhost:2181,localhost:2182,localhost:2183/marathon --master zk://localhost:2181,localhost:2182,localhost:2183/mesos
+22663 ?        S      0:00  \_ logger -p user.info -t marathon[22653]
+22664 ?        S      0:00  \_ logger -p user.notice -t marathon[22653]
+</code></pre>
+
+<p>Now Marathon is running with the version 0.7 jar file. Let&#8217;s verify by creating a new Docker task. Make sure that the Mesos version 0.20 is running on the host and not the older versions of Mesos. More detail about the new container format is available in the Marathon <a href="https://mesosphere.github.io/marathon/docs/upgrade/06xto070.html">Documentation</a> page.</p>
+
+<p>create a JSON file in the new container format. say <code>ubuntu.json</code></p>
+
+<pre><code>{
+    "id": "mesos-docker-test",
+    "container": {
+        "docker": {
+            "image": "ubuntu:14.04"
+        },
+        "type": "DOCKER",
+        "volumes": []
+    },
+    "cmd": "while sleep 10; do date -u +%T; done",
+    "cpus": 0.2,
+    "mem": 200,
+    "ports": [9999],
+    "requirePorts": false,
+    "instances": 1
+}
+</code></pre>
+
+<p>Now, we can use the Marathon API to launch the Docker task,</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+
+{"id":"/mesos-docker-test","cmd":"while sleep 10; do date -u +%T; done","args":null,"user":null,"env":{},"instances":1,"cpus":0.2,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"storeUrls":[],"ports":[9999],"requirePorts":false,"backoffSeconds":1,"backoffFactor":1.15,"container":{"type":"DOCKER","volumes":[],"docker":{"image":"ubuntu:14.04"}},"healthChecks":[],"dependencies":[],"upgradeStrategy":{"minimumHealthCapacity":1.0},"version":"2014-08-31T16:03:50.593Z"}
+
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS              PORTS               NAMES
+25ba3950a9e1        ubuntu:14.04        /bin/sh -c 'while sl   2 minutes ago       Up 2 minutes                            mesos-a19af637-ffb9-4d3c-8b61-778d47087ace
+</code></pre>
+
+<p>Here i&#8217;ve used Port number 9999. But by default, in Mesos 0.20, default port range resourced for Mesos master is [31000-32000]. Please refer my next Blog post on how to modify and set a custom port range.</p>
+
+<p>With the new Native Docker support, Mesos is becoming more friendly with Docker. And this is a great achievement for people like me who are trying to use Mesos and Docker in our Infrastructure. A big kudos to Mesos and Mesosphere team for their great work :)</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Marathon Event Bus]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus/"/>
+    <updated>2014-08-25T13:02:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/08/25/marathon-event-bus</id>
+    <content type="html"><![CDATA[<p>It&#8217;s almost 3 months since i&#8217;ve started with Mesos + Marathon. Yesterday, i was going through the <a href="https://mesosphere.github.io/marathon/docs">Marathon Doc Site</a>, and found that Marathon has a cool internal Event Bus. Currently Marathon has an ibuilt HTTP callback subscriber that POSTs events in JSON format to one or more endpoints. So i decided to give it a try to my Mesos test environment. More documentations of the <a href="https://mesosphere.github.io/marathon/docs/event-bus.html">Event Bus</a> are available in the Documentation page.</p>
+
+<p>Currently, in my test environment all the Mesos and Marathon are installed from the Mesosphere <a href="https://mesosphere.io/learn/install_ubuntu_debian/">Debian</a> packages. Whether we use the packaged <strong>init</strong> or <strong>upstart</strong> script, both of them are directly calling the <code>/usr/local/bin/marathon</code> binary. For the Event Bus with http callback, we need to enable two flags (&#8211;event_subscriber http_callback &#8211;http_endpoints http://host1/foo,http://host2/bar) while starting the Marathon service ie, <em>&#8211;event_subscriber</em>, the type of subscriber that we are going to use and <em>&#8211;http_endpoints</em>, endpoints corresponding to the subscriber.</p>
+
+<p>From the marathon binary, i found the it looks for files under the <code>/etc/marathon/conf/</code> folder, where each file is the <strong>name of the flag</strong> to be enabled and the <strong>content of the file is the flag values</strong>. So in our case, we need two files inside the &#8220;/etc/marathon/conf/&#8221;, 1) <code>event_subscriber</code> and 2) <code>http_endpoints</code></p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ls /etc/marathon/conf/
+event_subscriber  http_endpoints
+</code></pre>
+
+<p>And the content of these files are,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/event_subscriber
+http_callback
+
+root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# cat /etc/marathon/conf/http_endpoints
+http://localhost:1234/
+</code></pre>
+
+<p>Now for test purpose, lets start a minimal webserver using <code>netcat</code> listening to port <em>1234</em></p>
+
+<pre><code>$ nc -l -p 1234
+</code></pre>
+
+<p>Now netcat is listening on port 1234. Lets restart Marathon with our new flags.</p>
+
+<pre><code>$ service marathon restart
+</code></pre>
+
+<p>Now lets check if the flags are enabled properly,</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/etc/marathon/conf# ps axf | grep marathon | grep -v grep
+2780 ?        Sl     0:36 java -Xmx512m -Djava.library.path=/usr/local/lib -Djava.util.logging.SimpleFormatter.format=%2$s %5$s%6$s%n -cp /usr/local/bin/marathon mesosphere.marathon.Main --zk zk://localhost:2181,localhost:2182,localhost:2183/marathon --master zk://localhost:2181,localhost:2182,localhost:2183/mesos --http_endpoints http://localhost:1234/ --event_subscriber http_callback
+2791 ?        S      0:00  \_ logger -p user.info -t marathon[2780]
+2792 ?        S      0:00  \_ logger -p user.notice -t marathon[2780]
+</code></pre>
+
+<p>From the above <em>ps</em> command, it can be seen that the flags are enabled properly. Now i&#8217;m going to start a docker container. So as per the Event Bus documentation, Callbacks are Fired every time Marathon receives an API request that modifies an app (create, update, delete)</p>
+
+<pre><code>$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+</code></pre>
+
+<p>where <code>ubuntu.json</code> is,</p>
+
+<pre><code>{
+    "container": {
+    "image": "docker:///libmesos/ubuntu",
+    "options" : []
+  },
+  "id": "ubuntu2",
+  "instances": "1",
+  "cpus": ".3",
+  "mem": "200",
+  "uris": [ ],
+  "ports": [9999],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}
+</code></pre>
+
+<p>Once the Marathon API is fired, we will get a POST request on our netcat with the Event details. Below is the Event received on my netcat server.</p>
+
+<pre><code>root@vagrant-ubuntu-trusty-64:/var/tmp# nc -l -p 1234
+POST / HTTP/1.1
+Host: localhost:1234
+Accept: application/json
+User-Agent: spray-can/1.2.1
+Content-Type: application/json; charset=UTF-8
+Content-Length: 427
+
+{"clientIp":"127.0.0.1","uri":"/v2/apps","appDefinition":{"id":"ubuntu2","cmd":"while sleep 10; do date -u +%T; done","env":{},"instances":1,"cpus":0.3,"mem":200.0,"disk":0.0,"executor":"","constraints":[],"uris":[],"ports":[9999],"taskRateLimit":1.0,"container":{"image":"docker:///libmesos/ubuntu","options":[]},"healthChecks":[],"version":{"dateTime":{}}},"eventType":"api_post_event","timestamp":"2014-08-25T13:23:27.059Z"}
+</code></pre>
+
+<p>This Event bus is really usefull as it notifies us on all the Event changes happening on our Mesos cluster. We can also buit an Event notification system based on these callbacks. Though the current Events has very minimal details, i&#8217;m sure that more Event types will get added soon into Marathon.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Managing Docker Cluster using Multiple Mesos Masters]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/"/>
+    <updated>2014-08-15T16:44:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters</id>
+    <content type="html"><![CDATA[<p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">blog</a>, i&#8217;ve described how to manage Docker cluster using Mesos and Marathon. It was using a single Mesos Master. But for production, we cannot go with a single Mesos master, as it will result in a sinlge point of failure. Mesos supports Multi master via Zookeeper. So in this blog i&#8217;m going to explain how to setup a Multi Master Mesos Cluster using Zookeper for Automatic promotion of Mesos master when the current Active Mesos Master fails. This time i&#8217;m going to setup 3 Zookeeper services and 2 Mesos Master on a single Vagrant box.</p>
+
+<h1>Setting up ZooKeeper Cluster</h1>
+
+<p>First lets download the the latest stable Zookeeper source code.</p>
+
+<pre><code>$ wget http://mirrors.ukfast.co.uk/sites/ftp.apache.org/zookeeper/stable/zookeeper-3.4.6.tar.gz
+</code></pre>
+
+<p>Now extract the tar file and create 3 copies of the same, say zookeeper1, zookeeper2 and zookeeper3. Also Zookeeper needs Java on the machine, so let&#8217;s install java dependencies.</p>
+
+<pre><code>$ apt-get install openjdk-7-jdk openjdk-7-jre
+</code></pre>
+
+<p>Now inside, the extracted zookeeper source folder, we need to create a config file. So in our case, inside each Zookeeper folder, we need a <code>zoo.cfg</code> file.</p>
+
+<p>For zookeeper1 folder,</p>
+
+<pre><code># content of zoo.cfg
+tickTime=2000
+dataDir=/var/lib/zookeeper1/
+clientPort=2181
+initLimit=5
+syncLimit=2
+server.1=localhost:2888:3888
+server.2=localhost:2889:3889
+server.3=localhost:2890:3890
+</code></pre>
+
+<p>For zookeeper2 folder,</p>
+
+<pre><code># content of zoo.cfg
+tickTime=2000
+dataDir=/var/lib/zookeeper2/
+clientPort=2182
+initLimit=5
+syncLimit=2
+server.1=localhost:2888:3888
+server.2=localhost:2889:3889
+server.3=localhost:2890:3890
+</code></pre>
+
+<p>For zookeeper3 folder,</p>
+
+<pre><code>    # content of zoo.cfg
+tickTime=2000
+dataDir=/var/lib/zookeeper3/
+clientPort=2183
+initLimit=5
+syncLimit=2
+server.1=localhost:2888:3888
+server.2=localhost:2889:3889
+server.3=localhost:2890:3890
+</code></pre>
+
+<p>Here, since the 3 zookeeper services are running on the same host, i&#8217;ve assigned separate ports. If the zookeeper are running on separate instances, then we can have the same ports for all of the zookeeper nodes. There are two port numbers. The first followers use to connect to the leader, and the second is for leader election.</p>
+
+<p>Now we can start the Zookeeper in Foreground using the <code>./bin/zkServer.sh start-foreground</code> from each of the 3 zookeeper folders. <code>netstat -nltp | grep 288</code> will display the port of the zookeeper service which is the current master among the cluster. We can also check the connectivity using the zookeepr client binary available in the zookeeper source folder. Once zookeeper cluster is UP, we can go ahead setting up Mesos.</p>
+
+<h1>Setting up Multiple Mesos Masters</h1>
+
+<p>Mesossphere team has already built packages for Mesos,Marathon and Deimos. So one of my Mesos master will be from the package. But i also wanted to play with the Mesos Source, so i decided to build Mesos from the source. So my second Mesos Master will be from the scratch.</p>
+
+<p>First Master from the Mesosphere package.</p>
+
+<pre><code>$ apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
+
+$ DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+
+$ CODENAME=$(lsb_release -cs)
+
+# Add the repository
+$ echo "deb http://repos.mesosphere.io/${DISTRO} ${CODENAME} main" | sudo tee /etc/apt/sources.list.d/mesosphere.list
+
+$ apt-get -y update
+
+$ apt-get -y install mesos marathon deimos
+</code></pre>
+
+<p>Now we need to define the Zookeeper cluster details so that Mesos master and slave can connect. Edit <code>/etc/mesos/zk</code> and add <code>zk://localhost:2181,localhost:2182,localhost:2183/mesos</code>. More details about Zookeeper URL is available <a href="https://github.com/deepakmdass88/mesos-doc-test/blob/master/Using-ZooKeeper.textile">here</a>. Also More details about installing Mesos from Mesosphere&#8217;s Debian package is available in their <a href="http://mesosphere.io/docs/getting-started/debian-install/">website</a>.</p>
+
+<p>So now we have one master ready, we can start the Mesos Master, Mesos Slave and Marathon. ANd esnure that they can connect to our Zookeeper cluster properly. We can also see the connection status in the stdout of the zookeeper process as they are running in foreground.</p>
+
+<p>Now building the second Mesos master from scratch. First let&#8217;s download the Mesos Source Code.</p>
+
+<pre><code>$ wget http://archive.apache.org/dist/mesos/0.19.0/mesos-0.19.0.tar.gz
+
+$ tar xvzf mesos-0.19.0.tar.gz &amp;&amp; cd mesos-0.19.0
+
+$ ./bootstrap &amp;&amp; ./configure --prefix=/usr/local/mesos
+
+$ make &amp;&amp; make install
+</code></pre>
+
+<p>Once the Compilation is succeeded, we can start the new Mesos Master service. The default port 5050 is used by the existing master, so we need to run this new service on a different port.</p>
+
+<pre><code>$ /usr/local/mesos/sbin/mesos-master --zk=zk://localhost:2181,localhost:2182,localhost:2183/mesos --port=5054 --quorum=1 --registry=in_memory --work_dir=/var/lib/mesos/
+</code></pre>
+
+<p>Once the new Mesos Master is up, we can create a test container via Marathon Rest API. Create a simple json file called ubuntu.json</p>
+
+<pre><code>{
+    "container": {
+    "image": "docker:///libmesos/ubuntu",
+    "options" : []
+  },
+  "id": "ubuntu",
+  "instances": "1",
+  "cpus": ".3",
+  "mem": "200",
+  "uris": [ ],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}
+
+
+$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
+</code></pre>
+
+<p>This will launch a single container. We can check the status of the container via the Marathon UI as well as via RestAPI also. Now comes the critical part for Production, What happens when the master fails. Mesos Documentation says, if the current master fails, in a Multi master Mesos Cluster, Zookeeper will elect a new Master, in our case the second Mesos master service. And Mesos Claims that the running services will not get crashed and the status will be taken by the newly promoted master. In our case, we have a Docker container running as a long running service.</p>
+
+<p><img src="https://beingasysadmin.files.wordpress.com/2014/06/marathon-1.png?w=6400"></p>
+
+<p>First i&#8217;ll stop one of the Mesos master service,</p>
+
+<pre><code>$ service mesos-master stop
+</code></pre>
+
+<p>Now immidiately on the stdout of the Zookeeper, we can see the logs corresponding to the Election process. Below is the same,</p>
+
+<pre><code>I0814 19:41:07.889044  9093 contender.cpp:243] New candidate (id='7') has entered the contest for leadership
+2014-08-14 19:41:07,896:9088(0x7ff8e2ffd700):ZOO_INFO@check_events@1750: session establishment complete on server [127.0.0.1:2183], sessionId=0x347d606d0d90003, negotiated timeout=10000
+I0814 19:41:07.899509  9092 group.cpp:310] Group process ((10)@10.0.2.15:5054) connected to ZooKeeper
+I0814 19:41:07.900049  9092 group.cpp:784] Syncing group operations: queue size (joins, cancels, datas) = (0, 0, 0)
+I0814 19:41:07.900069  9092 group.cpp:382] Trying to create path '/mesos' in ZooKeeper
+I0814 19:41:07.915621  9092 detector.cpp:135] Detected a new leader: (id='6')
+I0814 19:41:07.915699  9092 group.cpp:655] Trying to get '/mesos/info_0000000006' in ZooKeeper
+I0814 19:41:07.920266  9094 network.hpp:423] ZooKeeper group memberships changed
+I0814 19:41:07.920910  9094 group.cpp:655] Trying to get '/mesos/log_replicas/0000000003' in ZooKeeper
+I0814 19:41:07.924144  9095 network.hpp:461] ZooKeeper group PIDs: { log-replica(1)@10.0.2.15:5054 }
+I0814 19:41:07.926575  9092 detector.cpp:377] A new leading master (UPID=master@10.0.2.15:5054) is detected
+I0814 19:41:07.926679  9092 master.cpp:957] The newly elected leader is master@10.0.2.15:5054 with id 20140814-194033-251789322-5050-8808
+</code></pre>
+
+<p>As per the above logs, the second Mesos Master running at port 5054 was promoted as New Mesos Master. This will be reflected to Marathon also. We can go to the Marthon UI and make sure that the Docker process that we have started using the old Mesos master is still running fine. We can even try making some scaling changes and can make sure that the new master can alter the process.</p>
+
+<p>In my testing, i&#8217;ve tried stoping each of the service and ensured that only one Mesos master is running and also tried scaling the Apps from one Master service to make sure that the new Master was able to keep track of all these changes. The results were quite promising. Mesos + Marrthon + Docker indeed is killer combo. We can really built a cross vendor independent cluster with scaling capabilites.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Load Test on Docker Freeswitch]]></title>
@@ -1585,485 +2074,6 @@ $ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
 </code></pre>
 
 <p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i&#8217;ve enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph&#8217;s from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Lumberjack - A Light Weight Log shipper for Logstash ]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/"/>
-    <updated>2013-06-25T13:52:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash</id>
-    <content type="html"><![CDATA[<p><strong>Logstash</strong> is one of the coolest projects that i always wanted to play around. Since i&#8217;m a sysadmin, i&#8217;m forced to handle multiple apps, which will logs in different formats. The most weird part is the timestamps, where most of the app uses it&#8217;s own time formats. Logstash helps us to solve such situations, we can remodify the time stamp to a standard time format, we can use the predefined filter&#8217;s for filtering out the log&#8217;s, even we can create our own filter&#8217;s using regex. All the documentations are available in the <a href="http://logstash.net">Logstash website</a> Logstash mainly has 3 parts, 1) <em>INPUT</em> -> from which the log&#8217;s are shipped to Logstash, 2) <em>Filter</em> -> for filtering our incoming log&#8217;s to suit to our needs, 3) <em>Output</em> -> For storing or relaying the Filtered output log&#8217;s to various Applications.</p>
-
-<p>Lumberjack is one such input plugin designed for logstash. Though the plugin is still in beta state, i decided to give it a try. By default we can also use logstash itself for shipping logs to centralized Logstash server, the JVM made it difficult to work with many of my constrained machines. Lumberjack claims to be a light weight log shipper which uses <em>SSL</em> and we can add custom <code>fields</code> for each line of log which we ships.</p>
-
-<h4>Setting up Logstash Server</h4>
-
-<p>Download the latest the logstash jar file from the logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">website</a>. Now create a logstash configuration file for the logstash instance. In the config file, we have to enable the <code>lumberjack</code> plugin. Lumberjack uses SSL CA to verify the server. So we need to generate the same for the logstash server. We can use the below mentioned command to generate the SSL certificate and key.</p>
-
-<pre><code>$ openssl req -x509 -newkey rsa:2048 -keyout /etc/ssl/logstash.key -out /etc/ssl/logstash.pub -nodes -days 3650
-</code></pre>
-
-<p>Below is the sample logstash conf file which i used for stashing logs from <code>Socklog</code>.</p>
-
-<pre><code>input {
-
-  lumberjack {
-    type =&gt; "qmail"
-    port =&gt; 4545
-    ssl_certificate =&gt; "/etc/ssl/logstash.pub"
-        ssl_key =&gt; "/etc/ssl/logstash.key"
-  }
-}
-
-filter {
-  grok {
-        type =&gt; "socklog"
-        pattern =&gt; "%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"
-  }
-  mutate {
-        replace =&gt; [ "@message", "%{mess}" ]
-  }
-  date {
-        type =&gt; "socklog"
-        match =&gt; [ "timestamp", "MMM dd HH:mm:ss" ]
-  }
-}
-
-output {
-  stdout {
-    debug =&gt; true
-      }
-}
-</code></pre>
-
-<p>Now we can start the the logstash using the above config.</p>
-
-<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
-</code></pre>
-
-<p>Once the logstash has started successfully, we can use netstat to check if it listening on port <em>4545</em>. I&#8217;m currently running logstash in the foreground, below is the logoutput from logstash</p>
-
-<pre><code>Starting lumberjack input listener {:address=&gt;"0.0.0.0:4545", :level=&gt;:info}
-Input registered {:plugin=&gt;&lt;LogStash::Inputs::Lumberjack type=&gt;"socklog", ssl_certificate=&gt;"/etc/ssl/logstash.pub", ssl_key=&gt;"/etc/ssl/logstash.key", charset=&gt;"UTF-8", host=&gt;"0.0.0.0"&gt;, :level=&gt;:info}
-Match data {:match=&gt;{"@message"=&gt;["%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"]}, :level=&gt;:info}
-Grok compile {:field=&gt;"@message", :patterns=&gt;["%{DATA:logfacility}: %{SYSLOGTIMESTAMP:timestamp} %{DATA:program}: *"], :level=&gt;:info}
-Output registered {:plugin=&gt;&lt;LogStash::Outputs::Stdout debug_format=&gt;"ruby", message=&gt;"%{@timestamp} %{@source}: %{@message}"&gt;, :level=&gt;:info}
-All plugins are started and registered. {:level=&gt;:info}
-</code></pre>
-
-<h4>Setting up Lumberjack agent</h4>
-
-<p>On the machine from which we are going to ship the log&#8217;s, clone the Lumberjack github <a href="https://github.com/jordansissel/lumberjack.git">repo</a>.</p>
-
-<pre><code>$ git clone https://github.com/jordansissel/lumberjack.git
-</code></pre>
-
-<p>Install the <strong><em>fpm</em></strong> ruby gem, which is required to build the lumberjack package.</p>
-
-<pre><code>$ gem install fpm
-
-$ cd lumberjack &amp;&amp; make
-
-$ make deb   =&gt; This will build a debian package of the lumberjack
-
-$ dpkg -i lumberjack_0.0.30_amd64.deb  =&gt; The package will install all the files to the `/opt/lumberjack`
-</code></pre>
-
-<p>Now copy the SSL certificate which we have generated at the Logstash server, to the Lumberjack machine. Once the SSL certificte has been copied, we can start the lumberjack agent.</p>
-
-<pre><code>$ /opt/lumberjack/bin/lumberjack --ssl-ca-path ./ssl/logstash.pub --host logstash.test.com --port 4545 /var/log/socklog/main/current
-</code></pre>
-
-<p>Below is the log output from the lumberjack.</p>
-
-<pre><code>2013-06-25T15:04:32.798+0530 Watching 1 files, setting open file limit to 103
-2013-06-25T15:04:32.798+0530 Watching 1 files, setting memory usage limit to 1048576 bytes
-2013-06-25T15:04:32.878+0530 Connecting to logstash.test.com(192.168.19.19):4545
-2013-06-25T15:04:33.186+0530 slow operation (0.307 seconds): connect to 192.168.19.19:4545
-2013-06-25T15:04:33.186+0530 Connected successfully to logstash.test.com(192.168.19.19):4545
-2013-06-25T15:04:34.653+0530 Declaring window size of 4096
-2013-06-25T15:04:36.734+0530 flushing since nothing came in over zmq
-</code></pre>
-
-<p>Now we will start getting the output from the Logstash in our screen, since we are using the &#8216;stdout&#8217; output plugin. A very good detailed documentation about Lumberjack and Logstash can be found <a href="http://mzlizz.mit.edu/vmdoh-centralizing-logs-lumberjack-logstash-and-elasticsearch">here</a>, written by <a href="https://portland2013.drupal.org/users/brian-altenhofel">Brian Altenhofel</a>. He had given a talk on this at Drupalcon 2013, Portland. The video for the talk is available <a href="http://youtu.be/p0Av29yaBEI">here</a>. It&#8217;s a very good blog post.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[McoMaster - An HTML5 based GUI for Mcollective with Redis Discovery Method]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method/"/>
-    <updated>2013-05-28T09:46:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/05/28/mcomaster-an-html5-based-gui-for-mcollective-with-redis-discovery-method</id>
-    <content type="html"><![CDATA[<p><code>Mcollective</code> is a framework to build server orchestration or parallel job execution systems. It&#8217;s completely built on  <strong>RUBY</strong>, and offcourse <a href="https://github.com/puppetlabs/puppetlabs-mcollective">Open Sourced</a>. There are a quite good <a href="https://github.com/puppetlabs/mcollective-plugins">plugins</a> available for mcollective. In my previous blog&#8217;s i&#8217;ve explained on how to setup Mcollective with ActiveMQ and also how to use Mongo Discovery method with Mcollective. In this blog i will explain on how to use Mcollective with Rabbitmq connector and a new project called <a href="http://mcomaster.org">mcomaster</a>, an HTML5 web interface to mcollective, which uses <em>REDIS</em> Discovery method in the backend.</p>
-
-<h3>Setting up RabbitMQ</h3>
-
-<p>First add the <code>RaabitMQ</code> APT repo,</p>
-
-<pre><code>$ echo "deb http://www.rabbitmq.com/debian/ testing main" &gt;&gt; /etc/apt/sources.list
-
-$ curl -L -o ~/rabbitmq-signing-key-public.asc http://www.rabbitmq.com/rabbitmq-signing-key-public.asc 
-
-$ apt-key add ~/rabbitmq-signing-key-public.asc
-
-$ apt-get update
-</code></pre>
-
-<p>And install the RabbitMQ server</p>
-
-<pre><code>$ apt-get install rabbitmq-server
-</code></pre>
-
-<p>Now using <code>rabbitmqctl</code> create a vhost &#8221;<em>/mcollective</em>&#8221;. Also create a user called &#8221;<strong>mcollective</strong>&#8221; in Rabbitmq using rabbitmqctl and give full permission for this user to the new mcollective vhost.</p>
-
-<pre><code>$ rabbitmqctl add_vhost /mcollective
-
-$ rabbitmqctl add_user mcollective mcollective
-
-$ rabbitmqctl set_permissions -p /mcollective mcollective ".*" ".*" ".*"
-</code></pre>
-
-<p>There is also managemnet gui for rabbitmq, we can perform all the above tasks from that also. For that we need enable the management plugin in rabbitmq.</p>
-
-<pre><code>$ rabbitmq-plugins enable rabbitmq_management
-</code></pre>
-
-<p>And restart rabbitmq server. After restarting, we can access the gui using &#8221;<em>http://ip:55672</em>&#8221;. Login user is &#8221;<em>guest</em>&#8221;, password is &#8221;<em>guest</em>&#8221;. We need to create two exchanges that the mcollective plugin needs. We can use the <code>rabbitmqadmin</code> command as mentioned in the Mcollective <a href="http://docs.puppetlabs.com/mcollective/reference/plugins/connector_rabbitmq.html">Documentation</a> or we can use the Management GUI for that.</p>
-
-<pre><code>$ rabbitmqadmin declare exchange vhost=/mcollective name=mcollective_broadcast type=topic
-
-$ rabbitmqadmin declare exchange vhost=/mcollective name=mcollective_directed type=direct 
-</code></pre>
-
-<h3>Configuring Mcollective</h3>
-
-<p>Now install the mcollective from APT repository. We can use the puppetlabs APT repo for the latest versions.</p>
-
-<pre><code>$ echo "deb http://apt.puppetlabs.com precise main" &gt;&gt; /etc/apt/sources.list
-
-$ wget -o /tmp/pubkey.gpg apt.puppetlabs.com/pubkey.gpg &amp;&amp; apt-key add /tmp/pubkey.gpg
-
-$ apt-get intstall mcollective
-</code></pre>
-
-<p>Now go to &#8221;<em>/etc/mcollective/</em>&#8221; folder and open the <code>server.cfg</code> file and add the below lines to enable the rabbitmq connector.</p>
-
-<pre><code>direct_addressing = 1
-
-connector = rabbitmq
-plugin.rabbitmq.vhost = /mcollective
-plugin.rabbitmq.pool.size = 1       =&gt; increase this value, if you are going to use rabbitmq cluster
-plugin.rabbitmq.pool.1.host = stomp.example.com
-plugin.rabbitmq.pool.1.port = 61613
-plugin.rabbitmq.pool.1.user = mcollective
-plugin.rabbitmq.pool.1.password = marionette
-</code></pre>
-
-<p>And restart the mcollective service, to make the changes to come effect.</p>
-
-<h3>Setting up McoMaster</h3>
-
-<p>Mcomaster is an HTML5 web interface to mcollective, which uses REDIS discovery method. Thanks to <a href="https://github.com/ajf8/mcomaster">@ajf8</a> for such a wonderful project. Clone the repository from <a href="https://github.com/ajf8/mcomaster">github</a>.</p>
-
-<pre><code>$ git clone https//github.com/ajf8/mcomaster.git
-</code></pre>
-
-<p>Now copy the <code>meta.rb</code> registration file to the mcollective extension directory of all the Mcollective servers.</p>
-
-<pre><code>$ cp mcollective/registration/meta.rb /usr/share/mcollective/plugins/mcollective/registration/meta.rb
-</code></pre>
-
-<p>We need to enable the registration agent on ALL nodes with the following server.cfg settings</p>
-
-<pre><code>registerinterval = 300
-registration = Meta
-</code></pre>
-
-<p>Now enable <code>direct addressing</code> by adding the below line in the server.cfg of all the server&#8217;s where we have copied the meta registration plugin.</p>
-
-<pre><code>direct_addressing=1
-</code></pre>
-
-<p>We need one mcollective node which receives the registrations and saves them in redis. Ensure that Redis server is installed on that server. We can use the same server where we are going to install mcomaster.</p>
-
-<pre><code>$ cp mcollective/agent/registration.rb /usr/share/mcollective/plugins/mcollective/agent/
-</code></pre>
-
-<p>Add the redis server details to the server.cfg on the server which receives the registrations.</p>
-
-<pre><code>plugin.redis.host = localhost
-plugin.redis.port = 6379
-plugin.redis.db = 0
-</code></pre>
-
-<p>Install mcollective clinet on the server where we are installing the mcomaster. Then configure the discovery agent, which will query the redis database for discovery data.</p>
-
-<pre><code>$ cp mcollective/discovery/redisdiscovery.* /usr/share/mcollective/plugins/mcollective/discovery/
-</code></pre>
-
-<p>And add the following settings to the <code>client.cfg</code></p>
-
-<pre><code>plugin.redis.host = localhost
-plugin.redis.port = 6379
-plugin.redis.db = 0
-default_discovery_method = redisdiscovery
-direct_addressing = yes
-</code></pre>
-
-<p>Using <code>mco</code> command we can check the node discovery using redisdiscovery method, which is the default mwthod now.. The old <code>mc</code> method will also works.</p>
-
-<pre><code>root@testcloud:~# mco rpc rpcutil ping --dm redisdiscovery -v
-info 2013/05/29 10:08:45: rabbitmq.rb:10:in `on_connecting' TCP Connection attempt 0 to stomp://mcollective@localhost:61613
-info 2013/05/29 10:08:45: rabbitmq.rb:15:in `on_connected' Conncted to stomp://mcollective@localhost:61613
-Discovering hosts using the redisdiscovery method .... 4
-
- * [ ============================================================&gt; ] 4 / 4
-
-
-deeptest                                : OK
-    {:pong=&gt;1369802330}
-
-ubuntults                               : OK
-    {:pong=&gt;1369802330}
-
-debwheez                                : OK
-    {:pong=&gt;1369802330}
-
-testcloud                               : OK
-    {:pong=&gt;1369802326}
-
-
-
----- rpcutil#ping call stats ----
-           Nodes: 4 / 4
-     Pass / Fail: 4 / 0
-      Start Time: 2013-05-29 10:08:46 +0530
-  Discovery Time: 30.95ms
-      Agent Time: 85.24ms
-      Total Time: 116.19ms
-info 2013/05/29 10:08:46: rabbitmq.rb:20:in `on_disconnect' Disconnected from stomp://mcollective@localhost:61613
-</code></pre>
-
-<p>Go to McoMaster repo folder, and run <code>bundle install</code> to install all the dependency gems. Copy th existing application.example.yml and create a new <em>application.yml</em> file. Edit this file and fill in the Username, Password, Redis server details etc. Create a new <code>database.yml</code> and fill in the database details. I&#8217;m using MYSQL as the database backend. Below is my config.</p>
-
-<pre><code>production:
-  adapter: mysql
-  database: mcollective
-  username: mcollective
-  password: mcollective
-  host: localhost
-  socket: "/var/run/mysqld/mysqld.sock"
-
-development:
-  adapter: mysql
-  database: mcollective
-  username: mcollective
-  password: mcollective
-  host: localhost
-  socket: "/var/run/mysqld/mysqld.sock"
-</code></pre>
-
-<p>We need to migrate the database,</p>
-
-<pre><code>$ RAILS_ENV=production rake db:reset
-</code></pre>
-
-<p>After that, we need to compile the assets,</p>
-
-<pre><code>$ rake assets:precompile
-</code></pre>
-
-<p>Let&#8217;s start the server,</p>
-
-<pre><code>$ rails server -e production
-</code></pre>
-
-<p>The above command will make the application to listen to default port &#8221;<em>3000</em>&#8221;. Access the McoMaster GUI from the browwser using the username and password added in the &#8221;<em>application.yml</em>&#8221; file. Once we login, we will be able to see the nodes discovered through the redisdiscovery method. If we add the plugins like <em>service</em> and <em>process</em>, we will be able to see the plugins showing up in the mcomaster, and we can also run these plugins with in the McoMaster.</p>
-
-<p>This is a screenshot of the MCoMaster dashboard.</p>
-
-<p><img src="http://beingasysadmin.com/images/mcomaster.png"></p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Runing MCollective in a Multi-Ruby Environment]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment/"/>
-    <updated>2013-05-28T09:34:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/05/28/runing-mcollective-in-a-multi-ruby-environment</id>
-    <content type="html"><![CDATA[<p>Mcollective one of the best open sourced orchestration tools. It&#8217;s build on Ruby and depends on Ruby1.8. But now a days most of the Ruby apps are build on Ruby1.9+, so the default Ruby versions will be 1.9+. This ususally causes problem for Mcollective to run. By default when we install Mcollective from APT, it will install Ruby1.8 also. So the best hack to make Mcollective run under such Multi-Ruby setup is edit the <code>/usr/sbin/mcollectived</code> file,</p>
-
-<p>From <strong>#!/usr/bin/env ruby</strong>*,  Change it to <strong>#!/usr/bin/env ruby1.8</strong>.</p>
-
-<p>This will help the mcollective to work normally. That&#8217;s it, a small hack, but will helps us in Multi Ruby environment</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Plugging QPSMTPD Service with QMAIL]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL/"/>
-    <updated>2013-05-01T15:26:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/05/01/plugging-qpsmtpd-service-with-QMAIL</id>
-    <content type="html"><![CDATA[<p><em>QPSMTPD</em> is a flexible smtp daemon written in Perl. Apart from the core SMTP features, all functionality is implemented in small <em>extension plugins</em> using the easy to use object oriented plugin API. Basically I uses Qmail Based mail server&#8217;s with a custom <em>qmailqueue</em>. We uses the <em>tcpsvd (TCP/IP Service Daemon)</em> for the smtp service and the mails are passed to a custom <em>qmailqueue</em> which is basically a perl script with custom filters for filtering out the mails. <em>QPSMTPD</em> has a verity of custom plugins which includes <em>SPF</em> check, <em>DKIM</em> check and even for <em>DMARC</em> also. If you are a Perl guy, then you can build custom plugins. The main reason why i got attracted to QPSMTPD was because of its plugin nature.</p>
-
-<p>In this blog i will explain on how to setup <em>QPSMTPD</em> along with <em>QMAIL MTA</em>. As i mentioned earlier, i&#8217;m using a custom qmailqueue, where i have some custom filtering which varies from client to client. So i will be using QPSMTPD to do initail filtering like checking <em>DNSBL/RBL</em>, <em>SPF</em> check, <em>DKIM</em>, <em>DMARC</em> etc. A breif info about various qpsmtpd plugins are available <a href="http://wiki.qpsmtpd.org/plugins">here</a></p>
-
-<p>Ths qpsmtpd source is available in <a href="https://github.com/smtpd/qpsmtpd/">Github</a>. The soucre comes with default run scripts which can be used with <em>runit/daemontools</em>. Clone the qpsmtpd source and install the dependency Perl modules.</p>
-
-<pre><code>$ git clone https://github.com/smtpd/qpsmtpd/
-
-$ cpan -i Net::DNS
-
-$ cpan -i MIME::Base64
-
-$ cpan -i Mail::Header
-</code></pre>
-
-<p>Now create a user for the qpsmtp service, say &#8221;<em>smtp</em>&#8221; with home folder as the location of the qpsmtpd folder and chown the qpsmtpd folder using the smptp user. Add sticky bit to the qpsmtpd folder by running <code>chmod o+t qpsmtpd</code>, in order to make supervise start the log process. By deafult inside the source folder there will be a sample config folder called <em>&#8220;config.sample&#8221;</em>. Copy the entire folder and create a new config folder.</p>
-
-<pre><code>$ cp config.sample config
-</code></pre>
-
-<p>In the config folder, edit the &#8221;<em>IP</em>&#8221; in order to mention which ip the qpsmtpd daemon should bind. Putting &#8220;0&#8221; will bind to all the interfaces. Now if we go through the qpsmtpd&#8217;s <code>run</code> script in the source folder, it depends on two binaries <em>softlimit</em> and <em>tcpserver</em>. The <em>softlimit</em> binary comes with the <em>daemontools</em> debian package and the <em>tcpserver</em> binary comes with the <em>ucspi-tcp</em> debian package. so let&#8217;s install those two packages.</p>
-
-<pre><code>$ apt-get install ucspi-tcp daemontools runit
-</code></pre>
-
-<p>Now start the qpsmtpd server. I&#8217;m using runit for service supervision.</p>
-
-<pre><code>$ update-service --add /usr/local/src/qpsmtpd qpsmtpd
-</code></pre>
-
-<p>The above command will add the service. We can check the service status using <code>sv s qpsmtpd</code> command. This will show us whether the serivce is running or not. Now go inside the &#8220;config&#8221; folder and open the &#8220;plugin&#8221; file. This is where we enable the plugins, by addin the plugin names with corresponding options. By default the &#8221;<em>rcpt_ok</em>&#8221; plugin must be enabled. This plugin handles the <em>qmail&#8217;s rcpthosts feature</em>. It accepts the emails for the domains mentioned in the &#8221;<em>rcpthosts</em>&#8221; file present in the config folder. If this is not enabled it will not accept any mails. So the best way to understand how each plugin works is comment out all the plugins except &#8220;rcpt_ok&#8221; and then add the plugins one by one. The plugins are available in the &#8220;plugin&#8221; folder in the qpsmtpd source folder. All the basic info about the plugins are mentioned in the plugin files itself.</p>
-
-<p>Now most commonly used plugins are <em>auth</em> for SMTP AUTH, <em>DNSBL/RBL</em>, <em>spamassassin</em>, etc. We can enable these plugins by adding the names in the <code>config/plugin</code> files. For example, since i&#8217;m using a custom qmailqueue, once the qpsmtpd has accepted the mail, it has to be queued to my custom QMAILQUEUE. So i need to enable the &#8220;queue plugin&#8221;. I can enable the plugin by adding the below line to the plugin file inside the config folder.</p>
-
-<pre><code>queue/qmail-queue /var/qmail/bin/qmail-scanner-queue
-</code></pre>
-
-<p>If you are using any other MTA, you can provide the corresponding MTA&#8217;s queue. For example for postfix &#8221;<em>postfix-queue</em>&#8221;, and for exim use &#8221;<em>exim-bsmtp</em>&#8221;, or if you want to use QPSMTPD as a relaying server, you can use &#8221;<em>smtp-forward</em>&#8221; plugin for relaying mails to another SMTP server. So once the mail has been accepted by qpsmtpd, it will queue the mail to my custom qmail queue, and then it will start the mail delivery. Similarly i use ldap backend for smtp authentication. So i need to enable &#8221;<em>auth/auth_ldap_bind</em>&#8221; plugin for this. Like that we can add other plugins too. By default <em>DMARC</em> plugin is not added, but we can get it from <a href="https://github.com/qpsmtpd-dev/qpsmtpd-dev/tree/master/plugins">here</a>.</p>
-
-<p>Use tools like swaks for sending test mails, because plugins like check_basicheaders will not accept mails without proper headers, so using telnet to send mails wont work some times. Swaks is a good tool for sending test mail. We can increase the loglevel, by editing <code>config/loglevel</code> file. It&#8217;s better to increase the log level to debug so that we will get more details of errors. Some plugins needs certain Perl modules, if it&#8217;s missing the error will popup in the qpsmtpd logs, so use cpan and install those perl modules.</p>
-
-<p>By default the run script uses tcpserver to start the service. There many other ways of deployments like <strong><em>forkserver</em></strong>,<strong><em>pre-fork daemon</em></strong>,<strong><em>Apache::Qpsmtpd</em></strong> etc. To use the default <em>TLS</em> plugin, we need to use the &#8221;<em>forkserver model</em>&#8221;. The forke server model script is availbale in the same run script, but it is commented by default. The default spool directory will be a &#8221;<em>tmp</em>&#8221; folder inside the QPUSER&#8217;s ie, the user &#8220;smtp&#8221; home folder. In my case i&#8217;m using a separate folder for spool, <code>/var/spool/qpsmtp</code>, for such cases, edit <code>lib/Qpsmtpd.pm</code> and go to &#8221;<em>spool_dir</em>&#8221; subroutine and add &#8221;<strong><em>$Spool_dir = &#8220;/var/spool/qpsmtpd/&#8221;;&#8221;</em></strong>. Now create the spool directory with owner as &#8221;<em>smtp</em>&#8221; user and folder permission &#8221;<em>0700</em>&#8221; and then restart the qpsmtpd service.</p>
-
-<p>Now to enable TLS, enable the <em>tls</em> plugin in the <code>config/plugin</code> file like this &#8221;<strong>tls cert_path priv_key_path ca_path</strong>&#8221;. If there is no TLS certificate available ,then we can generate using a perl script &#8221;<em>tls_cert</em>&#8221;, which is available at the <em>plugins</em> folder. Now we need to edit the <code>config/tls_before_auth</code> file and put the value <em>&#8220;0&#8221;</em>, otherwise AUTH will not be offered unless TLS/SSL are in place. Now we can try  sending a test mail using swaks with TLS enabled. Below is my swaks output.</p>
-
-<pre><code>=== Trying 192.168.42.189:587...
-=== Connected to 192.168.42.189.
-&lt;-  220 beingasysadmin.com ESMTP  send us your mail, but not your spam.
- -&gt; EHLO deeptest.beingasysadmin.com
-&lt;-  250-beingasysadmin.com Hi deeptest [192.168.42.184]
-&lt;-  250-PIPELINING
-&lt;-  250-8BITMIME
-&lt;-  250-SIZE 5242880
-&lt;-  250-STARTTLS
-&lt;-  250 AUTH PLAIN LOGIN CRAM-MD5
- -&gt; STARTTLS
-&lt;-  220 Go ahead with TLS
-=== TLS started w/ cipher xxxxxx-xxx-xxxxxx
-=== TLS peer subject DN="/C=XY/ST=unknown/L=unknown/O=QSMTPD/OU=Server/CN=debwheez.beingasysadmin.com/emailAddress=postmaster@debwheez.beingasysadmin.com"
- ~&gt; EHLO deeptest.beingasysadmin.com
-&lt;~  250-beingasysadmin.com Hi deeptest [192.168.42.184]
-&lt;~  250-PIPELINING
-&lt;~  250-8BITMIME
-&lt;~  250-SIZE 5242880
-&lt;~  250 AUTH PLAIN LOGIN CRAM-MD5
- ~&gt; AUTH PLAIN AGRlZXBhawBteWRlZXByb290
-&lt;~  235 PLAIN authentication successful for deepak - authldap/plain
- ~&gt; MAIL FROM:&lt;deepak@beingasysadmin.com&gt;
-&lt;~  250 &lt;deepak@beingasysadmin.com&gt;, sender OK - how exciting to get mail from you!
- ~&gt; RCPT TO:&lt;deepakmdass88@gmail.com&gt;
-&lt;~  250 &lt;deepakmdass88@gmail.com&gt;, recipient ok
- ~&gt; DATA
-&lt;~  354 go ahead
- ~&gt; Date: Wed, 01 May 2013 23:19:54 +0530
- ~&gt; To: deepakmdass88@gmail.com
- ~&gt; From: deepak@beingasysadmin.com
- ~&gt; Subject: testing TLS + Auth in qpsmtpd
- ~&gt; X-Mailer: swaks v20120320.0 jetmore.org/john/code/swaks/
- ~&gt;
- ~&gt; This is a test mailing
- ~&gt;
- ~&gt; .
-&lt;~  250 Queued! 1367430597 qp 9222 &lt;&gt;
- ~&gt; QUIT
-&lt;~  221 beingasysadmin.com closing connection. Have a wonderful day.
-=== Connection closed with remote host. 
-</code></pre>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[DKIM Signing in QMAIL]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail/"/>
-    <updated>2013-04-30T11:19:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/04/30/dkim-signing-in-qmail</id>
-    <content type="html"><![CDATA[<p><em>DKIM</em> and <em>SPF</em> are becoming most commonly adopted methods for email validation. Even if we want to use the DMARC (<em>Domain-based Message Authentication, Reporting &amp; Conformance</em>), we need to configure  SPF and DKIM first. DMARC acts as a layer above the SPF and DKIM. DMARC allows the receiever&#8217;s mail server to check if the Email is aligned properly as per the DMARC policy, and it queries the sender&#8217;s DNS server for the DMARC action, ie, whether to reject or quarantine if alignment fails. The action will be mentioned in the TXT record on the Sender&#8217;s DNS server. There is a good collection of DMARC training videos available in <a href="http://www.maawg.org/activities/training/dmarc-video-1">MAAWG site</a>. We will get a clear idea on how DMARC works from those videos.</p>
-
-<p>In this post, i will explain on how to make Qmail to do DKIM sign on the outgoing mails. There is a <a href="http://www.brandonturner.net/blog/2009/03/dkim-and-domainkeys-for-qmail/">qmail-patch</a> method available, but since i&#8217;m using qmail-1.0.3 with custom patch, i was not able to use the DKIM patch along with my custom patch. So the next method is to use a wrapper around &#8220;qmail-remote&#8221;, since qmail-remote is responsible for delivering remote mails, a wrapper around it will help us to sign the email and then start the remote delivery. There are a few wrappers mentioned in this <a href="http://www.memoryhole.net/qmail/#dkim">site</a>. I&#8217;m going to use this <a href="http://www.memoryhole.net/qmail/qmail-remote.sh">qmail-remote</a> wrapper.</p>
-
-<h4>Initial Settings</h4>
-
-<p>First move the current &#8221;<em>qmail-remote</em>&#8221; binary to &#8221;<em>qmail-remote.orig</em>&#8221;. Now download the wrapper and move it to the <code>/var/qmail/bin/</code> file.</p>
-
-<pre><code>$ mv /var/qmail/bin/qmail-remote /var/qmail/bin/qmail-remote.orig
-
-$ wget -O /var/qmail/bin/qmail-remote "http://www.memoryhole.net/qmail/qmail-remote.sh"
-
-$ chmod 755 /var/qmail/bin/qmail-remote
-</code></pre>
-
-<p>This wrapper depends on two programs, 1) <strong><em>dktest</em></strong>, which comes with the <a href="http://domainkeys.sourceforge.net/">libdomainkeys</a>,  2)  <a href="http://www.memoryhole.net/qmail/dkimsign.pl">dkimsign.pl</a>, which is perl script for signing the emails. Both these files, must be available at the path mentioned in the &#8220;qmail-remote&#8221; wrapper file.</p>
-
-<p>Go through the &#8221;<em>dkimsign.pl</em>&#8221; script and install the Perl modules mentioned in it using cpan. There is no official debian package for libdomainkeys, so we need to compile it from the source.</p>
-
-<h4>setting up dktest</h4>
-
-<p>Download the latest source code from the sourceforge <a href="http://sourceforge.net/projects/domainkeys/">link</a>.</p>
-
-<pre><code>$ tar -xzf libdomainkeys-0.69.tar.gz
-
-$ cd libdomainkeys-0.69
-</code></pre>
-
-<p>Edit the Makefile and add &#8221;<em>-lresolv</em>&#8221; to the end of the &#8221;<em>LIBS</em>&#8221; line and run <code>make</code></p>
-
-<pre><code>$ install -m 644 libdomainkeys.a /usr/local/lib
-
-$ install -m 644 domainkeys.h dktrace.h /usr/local/include
-
-$ install -m 755 dknewkey /usr/bin
-
-$ install -m 755 dktest /usr/local/bin
-</code></pre>
-
-<h4>Generate Domain keys for the domains</h4>
-
-<p>Before we can sign an email, we must create at least one <em>public/private key pair</em>. I&#8217;m going to create a key pair for the domain &#8220;example.com&#8221;.</p>
-
-<pre><code>$ mkdir -p /etc/domainkeys/example.com
-
-$ cd /etc/domainkeys/example.com
-
-$ dknewkey default 1024 &gt; default.pub
-
-$ chown -R root:root /etc/domainkeys
-
-$ chmod 640 /etc/domainkeys/example.com/default
-
-$ chown root:qmail /etc/domainkeys/example.com/default
-</code></pre>
-
-<p>It is very important that the default file be readable only by root and the group which qmailr (the qmail-remote user) belongs to. Now add a <em>TXT</em> entry to the DNS for &#8221;<em>default._domainkey.example.com</em>&#8221; containing the quoted part in the <code>/etc/domainkeys/example.com/default.pub</code></p>
-
-<p>Once everything is added, restart the &#8220;qmail-send&#8221; and send a test mail to any non local domain. IF things goes fine, we can see a line like the below in &#8220;qmail-send&#8221; log.</p>
-
-<pre><code>$ @40000000517f518b1e1eb75c delivery 1: success: ktest_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/in_dkimsignpl_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/r74.125.25.27_accepted_message./Remote_host_said:_250_2.0.0_OK_1367298812_ps11si19566038pab.170_-_gsmtp/
-</code></pre>
-
-<p>Once the DKIM is working properly, add the SPF entries in our DNS, and we are ready to try out DMARC. DMARC is already in use by mail giants like Google,Yahoo,Paypal,Linkedin etc.</p>
 ]]></content>
   </entry>
   
