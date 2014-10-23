@@ -1,0 +1,409 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>sippy_cup - FreeSwitch Load Test Simplified - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Ever since the entry of Docker, everyone is busy porting their applications to Docker Containers. Now with the tools like Mesos, CoreOS etc we can &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="sippy_cup - FreeSwitch Load Test Simplified" />
+  <meta name="og:description" content="Ever since the entry of Docker, everyone is busy porting their applications to Docker Containers. Now with the tools like Mesos, CoreOS etc we can &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">
+  
+  <meta name="subject" content="DockerFreeswitchrubysippsippsippy_cup"/>
+  <meta name="category" content="DockerFreeswitchrubysippsippsippy_cup"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Sippy_cup - FreeSwitch Load Test Simplified</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-10-23T02:35:00+00:00" pubdate data-updated="true">Oct 23<span>rd</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/freeswitch/'>Freeswitch</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>, <a class='category' href='/blog/categories/sipp/'>sipp</a>, <a class='category' href='/blog/categories/sipp/'>sipp</a>, <a class='category' href='/blog/categories/sippy-cup/'>sippy_cup</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Ever since the entry of <code>Docker</code>, everyone is busy porting their applications to Docker Containers. Now with the tools like Mesos, CoreOS etc we can easily achieve scalability also. @Plivo we always dedicate ourselves to play around such new technologies. In my previous blog posts, i&#8217;ve explained how to containerize the Freeswitch, how to perform some basic load test using simple dialplans etc. My previous load tests required a bunch of basic Freeswitch servers to originate calls to flood the calls to the FreeSwitch container. So this time i&#8217;m going to use a simple method, which everyone can use even from their laptops.</p>
+
+<p>Enter <code>SIPp</code>. SIPp is a free Open Source test tool / traffic generator for the SIP protocol. But the main issue for beginer like me is in generating a proper XML for SIPp that can match to my exact production scenarios. After googling, i came across a super simple ruby wrapper over SIPp called <a href="https://github.com/mojolingo/sippy_cup">sippy_cup</a>.  SIPpy_cup is a simple ruby wrapper over SIPp. We just need to create a simple yaml file and sippy_cup parses this yml file and generates the XML equivalent which will be then used to generate calls. sippy_cup can also be used to generate only the XML file for SIPp.</p>
+
+<p>Setting up sippy_cup is very simple. There are only two dependencies</p>
+
+<pre><code>      1) ruby (2.1.2 recomended)
+      2) SIPp
+</code></pre>
+
+<p>Another important dependency is our <em>local internet bandwidth</em>. Flooding too many calls will definitely result in network bottlenecks, which i faced when i generated 1k calls from my laptop. Now let&#8217;s install SIPp.</p>
+
+<pre><code>sudo apt-get install pcaputils libpcap-dev libncurses5-dev
+
+wget 'http://sourceforge.net/projects/sipp/files/sipp/3.2/sipp.svn.tar.gz/download'
+
+tar zxvf sipp.svn.tar.gz
+
+# compile sipp
+make
+
+# compile sipp with pcapplay support
+make pcapplay
+</code></pre>
+
+<p>Once we have installed SIPp and ruby, we can install sippy_cup via ruby gems.</p>
+
+<pre><code>gem install sippy_cup
+</code></pre>
+
+<h3>Configuring sippy_cup</h3>
+
+<p>First we need to create yml file for our call flow. There is a good documentation available on the <a href="https://github.com/mojolingo/sippy_cup/blob/develop/README.markdown">Readme</a> on various options that can be used to create the yml to suit to our call flow. My call flow is pretty simple, i&#8217;ve a DialPlan in my Docker FS, which will play an mp3 file. So below is a simple yml config for this call flow</p>
+
+<pre><code>source: &lt;local_machine_ip&gt;
+destination: &lt;docker_fs_ip&gt;:&lt;fs_port&gt;
+max_concurrent: &lt;no_of_concurrent_calls&gt;
+calls_per_second: &lt;calls_per_second&gt;
+number_of_calls: &lt;total_no_of_calls&gt;
+to_user: &lt;to_number&gt;            # =&gt; should match the FS Dialplan
+steps:                  # call flow steps
+  - invite              # Initial Call INVITE
+  - wait_for_answer         # Waiting for Answer, handles 100, 180/183 and finally 200 OK
+  - ack_answer              # ACK for the 200 OK
+  - sleep 1000              # Sleeps for 1000 seconds
+  - send_bye                # Sends BYE signal to FS
+</code></pre>
+
+<p>Now let&#8217;s run sippy_cup using our config yml</p>
+
+<pre><code>sippy_cup -r test.yml
+</code></pre>
+
+<p>Below is the output of a sample load test. Total 20 calls with 10 concurrent calls</p>
+
+<pre><code>         INVITE ----------&gt;      20        1         0
+         100 &lt;----------         20        0         0         0
+         180 &lt;----------         0         0         0         0
+         183 &lt;----------         0         0         0         0
+         200 &lt;----------  E-RTD1 20        0         0         0
+         ACK ----------&gt;         20        0
+              [ NOP ]
+         Pause [    30.0s]       20                            0
+         BYE ----------&gt;         20        0
+------------------------------ Test Terminated --------------------------------
+
+
+----------------------------- Statistics Screen ------- [1-9]: Change Screen --
+  Start Time             | 2014-10-22   19:12:40.494470 1414030360.494470
+  Last Reset Time        | 2014-10-22   19:13:45.355358 1414030425.355358
+  Current Time           | 2014-10-22   19:13:45.355609 1414030425.355609
+-------------------------+---------------------------+--------------------------
+  Counter Name           | Periodic value            | Cumulative value
+-------------------------+---------------------------+--------------------------
+  Elapsed Time           | 00:00:00:000000           | 00:01:04:861000
+  Call Rate              |    0.000 cps              |    0.308 cps
+-------------------------+---------------------------+--------------------------
+  Incoming call created  |        0                  |        0
+  OutGoing call created  |        0                  |       20
+  Total Call created     |                           |       20
+  Current Call           |        0                  |
+-------------------------+---------------------------+--------------------------
+  Successful call        |        0                  |       20
+  Failed call            |        0                  |        0
+-------------------------+---------------------------+--------------------------
+  Response Time 1        | 00:00:00:000000           | 00:00:01:252000
+  Call Length            | 00:00:00:000000           | 00:00:31:255000
+------------------------------ Test Terminated --------------------------------
+
+
+I, [2014-10-22T19:13:45.357508 #17234]  INFO -- : Test completed successfully!
+</code></pre>
+
+<p>I tried to perform a large scale load test by making 1k calls with 250 concurrent calls. My local internet was flooding with network traffic as there was real Media packets coming from the servers, though it bottlenecked my internet, but still i was able to make 994 successfull calls. I suggest to do such heavy load test on machines wich has good network throughput. Below are the output for this test.</p>
+
+<pre><code>------------------------------ Scenario Screen -------- [1-9]: Change Screen --
+  Call-rate(length)   Port   Total-time  Total-calls  Remote-host
+   5.0(0 ms)/1.000s   8836     585.61 s         1000  54.235.170.44:5060(UDP)
+
+  Call limit reached (-m 1000), 0.507 s period  1 ms scheduler resolution
+  6 calls (limit 250)                    Peak was 176 calls, after 150 s
+  0 Running, 8 Paused, 1 Woken up
+  604 dead call msg (discarded)          0 out-of-call msg (discarded)
+  3 open sockets
+  1490603 Total RTP pckts sent           0.000 last period RTP rate (kB/s)
+
+                                 Messages  Retrans   Timeout   Unexpected-Msg
+         INVITE ----------&gt;      1000      332       0
+         100 &lt;----------         954       53        0         0
+         180 &lt;----------         0         0         0         0
+         183 &lt;----------         0         0         0         0
+         200 &lt;------2014-10-22  19:19:23.202714 1414030763.202714: Dead call 990-17510@192.168.1.146 (successful), 
+
+received 'SIP/2.0 200 OK
+Via: SIP/2.0/UDP 192.168.1.146:8836;received=208.66.27.62;branch=z9hG4bK-17510-990-8
+From: "sipp" &lt;sip:sipp@192.168.1.146&gt;;tag=990
+To: &lt;sip:14158872327@54.235.170.44:5060&gt;;tag=9p6t351mvXZXg
+Call-ID: 990-17510@192.168.1.146
+CSeq: 2 BYE
+User-Agent: Plivo
+Allow: INVITE, ACK, BYE, CANCEL, OPTIONS, MESSAGE, INFO, UPDATE, REFER, NOTIFY
+Supported: timer, precondition, path, replaces
+Conte----  E-RTD1        994       126       0         0
+         ACK ----------&gt;         994       126
+              [ NOP ]
+       Pause [    30.0s]         994                           0
+         BYE ----------&gt;         994       0
+------------------------------ Test Terminated --------------------------------
+
+
+----------------------------- Statistics Screen ------- [1-9]: Change Screen --
+  Start Time             | 2014-10-22   19:15:29.941276 1414030529.941276
+  Last Reset Time        | 2014-10-22   19:25:15.056475 1414031115.056475
+  Current Time           | 2014-10-22   19:25:15.564038 1414031115.564038
+-------------------------+---------------------------+--------------------------
+  Counter Name           | Periodic value            | Cumulative value
+-------------------------+---------------------------+--------------------------
+  Elapsed Time           | 00:00:00:507000           | 00:09:45:622000
+  Call Rate              |    0.000 cps              |    1.708 cps
+-------------------------+---------------------------+--------------------------
+  Incoming call created  |        0                  |        0
+  OutGoing call created  |        0                  |     1000
+  Total Call created     |                           |     1000
+  Current Call           |        6                  |
+-------------------------+---------------------------+--------------------------
+  Successful call        |        0                  |      994
+  Failed call            |        0                  |        0
+-------------------------+---------------------------+--------------------------
+  Response Time 1        | 00:00:00:000000           | 00:00:01:670000
+  Call Length            | 00:00:00:000000           | 00:00:31:673000
+------------------------------ Test Terminated --------------------------------
+</code></pre>
+
+<p>Sippy_cup is definitely a good tool for all beginers who finds really hard time to work around with SIPp XML&#8217;s. I&#8217;m really excited to see how Docker is going to contirbute to VOIP world.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-10-23T02:35:00+00:00" pubdate data-updated="true">Oct 23<span>rd</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/freeswitch/'>Freeswitch</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>, <a class='category' href='/blog/categories/sipp/'>sipp</a>, <a class='category' href='/blog/categories/sipp/'>sipp</a>, <a class='category' href='/blog/categories/sippy-cup/'>sippy_cup</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/" title="Previous Post: Monitoring Redis using CollectD and ELK">&laquo; Monitoring Redis using CollectD and ELK</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">Upgrading Marthon for Mesos Native Docker Support</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

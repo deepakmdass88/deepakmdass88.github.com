@@ -217,11 +217,17 @@
         <lastmod>2014-10-15T01:08:54+00:00</lastmod>
     </url>
     <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/
+        </loc>
+        <lastmod>2014-10-23T03:01:22+00:00</lastmod>
+    </url>
+    <url>
         <loc>http://beingasysadmin.com/</loc>
-        <lastmod>2014-10-15T01:08:54+00:00</lastmod>
+        <lastmod>2014-10-23T03:01:22+00:00</lastmod>
     </url>
     <url>
         <loc>http://beingasysadmin.com/blog/archives/</loc>
-        <lastmod>2014-10-15T01:08:54+00:00</lastmod>
+        <lastmod>2014-10-23T03:01:22+00:00</lastmod>
     </url>
 </urlset>

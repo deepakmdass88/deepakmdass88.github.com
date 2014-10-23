@@ -97,6 +97,214 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/">Real Time Web-Monitoring Using Lumberjack-Logstash-Statsd-Graphite</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-06-27T16:29:00+00:00" pubdate data-updated="true">Jun 27<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/graphite/'>Graphite</a>, <a class='category' href='/blog/categories/logstash/'>Logstash</a>, <a class='category' href='/blog/categories/lumberjack/'>Lumberjack</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/statsd/'>Statsd</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I&#8217;m going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log&#8217;s porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i&#8217;ve explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server&#8217;s access logs.</p>
+
+<p>By default, i&#8217;m using the combined apache log format, but it doesnot have the original response time for each request as well as the total reponse time. So we need to modify the LogFormat, in order to add the two. Below is the LogFormat which i&#8217;m using for my test setup.</p>
+
+<pre><code>LogFormat "%h %l %u %t \"%r\" %&gt;s %O \"%{Referer}i\" \"%{User-Agent}i\" %D %&gt;D" combined
+</code></pre>
+
+<p>Once the LogFormat is modified, restart the apache service in order to make the change to be effective.</p>
+
+<h4>Setting up Logstash Server</h4>
+
+<p>First Download the latest Logstash Jar file from the Logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">site</a>. Now we need to create a logstash conf file. By default there is a grok pattern available for apache log called &#8220;COMBINEDAPACHELOG&#8221;, but since we have added the tow new fields for the response time, we need to add the same for grok pattern also. So below is a pattern which is going to be used with Logstash.</p>
+
+<pre><code>pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+</code></pre>
+
+<p>So the Logstash conf file will look like this,</p>
+
+<pre><code>input {
+      lumberjack {
+        type =&gt; "apache-access"
+        port =&gt; 4444
+        ssl_certificate =&gt; "/etc/ssl/logstash.pub"
+        ssl_key =&gt; "/etc/ssl/logstash.key"
+  }
+}
+
+filter {
+  grok {
+        type =&gt; "apache-access"
+    pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
+  }
+}
+
+output {
+  stdout {
+    debug =&gt; true
+      }
+  statsd {
+    type =&gt; "apache-access"
+    host =&gt; "localhost"
+    port =&gt; 8125
+    debug =&gt; true
+    timing =&gt; [ "apache.servetime", "%{resptimefull}" ]
+    increment =&gt; "apache.response.%{response}"
+  }
+}
+</code></pre>
+
+<h4>Setting up STATSD</h4>
+
+<p>Now we can start setting up the StatsD daemon. By default, Ubuntu&#8217;s latest OS ships with newer verision of NodeJS and NPM. So we can install it using APT/Aptitude.</p>
+
+<pre><code>$ apt-get install nodejs npm
+</code></pre>
+
+<p>Now clone the StatsD github repository to the local machine.</p>
+
+<pre><code>$ git clone git://github.com/etsy/statsd.git
+</code></pre>
+
+<p>Now create a local config file &#8220;localConfig.js&#8221; with the below contents.</p>
+
+<pre><code>{
+graphitePort: 2003
+, graphiteHost: "127.0.0.1"
+, port: 8125
+}
+</code></pre>
+
+<p>Now we can start the StatsD daemon.</p>
+
+<pre><code>$ node /opt/statsd/stats.js /opt/statsd/localConfig.js
+</code></pre>
+
+<p>The above command will start the StatsD in foreground. Now we can go ahead with setting up the Graphite.</p>
+
+<h4>Setting up Graphite</h4>
+
+<p>First, let&#8217;s install the basic python dependencies.</p>
+
+<pre><code>$ apt-get install python-software-properties memcached python-dev python-pip sqlite3 libcairo2 libcairo2-dev python-cairo pkg-config
+</code></pre>
+
+<p>Then, we can start installing Carbon and Graphite dependencies.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/graphite_reqs.txt &lt;&lt; EOF
+        django==1.3
+        python-memcached
+        django-tagging
+        twisted
+        whisper==0.9.9
+        carbon==0.9.9
+        graphite-web==0.9.9
+        EOF
+
+$  pip install -r /tmp/graphite_reqs.txt
+</code></pre>
+
+<p>Now we can configure Carbon.</p>
+
+<pre><code>$ cd /opt/graphite/conf/
+
+$ cp carbon.conf.example carbon.conf
+</code></pre>
+
+<p>Now we need to create a storage schema.</p>
+
+<pre><code>        cat &gt;&gt; /tmp/storage-schemas.conf &lt;&lt; EOF
+        # Schema definitions for Whisper files. Entries are scanned in order,
+        # and first match wins. This file is scanned for changes every 60 seconds.
+        # [name]
+        # pattern = regex
+        # retentions = timePerPoint:timeToStore, timePerPoint:timeToStore
+        [stats]
+        priority = 110
+        pattern = ^stats\..*
+        retentions = 10s:6h,1m:7d,10m:1y
+        EOF
+
+
+$ cp /tmp/storage-schemas.conf /opt/graphite/conf/storage-schemas.conf
+</code></pre>
+
+<p>Also we need to create a log directory for graphite.</p>
+
+<pre><code>$ mkdir -p /opt/graphite/storage/log/webapp
+</code></pre>
+
+<p>Now we need to copy over the local settings file and initialize database</p>
+
+<pre><code>$ cd /opt/graphite/webapp/graphite/
+
+$ cp local_settings.py.example local_settings.py
+
+$ python manage.py syncdb
+</code></pre>
+
+<p>Fill in the necessary details including the super user details while initializing the database. Once the database is initialized we can start the carbon cache and graphite webgui.</p>
+
+<pre><code>$ /opt/graphite/bin/carbon-cache.py start
+
+$ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
+</code></pre>
+
+<p>Now we can access the dashboard using the url, &#8220;http://ip-address:8080&#8221;. Once we have started the carbon cache, we can start the Logstash server.</p>
+
+<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
+</code></pre>
+
+<p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i&#8217;ve enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph&#8217;s from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/06/25/lumberjack-a-light-weight-log-shipper-for-logstash/">Lumberjack - a Light Weight Log Shipper for Logstash</a></h1>
     
     
@@ -1409,96 +1617,6 @@ $ make &amp;&amp; make install
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/11/monitoring-with-zenoss/">Monitoring With ZENOSS</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-11T17:03:00+00:00" pubdate data-updated="true">Apr 11<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/centos/'>Centos</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/zenoss/'>Zenoss</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>It&#8217;s being a year since i have really played with Centos or any Redhat based Distro&#8217;s. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar&#8217;s, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
-
-<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It&#8217;s a bash script. We can download it from the below link.</p>
-
-<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
-</code></pre>
-
-<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
-
-<p>Once done, we can start the installer script.</p>
-
-<pre><code>$ ./core-autodeploy.sh
-</code></pre>
-
-<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>&#8220;connection reset&#8221;</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
-
-<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
-accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
-
-=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
-closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
-{channel0_error,starting,
-            {amqp_error,access_refused,
-                        "PLAIN login refused: user 'zenoss' - invalid credentials",
-                        'connection.start_ok'}}
-</code></pre>
-
-<p>The error says that the zenoss user credential is wrong. So using <strong><em>&#8220;rabbitmqctl&#8221;</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>&#8220;/opt/zenoss/etc&#8221;</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
-
-<pre><code>$ service zenoss start
-</code></pre>
-
-<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>&#8220;http://server_ip:8080&#8221;</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I&#8217;ve added my vps as well as few of my local server&#8217;s with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground &#8230;</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1526,6 +1644,10 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
         </li>
       
@@ -1539,10 +1661,6 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
       
         <li>
           <a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/">Managing Docker Cluster using Multiple Mesos Masters</a>
         </li>
       
     </ul>

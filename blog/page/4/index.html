@@ -97,6 +97,96 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/11/monitoring-with-zenoss/">Monitoring With ZENOSS</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-11T17:03:00+00:00" pubdate data-updated="true">Apr 11<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/centos/'>Centos</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/zenoss/'>Zenoss</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s being a year since i have really played with Centos or any Redhat based Distro&#8217;s. I saw a few videos on <a href="http://www.youtube.com/user/zenoss">youtube</a> realting to <strong>zenoss</strong>, which is a new generation monitoring tool. Later i attended two <strong><em>zenoss</em></strong> webinar&#8217;s, which made to try it out in own infrastructure. In this blog i will explain  how to setup zenoss on a Centos6.4 machine. Make sure that you have atleast 2GB of Ram. Initially i put 1GB of Ram and 2GB of swap in my Centos VM. But when i started the zenoss services, the whole and ram and swap was consumed and finaly i was not able to start the services.</p>
+
+<p>Basicaly zenoss need <strong><em>RabbitMQ messaging server, JAVA6, MYSQL</em></strong> as its dependencies. There is an automated script available from the <a href="http://wiki.zenoss.org/Install_Zenoss">zenos website</a>, which will download and install all necessary dependencies. It&#8217;s a bash script. We can download it from the below link.</p>
+
+<pre><code>$  wget --no-check-certificate https://github.com/zenoss/core-autodeploy/tarball/4.2.3 -O auto.tar.gz
+</code></pre>
+
+<p>Once we extract the above tar ball, we can see a bunch of files. <code>zenpack_actions.txt</code> file contains the list of zenpacks which is going to be installed. We can modify it based on our needs.</p>
+
+<p>Once done, we can start the installer script.</p>
+
+<pre><code>$ ./core-autodeploy.sh
+</code></pre>
+
+<p>This will start by downloading the zenoss rpm file. Once the installation completed, it was giving an error, saying that <em>&#8220;connection reset&#8221;</em> while installing the zenpacks. I was going through all the log files, finally i found that the error was in the rabbitmq. The zenoss user authentication was failing. Below is the error which iwas getting in the rabbitmq log.</p>
+
+<pre><code>=INFO REPORT==== 10-Apr-2013::09:37:00 ===
+accepting AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672)
+
+=ERROR REPORT==== 10-Apr-2013::09:37:03 ===
+closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
+{channel0_error,starting,
+            {amqp_error,access_refused,
+                        "PLAIN login refused: user 'zenoss' - invalid credentials",
+                        'connection.start_ok'}}
+</code></pre>
+
+<p>The error says that the zenoss user credential is wrong. So using <strong><em>&#8220;rabbitmqctl&#8221;</em></strong> command i reset the zenoss user password. Once the password is changed, we have to mention the new passowrd in the zenoss <code>global.conf</code> file. This file will be present in <strong><em>&#8220;/opt/zenoss/etc&#8221;</em></strong> location. Open the the <code>global.conf</code> file, and replace the <strong><em>amqppassword</em></strong> with the new password. By default during installation, the script generates a base64 encoded random password using the openssl. Once we hab=ve replaced the password, we can start the zenoss service.</p>
+
+<pre><code>$ service zenoss start
+</code></pre>
+
+<p>Now while starting the service, zenoss will continue the installing the zenpacks. Once the service is started, we can access the WebGUI from <strong><em>&#8220;http://server_ip:8080&#8221;</em></strong> url. Initially it will ask us to set the password for the admin user as well as to create a secondary user. More over  it will ask us to add hosts to monitor, we can skip this step and move the dashboard. Later on we can add the hosts directly from the infrastructure tab. I&#8217;ve added my vps as well as few of my local server&#8217;s with snmp, so far it is working perfectly. There many cool stuffs inside zenoss, hope this will a cool playground &#8230;</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/07/setting-up-apache-cloudstack/">Setting Up Apache CloudStack</a></h1>
     
     
@@ -1139,150 +1229,6 @@ user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/11/29/using-mongo-discovery-method-in-mcollective/">Using Mongo Discovery Method in MCollective</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-11-29T21:48:00+00:00" pubdate data-updated="true">Nov 29<span>th</span>, 2012</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/mcollective/'>MCollective</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>I&#8217;ve been playing around with  <strong><em>MCollective</em></strong> for the past few months. But this time i wanted to try out the <code>Mongo</code> discovery method. The response time was quite faster for the <code>Mongo</code> discovery method. So i really wanted to try it out. Setting out MCollective Server/Client is prettyl simple. You can go through  my previous <a href="http://beingasysadmin.wordpress.com/2012/09/10/setting-up-mcollective-with-activemq-in-ubuntu-12-04/">blog</a>. Now we need to install the <strong>Meta</strong> registration plugin on all the MCollective Servers. Just Download and Copy <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/registration/meta.rb">meta.rb</a> in the MCollective registration plugin folder. In my case, i&#8217;ve Debian based machine&#8217;s, so the location is, <code>/usr/share/mcollective/plugins/mcollective/registration/</code>. This will make the metadata available to other nodes.</p>
-
-<p>Now add the below three lines into the <code>server.cfg</code> of all the MCollective server&#8217;s.</p>
-
-<pre><code>registration = Meta
-registerinterval = 300
-factsource = facter
-</code></pre>
-
-<p>Now install the <a href="https://github.com/ripienaar/mcollective-plugins/blob/master/agent/registration-mongodb/agent/registration.rb">mongodb registration agent</a> on one of the nodes, which will be our slave node.. Do not install this on all the nodes. There is a small <a href="http://projects.puppetlabs.com/issues/16447">bug</a> in this agent. So follow the steps mentioned <a href="http://projects.puppetlabs.com/issues/16447">here</a> and modify the <code>registration.rb</code> file. Now install mongoDB server on the slave node. Also add the below lines to the <strong><em>server.cfg</em></strong> in the slave machine.</p>
-
-<pre><code>plugin.registration.mongohost = localhost
-plugin.registration.mongodb = puppet
-plugin.registration.collection = nodes
-</code></pre>
-
-<p>Now restart the mcollective service. If we increase the log level to <strong>debug</strong>, then we can see the below lines in the <code>mcollective.log</code>. This indicates that the plugin is getting activated and it is receiving request from the machines, whose fqdn is shown in the below line.</p>
-
-<pre><code>D, [2012-11-29T15:51:34.391762 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host vagrant-debian-squeeze.vagrantup.com with id 50b650d4454bc346e4000002 in 0.0027310848236084s
-D, [2012-11-29T15:50:05.810180 #12731] DEBUG -- : registration.rb:97:in `handlemsg' Updated data for host ubuntults.vargrantup.com with id 50b650c0454bc346e4000001 in 0.00200200080871582s
-</code></pre>
-
-<p>Initially, i used the default <code>registration.rb</code> file which i downloaded from the github. But it was giving me an error <code>handlemsg Got stats without a FQDN in facts</code>. So don&#8217;t forget to modify the <code>registration.rb</code></p>
-
-<p>Now go connect to mongoDB and verify that the nodes are getting registered in it.</p>
-
-<pre><code>$ mongo
- MongoDB shell version: 2.0.4
- connecting to: test
- &gt; use puppet
- switched to db puppet
- &gt; db.nodes.find().count()
- 2
-</code></pre>
-
-<p>So, now both my master and slave have been registered into the mongoDB. Now in order to use the <strong><em>Mongo Discovery Method</em></strong>, we need to install the <a href="https://github.com/puppetlabs/mcollective-plugins/tree/261ac8ef8433df98f3a9179778182807b916bc46/agent/registration-mongodb/discovery">mongodb discovery plugin</a> and also we need to enable the <strong><em>direct addressing mode</em></strong>. so we need to add <code>direct_addressing = 1</code> in the <code>server.cfg</code> file.</p>
-
-<p>Now we can use the <strong>&#8211;dm</strong> option to specify the discovery method.</p>
-
-<pre><code>$ mco rpc rpcutil ping --dm=mongo -v
-  Discovering hosts using the mongo method .... 2
-
-  * [ ========================================================&gt; ] 2 / 2
-
-
-  vagrant-debian-squeeze                  : OK
-    {:pong=&gt;1354187911}
-
-  ubuntults                               : OK
-        {:pong=&gt;1354187880}
-
-
-
-  ---- rpcutil#ping call stats ----
-            Nodes: 2 / 2
-      Pass / Fail: 2 / 0
-      Start Time: Thu Nov 29 16:48:00 +0530 2012
-  Discovery Time: 68.48ms
-      Agent Time: 108.35ms
-      Total Time: 176.83ms
-
-$ mco rpc rpcutil ping --dm=mc -v
-  Discovering hosts using the mc method for 2 second(s) .... 2
-
-  * [ ========================================================&gt; ] 2 / 2
-
-
-  vagrant-debian-squeeze                  : OK
-        {:pong=&gt;1354188083}
-
-  ubuntults                               : OK
-        {:pong=&gt;1354188053}
-
-
-
-  ---- rpcutil#ping call stats ----
-            Nodes: 2 / 2
-      Pass / Fail: 2 / 0
-      Start Time: Thu Nov 29 16:50:52 +0530 2012
-  Discovery Time: 2004.24ms
-      Agent Time: 104.28ms
-      Total Time: 2108.51ms
-</code></pre>
-
-<p>From the above commands, we can see the difference in the <strong><em>Discovery Time</em></strong>.</p>
-
-<p>Now for those who want <strong><em>GUI</em></strong>, <a href="http://www.devco.net/">R.I.Pienaar</a> has develeoped a web gui called <a href="https://github.com/ripienaar/mco_rpc_web.git">Mco-Rpc-Web</a>. He has uploaded a few <a href="http://www.screenr.com/user/ripienaar">screencasts</a>, which will give us a short demo on all of these.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1310,6 +1256,10 @@ $ mco rpc rpcutil ping --dm=mc -v
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
         </li>
       
@@ -1323,10 +1273,6 @@ $ mco rpc rpcutil ping --dm=mc -v
       
         <li>
           <a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/">Managing Docker Cluster using Multiple Mesos Masters</a>
         </li>
       
     </ul>

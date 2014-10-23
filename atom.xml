@@ -4,7 +4,7 @@
   <title><![CDATA[Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2014-10-15T01:09:14+00:00</updated>
+  <updated>2014-10-23T03:01:52+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,168 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[sippy_cup - FreeSwitch Load Test Simplified]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/"/>
+    <updated>2014-10-23T02:35:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified</id>
+    <content type="html"><![CDATA[<p>Ever since the entry of <code>Docker</code>, everyone is busy porting their applications to Docker Containers. Now with the tools like Mesos, CoreOS etc we can easily achieve scalability also. @Plivo we always dedicate ourselves to play around such new technologies. In my previous blog posts, i&#8217;ve explained how to containerize the Freeswitch, how to perform some basic load test using simple dialplans etc. My previous load tests required a bunch of basic Freeswitch servers to originate calls to flood the calls to the FreeSwitch container. So this time i&#8217;m going to use a simple method, which everyone can use even from their laptops.</p>
+
+<p>Enter <code>SIPp</code>. SIPp is a free Open Source test tool / traffic generator for the SIP protocol. But the main issue for beginer like me is in generating a proper XML for SIPp that can match to my exact production scenarios. After googling, i came across a super simple ruby wrapper over SIPp called <a href="https://github.com/mojolingo/sippy_cup">sippy_cup</a>.  SIPpy_cup is a simple ruby wrapper over SIPp. We just need to create a simple yaml file and sippy_cup parses this yml file and generates the XML equivalent which will be then used to generate calls. sippy_cup can also be used to generate only the XML file for SIPp.</p>
+
+<p>Setting up sippy_cup is very simple. There are only two dependencies</p>
+
+<pre><code>      1) ruby (2.1.2 recomended)
+      2) SIPp
+</code></pre>
+
+<p>Another important dependency is our <em>local internet bandwidth</em>. Flooding too many calls will definitely result in network bottlenecks, which i faced when i generated 1k calls from my laptop. Now let&#8217;s install SIPp.</p>
+
+<pre><code>sudo apt-get install pcaputils libpcap-dev libncurses5-dev
+
+wget 'http://sourceforge.net/projects/sipp/files/sipp/3.2/sipp.svn.tar.gz/download'
+
+tar zxvf sipp.svn.tar.gz
+
+# compile sipp
+make
+
+# compile sipp with pcapplay support
+make pcapplay
+</code></pre>
+
+<p>Once we have installed SIPp and ruby, we can install sippy_cup via ruby gems.</p>
+
+<pre><code>gem install sippy_cup
+</code></pre>
+
+<h3>Configuring sippy_cup</h3>
+
+<p>First we need to create yml file for our call flow. There is a good documentation available on the <a href="https://github.com/mojolingo/sippy_cup/blob/develop/README.markdown">Readme</a> on various options that can be used to create the yml to suit to our call flow. My call flow is pretty simple, i&#8217;ve a DialPlan in my Docker FS, which will play an mp3 file. So below is a simple yml config for this call flow</p>
+
+<pre><code>source: &lt;local_machine_ip&gt;
+destination: &lt;docker_fs_ip&gt;:&lt;fs_port&gt;
+max_concurrent: &lt;no_of_concurrent_calls&gt;
+calls_per_second: &lt;calls_per_second&gt;
+number_of_calls: &lt;total_no_of_calls&gt;
+to_user: &lt;to_number&gt;            # =&gt; should match the FS Dialplan
+steps:                  # call flow steps
+  - invite              # Initial Call INVITE
+  - wait_for_answer         # Waiting for Answer, handles 100, 180/183 and finally 200 OK
+  - ack_answer              # ACK for the 200 OK
+  - sleep 1000              # Sleeps for 1000 seconds
+  - send_bye                # Sends BYE signal to FS
+</code></pre>
+
+<p>Now let&#8217;s run sippy_cup using our config yml</p>
+
+<pre><code>sippy_cup -r test.yml
+</code></pre>
+
+<p>Below is the output of a sample load test. Total 20 calls with 10 concurrent calls</p>
+
+<pre><code>         INVITE ----------&gt;      20        1         0
+         100 &lt;----------         20        0         0         0
+         180 &lt;----------         0         0         0         0
+         183 &lt;----------         0         0         0         0
+         200 &lt;----------  E-RTD1 20        0         0         0
+         ACK ----------&gt;         20        0
+              [ NOP ]
+         Pause [    30.0s]       20                            0
+         BYE ----------&gt;         20        0
+------------------------------ Test Terminated --------------------------------
+
+
+----------------------------- Statistics Screen ------- [1-9]: Change Screen --
+  Start Time             | 2014-10-22   19:12:40.494470 1414030360.494470
+  Last Reset Time        | 2014-10-22   19:13:45.355358 1414030425.355358
+  Current Time           | 2014-10-22   19:13:45.355609 1414030425.355609
+-------------------------+---------------------------+--------------------------
+  Counter Name           | Periodic value            | Cumulative value
+-------------------------+---------------------------+--------------------------
+  Elapsed Time           | 00:00:00:000000           | 00:01:04:861000
+  Call Rate              |    0.000 cps              |    0.308 cps
+-------------------------+---------------------------+--------------------------
+  Incoming call created  |        0                  |        0
+  OutGoing call created  |        0                  |       20
+  Total Call created     |                           |       20
+  Current Call           |        0                  |
+-------------------------+---------------------------+--------------------------
+  Successful call        |        0                  |       20
+  Failed call            |        0                  |        0
+-------------------------+---------------------------+--------------------------
+  Response Time 1        | 00:00:00:000000           | 00:00:01:252000
+  Call Length            | 00:00:00:000000           | 00:00:31:255000
+------------------------------ Test Terminated --------------------------------
+
+
+I, [2014-10-22T19:13:45.357508 #17234]  INFO -- : Test completed successfully!
+</code></pre>
+
+<p>I tried to perform a large scale load test by making 1k calls with 250 concurrent calls. My local internet was flooding with network traffic as there was real Media packets coming from the servers, though it bottlenecked my internet, but still i was able to make 994 successfull calls. I suggest to do such heavy load test on machines wich has good network throughput. Below are the output for this test.</p>
+
+<pre><code>------------------------------ Scenario Screen -------- [1-9]: Change Screen --
+  Call-rate(length)   Port   Total-time  Total-calls  Remote-host
+   5.0(0 ms)/1.000s   8836     585.61 s         1000  54.235.170.44:5060(UDP)
+
+  Call limit reached (-m 1000), 0.507 s period  1 ms scheduler resolution
+  6 calls (limit 250)                    Peak was 176 calls, after 150 s
+  0 Running, 8 Paused, 1 Woken up
+  604 dead call msg (discarded)          0 out-of-call msg (discarded)
+  3 open sockets
+  1490603 Total RTP pckts sent           0.000 last period RTP rate (kB/s)
+
+                                 Messages  Retrans   Timeout   Unexpected-Msg
+         INVITE ----------&gt;      1000      332       0
+         100 &lt;----------         954       53        0         0
+         180 &lt;----------         0         0         0         0
+         183 &lt;----------         0         0         0         0
+         200 &lt;------2014-10-22  19:19:23.202714 1414030763.202714: Dead call 990-17510@192.168.1.146 (successful), 
+
+received 'SIP/2.0 200 OK
+Via: SIP/2.0/UDP 192.168.1.146:8836;received=208.66.27.62;branch=z9hG4bK-17510-990-8
+From: "sipp" &lt;sip:sipp@192.168.1.146&gt;;tag=990
+To: &lt;sip:14158872327@54.235.170.44:5060&gt;;tag=9p6t351mvXZXg
+Call-ID: 990-17510@192.168.1.146
+CSeq: 2 BYE
+User-Agent: Plivo
+Allow: INVITE, ACK, BYE, CANCEL, OPTIONS, MESSAGE, INFO, UPDATE, REFER, NOTIFY
+Supported: timer, precondition, path, replaces
+Conte----  E-RTD1        994       126       0         0
+         ACK ----------&gt;         994       126
+              [ NOP ]
+       Pause [    30.0s]         994                           0
+         BYE ----------&gt;         994       0
+------------------------------ Test Terminated --------------------------------
+
+
+----------------------------- Statistics Screen ------- [1-9]: Change Screen --
+  Start Time             | 2014-10-22   19:15:29.941276 1414030529.941276
+  Last Reset Time        | 2014-10-22   19:25:15.056475 1414031115.056475
+  Current Time           | 2014-10-22   19:25:15.564038 1414031115.564038
+-------------------------+---------------------------+--------------------------
+  Counter Name           | Periodic value            | Cumulative value
+-------------------------+---------------------------+--------------------------
+  Elapsed Time           | 00:00:00:507000           | 00:09:45:622000
+  Call Rate              |    0.000 cps              |    1.708 cps
+-------------------------+---------------------------+--------------------------
+  Incoming call created  |        0                  |        0
+  OutGoing call created  |        0                  |     1000
+  Total Call created     |                           |     1000
+  Current Call           |        6                  |
+-------------------------+---------------------------+--------------------------
+  Successful call        |        0                  |      994
+  Failed call            |        0                  |        0
+-------------------------+---------------------------+--------------------------
+  Response Time 1        | 00:00:00:000000           | 00:00:01:670000
+  Call Length            | 00:00:00:000000           | 00:00:31:673000
+------------------------------ Test Terminated --------------------------------
+</code></pre>
+
+<p>Sippy_cup is definitely a good tool for all beginers who finds really hard time to work around with SIPp XML&#8217;s. I&#8217;m really excited to see how Docker is going to contirbute to VOIP world.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Monitoring Redis using CollectD and ELK]]></title>
@@ -1915,165 +2077,6 @@ puts json
 <p>The operation will read the document and will convert it into JSON using the json ruby library. Now i can use the JSON data to collect the required fields so that my script can form the exact fetch url for each host and can perform the result fetch.  There is couchdb <a href="https://github.com/phifty/couchdb">gem</a> for ruby, which can perform more operations.</p>
 
 <p>Apart from this, CouchDB has another important feature &#8221;<strong>MAPREDUCE</strong>&#8221;, yes it can perform <strong>MapReduce</strong>, i&#8217;m trying to find if mapreduce can help me, so that i can extend my app to do more things. Once if i get any weird idea with MapReduce i will udapte this blog with that also.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Real Time Web-Monitoring using Lumberjack-Logstash-Statsd-Graphite]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite/"/>
-    <updated>2013-06-27T16:29:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/06/27/real-time-web-monitoring-using-lumberjack-logstash-statsd-graphite</id>
-    <content type="html"><![CDATA[<p>For the last few days i was playing around with my two of my favourite tools <em>Logstash</em> and <em>StatsD</em>. <strong><em>Logstash, StatsD, Graphite</em></strong> together makes a killer combination. So i decided to test this combination along with Lumberjack for Real time Monitoring. I&#8217;m going to use, <em>Lumberjack</em> as the log shipper from the webserver, and then Logstash will stash the log&#8217;s porperly and and using the statsd output plugin i will ship the metrics to Graphite. In my previous blog, i&#8217;ve explained how to use Lumberjack with Logstash. Lumberjack will be watching my test web server&#8217;s access logs.</p>
-
-<p>By default, i&#8217;m using the combined apache log format, but it doesnot have the original response time for each request as well as the total reponse time. So we need to modify the LogFormat, in order to add the two. Below is the LogFormat which i&#8217;m using for my test setup.</p>
-
-<pre><code>LogFormat "%h %l %u %t \"%r\" %&gt;s %O \"%{Referer}i\" \"%{User-Agent}i\" %D %&gt;D" combined
-</code></pre>
-
-<p>Once the LogFormat is modified, restart the apache service in order to make the change to be effective.</p>
-
-<h4>Setting up Logstash Server</h4>
-
-<p>First Download the latest Logstash Jar file from the Logstash <a href="https://logstash.objects.dreamhost.com/release/logstash-1.1.13-flatjar.jar">site</a>. Now we need to create a logstash conf file. By default there is a grok pattern available for apache log called &#8220;COMBINEDAPACHELOG&#8221;, but since we have added the tow new fields for the response time, we need to add the same for grok pattern also. So below is a pattern which is going to be used with Logstash.</p>
-
-<pre><code>pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
-</code></pre>
-
-<p>So the Logstash conf file will look like this,</p>
-
-<pre><code>input {
-      lumberjack {
-        type =&gt; "apache-access"
-        port =&gt; 4444
-        ssl_certificate =&gt; "/etc/ssl/logstash.pub"
-        ssl_key =&gt; "/etc/ssl/logstash.key"
-  }
-}
-
-filter {
-  grok {
-        type =&gt; "apache-access"
-    pattern =&gt; "%{COMBINEDAPACHELOG} %{NUMBER:resptime} %{NUMBER:resptimefull}"
-  }
-}
-
-output {
-  stdout {
-    debug =&gt; true
-      }
-  statsd {
-    type =&gt; "apache-access"
-    host =&gt; "localhost"
-    port =&gt; 8125
-    debug =&gt; true
-    timing =&gt; [ "apache.servetime", "%{resptimefull}" ]
-    increment =&gt; "apache.response.%{response}"
-  }
-}
-</code></pre>
-
-<h4>Setting up STATSD</h4>
-
-<p>Now we can start setting up the StatsD daemon. By default, Ubuntu&#8217;s latest OS ships with newer verision of NodeJS and NPM. So we can install it using APT/Aptitude.</p>
-
-<pre><code>$ apt-get install nodejs npm
-</code></pre>
-
-<p>Now clone the StatsD github repository to the local machine.</p>
-
-<pre><code>$ git clone git://github.com/etsy/statsd.git
-</code></pre>
-
-<p>Now create a local config file &#8220;localConfig.js&#8221; with the below contents.</p>
-
-<pre><code>{
-graphitePort: 2003
-, graphiteHost: "127.0.0.1"
-, port: 8125
-}
-</code></pre>
-
-<p>Now we can start the StatsD daemon.</p>
-
-<pre><code>$ node /opt/statsd/stats.js /opt/statsd/localConfig.js
-</code></pre>
-
-<p>The above command will start the StatsD in foreground. Now we can go ahead with setting up the Graphite.</p>
-
-<h4>Setting up Graphite</h4>
-
-<p>First, let&#8217;s install the basic python dependencies.</p>
-
-<pre><code>$ apt-get install python-software-properties memcached python-dev python-pip sqlite3 libcairo2 libcairo2-dev python-cairo pkg-config
-</code></pre>
-
-<p>Then, we can start installing Carbon and Graphite dependencies.</p>
-
-<pre><code>        cat &gt;&gt; /tmp/graphite_reqs.txt &lt;&lt; EOF
-        django==1.3
-        python-memcached
-        django-tagging
-        twisted
-        whisper==0.9.9
-        carbon==0.9.9
-        graphite-web==0.9.9
-        EOF
-
-$  pip install -r /tmp/graphite_reqs.txt
-</code></pre>
-
-<p>Now we can configure Carbon.</p>
-
-<pre><code>$ cd /opt/graphite/conf/
-
-$ cp carbon.conf.example carbon.conf
-</code></pre>
-
-<p>Now we need to create a storage schema.</p>
-
-<pre><code>        cat &gt;&gt; /tmp/storage-schemas.conf &lt;&lt; EOF
-        # Schema definitions for Whisper files. Entries are scanned in order,
-        # and first match wins. This file is scanned for changes every 60 seconds.
-        # [name]
-        # pattern = regex
-        # retentions = timePerPoint:timeToStore, timePerPoint:timeToStore
-        [stats]
-        priority = 110
-        pattern = ^stats\..*
-        retentions = 10s:6h,1m:7d,10m:1y
-        EOF
-
-
-$ cp /tmp/storage-schemas.conf /opt/graphite/conf/storage-schemas.conf
-</code></pre>
-
-<p>Also we need to create a log directory for graphite.</p>
-
-<pre><code>$ mkdir -p /opt/graphite/storage/log/webapp
-</code></pre>
-
-<p>Now we need to copy over the local settings file and initialize database</p>
-
-<pre><code>$ cd /opt/graphite/webapp/graphite/
-
-$ cp local_settings.py.example local_settings.py
-
-$ python manage.py syncdb
-</code></pre>
-
-<p>Fill in the necessary details including the super user details while initializing the database. Once the database is initialized we can start the carbon cache and graphite webgui.</p>
-
-<pre><code>$ /opt/graphite/bin/carbon-cache.py start
-
-$ /opt/graphite/bin/run-graphite-devel-server.py /opt/graphite
-</code></pre>
-
-<p>Now we can access the dashboard using the url, &#8220;http://ip-address:8080&#8221;. Once we have started the carbon cache, we can start the Logstash server.</p>
-
-<pre><code>$ java -jar logstash-1.1.13-flatjar.jar agent -f logstash.conf -v
-</code></pre>
-
-<p>Once the logstash has loaded all the plugins successfully, we can start shipping logs from the test webserver using Lumberjack. Since i&#8217;ve enabled the STDOUT plugin, i can see the output coming from the Logstash server. Now we can start accessing the real time graph&#8217;s from graphite gui. There are several other alternative for the Graphite GUI like <a href="http://jondot.github.io/graphene/">Graphene</a>, <a href="https://github.com/paperlesspost/graphiti">Graphiti</a>, <a href="https://github.com/erezmazor/graphitus">Graphitus</a>, <a href="https://github.com/ripienaar/gdash">GDash</a>. Anyways Logstash-StatsD-Graphite proves to be a wonderfull combination.</p>
 ]]></content>
   </entry>
   
