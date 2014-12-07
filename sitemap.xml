@@ -223,11 +223,21 @@
         <lastmod>2014-10-23T03:01:22+00:00</lastmod>
     </url>
     <url>
+        <loc>http://beingasysadmin.com/blog/2014/12/03/building-debian-packages/</loc>
+        <lastmod>2014-12-03T23:23:27+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly/
+        </loc>
+        <lastmod>2014-12-07T07:46:06+00:00</lastmod>
+    </url>
+    <url>
         <loc>http://beingasysadmin.com/</loc>
-        <lastmod>2014-10-23T03:01:22+00:00</lastmod>
+        <lastmod>2014-12-07T07:46:06+00:00</lastmod>
     </url>
     <url>
         <loc>http://beingasysadmin.com/blog/archives/</loc>
-        <lastmod>2014-10-23T03:01:22+00:00</lastmod>
+        <lastmod>2014-12-07T07:46:06+00:00</lastmod>
     </url>
 </urlset>

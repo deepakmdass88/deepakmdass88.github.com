@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: debuild | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/debuild/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-12-07T07:46:41+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Building Debian packages]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/12/03/building-debian-packages/"/>
+    <updated>2014-12-03T22:32:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/12/03/building-debian-packages</id>
+    <content type="html"><![CDATA[<p>Installing applications via packages saves us a lot of time. Especially being an OPS oriented guy, compiling applications from source is somtimes pain and time consuming. Especially the dependencies. But later, after the rise of config management system, people started creating corresponding automated scripts that will install necessary dependencies and the ususal <code>make &amp;&amp; make install</code>. But if you check applications like Freeswitch was taking 15+min to finish compiliations, which is defintely a bad idea when you want to deploy the a new patch on a cluster. In such cases packages are really a life saver. Build the packages once as per our requirement and deploy it throughout the infrastructure. Now with the tools like jenkins,TravisCI etc we can attain a good level of CI.</p>
+
+<p>In this blog, i'm going to explain on how to build a debian package from scratch. First let's install two main dependencies for a build machine</p>
+
+<pre><code>$ apt-get install devscripts build-essential
+</code></pre>
+
+<p>For the past few days i was playing with <em>OpenVPN</em> and <em>SoftEther</em>. I'm going to build a simple debian package for OpenVPN from source. The current stable version of OpenVPN is available 2.3.6. First let's get the OpenVPN source code.</p>
+
+<pre><code>$ wget http://swupdate.openvpn.org/community/releases/openvpn-2.3.6.tar.gz
+
+$ tar xvzf openvpn-2.3.6.tar.gz &amp;&amp; cd openvpn-2.3.6
+</code></pre>
+
+<p>Now for building a package, first we need to create a <code>debian</code> folder. And in this folder we are going to place all necessary files required for building a package.</p>
+
+<pre><code>$ mkdir debian
+</code></pre>
+
+<p>As per the Debian pacakging <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html">Documentation</a>, the mandatory files are <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#rules">rules</a> <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#control">control</a>, <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog">changelog</a>. <code>Changlog</code> file content should match the exact syntax, otherwise packaging will fail at the initial stage itself. There are some more optional files that we can <a href="https://www.debian.org/doc/manuals/maint-guide/dother.en.html">use</a>. Below are the files present in my <code>debian</code> folder</p>
+
+<pre><code>changelog           =&gt; Changelog for my Package
+control             =&gt; Contains Details about the package including the dependencies
+dirs                =&gt; specifies any directories which we need but which are not created by the normal installation procedure, handled by 'dh_installdirs'
+openvpn.default     =&gt; this file will be copied to /etc/default/openvpn
+openvpn.init        =&gt; this file will be copied to /etc/init.d/openvpn, handled by 'dh_installinit'
+postinst.debhelper  =&gt; Any action that need to be performed once the package installation is completed, like creating a specific user, starting service etc
+postrm.debhelper        =&gt; Any action that need to be performed once the package removal is completed, like deleting a specific user
+prerm.debhelper     =&gt; Any action that need to be performed before the package removal is initiated, like stopping the service
+rules           =&gt; Contains rules for build procedure
+</code></pre>
+
+<p>In my case i wanted to install the openvpn on a custom location say '<strong>/opt/openvpn</strong>'. So if we are building from scratch manually, we can mention the prefix like '<strong>./configure --prefix=/opt/openvpn</strong>'. but in the build process, <code>dh_auto_configure</code> is running our '<strong>./configure</strong>' operation with dfault option ie, no custom prefix. So we need to overide this process if we want to have a custom prefix. Below is the content of my <code>rules</code> file.</p>
+
+<pre><code># rules file
+
+    #!/usr/bin/make -f
+    # vim: tabstop=4 softtabstop=4 noexpandtab fileencoding=utf-8
+
+    # Uncomment this to turn on verbose mode.
+    export DH_VERBOSE=1
+
+    DEB_DIR=$(CURDIR)/debian/openvpn
+
+    %:
+        dh $@
+    override_dh_auto_configure:                      # override of configure
+        ./configure --prefix=/opt/openvpn
+</code></pre>
+
+<p>Once we have all the necessary files in place, we can start the build process. Make sure that all the dependency packages mentioned in the <code>control</code> file is installed on the build server.</p>
+
+<pre><code>    $ debuild -us -uc
+</code></pre>
+
+<p>If the build command is completed successfully, we will see the deb package as well as the source package just above our openvpn source folderm which is the default path where <code>dh_builddeb</code> places the files. We can overide the same too.</p>
+
+<pre><code>#!/usr/bin/make -f
+# vim: tabstop=4 softtabstop=4 noexpandtab fileencoding=utf-8
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+DEB_DIR=$(CURDIR)/debian/openvpn
+
+%:
+    dh $@
+override_dh_auto_configure:
+    ./configure --prefix=/opt/openvpn
+override_dh_builddeb:
+    dh_builddeb --destdir=./deb-pkg/
+</code></pre>
+
+<p>So now we have the Debian package. We can test installing it manually via '<strong>dpkg -i</strong>'. This was just a go thorugh on how to build a simple debian package. In my next blog, i'll be discussing about how to create and manage a private apt repository using a awsme tool called <a href="http://www.aptly.info/">aptly</a></p>
+]]></content>
+  </entry>
+  
+</feed>

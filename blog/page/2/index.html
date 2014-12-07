@@ -97,6 +97,344 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2014/06/10/dockerizing-freeswitch-docker-enters-telephony/">Dockerizing Freeswitch - Docker Enters Telephony</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-06-10T11:39:00+00:00" pubdate data-updated="true">Jun 10<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/freeswitch/'>FreeSwitch</a>, <a class='category' href='/blog/categories/telephony/'>Telephony</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> has became one of the hottest topics in IT now a days. <code>Docker</code> is an open-source project that automates the deployment of applications inside software containers. Docker extends a common container format called <em>Linux Containers</em> (LXC), with a high-level API providing lightweight virtualization that runs processes in isolation.Docker uses <em>LXC, cgroups,</em> and the <em>Linux kernel</em> itself. Though i coudn&#8217;t make out to the DockerCon 2014 in SF, a lot new developments were announced on the DockerCon. Especially three new Opensource Projects <a href="https://github.com/docker/libcontainer">libcontainer</a>, <a href="https://github.com/docker/libchan">libchan</a> and <a href="https://github.com/docker/libswarm">libswarn</a>. Docker is indeed creating a revolution in the container space, creating a next generation of scalable platform management. There are a lot PAAS services like <a href="http://deis.io/">Deis</a>, <a href="http://signup.resin.io/">resin.io</a>, <a href="https://github.com/progrium/dokku">Dokku</a> which are already using Docker in production. Another important and exciting project is <a href="https://coreos.com/">CoreOS</a>. CoreOS uses tools like <a href="http://www.freedesktop.org/wiki/Software/systemd/">SystemD</a>, <a href="https://github.com/coreos/fleet">Fleet</a>, <a href="https://github.com/coreos/etcd">EtcD</a> to build a fully scalabale docker based cluster management system. I definitely need a separate blog to write about CoreOS, it&#8217;s really a super exciting project to play with.</p>
+
+<p>Last week Docker Team released Version 1.0 of Docker. So i&#8217;ll be using the same in this new set up. It&#8217;s been almost 6 Month&#8217;s since i&#8217;ve been working @ <a href="http://plivo.com">Plivo</a> as a DevOps Engineer. Telephony was really a very new platform for me. And my first companion was offcourse <a href="http://freeswitch.org/">FreeSwitch</a>,a scalable open source cross-platform telephony platform designed to route and interconnect popular communication protocols using audio, video, text or any other form of media. I was heavily using Vagrant for all my experiments in my mac. But after started using Docker, it really made me crazy. I&#8217;ve played for some time wiht LXC&#8217;s long back. So this was like a leap back to the container world.</p>
+
+<p>There are a lot of concerns on using Virtual Machines in Telephony world. Especially for the server&#8217;s that handles the Real Time voice packets, as voice quality is pretty important in Telephony. Docker&#8217;s again more light weight isolated environment, and i decide to see how Docker can perform with such issues. If Docker handle Freeswitch smoothly, then i&#8217;m sure that we can use Docker for other telephony app&#8217;s like OpenSIPS/Kamailio etc, as they handle only sessions not the Media traffic. I know there are a lot of concerns like CPU load, Network etc, but this is like an initial move to test Docker into Telephony.</p>
+
+<h2>Setting Up Docker </h2>
+
+<p>Docker 1.0 is available from the Official Docker repo.</p>
+
+<pre><code>$ echo "deb http://get.docker.io/ubuntu docker main" &gt; /etc/apt/sources.list.d/docker.list
+
+$ apt-get update &amp;&amp; apt-get install lxc-docker
+</code></pre>
+
+<p>Now we can check the Docker version using the docker binary itself.</p>
+
+<pre><code>$ docker version
+
+Client version: 1.0.0
+Client API version: 1.12
+Go version (client): go1.2.1
+Git commit (client): 63fe64c
+Server version: 1.0.0
+Server API version: 1.12
+Go version (server): go1.2.1
+Git commit (server): 63fe64c
+</code></pre>
+
+<p>Now Docker is installed, but we need some OS images to use with docker. We can build custom images using debootstrap etc. But there are official minimal images available in Docker <a href="https://registry.hub.docker.com/">HUB</a>. We can search for the repositories and can pull those images via docker binary itself.</p>
+
+<p>For example to pull the entire Ubuntu images, we can just do,</p>
+
+<pre><code>$ docker pull ubuntu
+</code></pre>
+
+<p>But this will download all the ubuntu images available in the repo. We can also do selective download by using the tag.</p>
+
+<pre><code>$ docker pull ubuntu:14:04
+</code></pre>
+
+<p>Once the images are downloaded, we can use images option in docker binary to see all the downloaded images.</p>
+
+<pre><code>$ docker images
+
+REPOSITORY                      TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+ubuntu                          14.04               ad892dd21d60        10 days ago         275.5 MB
+</code></pre>
+
+<p>Here i&#8217;m not going to daemonize the container, i&#8217;ll be using the interactive option. But first, let&#8217;s start a new container.</p>
+
+<pre><code>$ docker run -t -i ubuntu:14.04 /bin/bash
+</code></pre>
+
+<p>This command will start a conatiner and will open up a bash session for us and we will be inside the bash session. Now to use an application we need to open up corresponding ports to outside world. We can use the &#8220;-p&#8221; option while starting a docker container to enable port forwarding. Under the hood, docker is using IPtables for the same. In the case of Freeswitch, we need to open 5060,5080 for the default Sofia profiles (Internal and External). Also we need to open the RTP ports. In this test i&#8217;ll be opening a predefined set of ports ie from &#8220;16384&#8221; to &#8220;16394&#8221;. (As my Docker host resides on Azure, creating an Endpoint for each port forward is really a pain, so i decided to open only a few). And also i&#8217;ll be opening port 22, so that we can have an ssh server inside the container.</p>
+
+<pre><code>$ docker run -t -i -p 2223:22 -p 5060:5060/tcp -p 5060:5060/udp -p 16384:16384/udp -p 16385:16385/udp -p 16386:16386/udp -p 16387:16387/udp -p 16388:16388/udp -p 16389:16389/udp -p 16390:16390/udp -p 16391:16391/udp -p 16392:16392/udp -p 16393:16393/udp -p 5080:5080/tcp -p 5080:5080/udp ubuntu:14.04 /bin/bash
+</code></pre>
+
+<p>This will start a new container and Docker by default will setup the IPtables for port forwarding. So now my IPtables looks like this.</p>
+
+<pre><code>Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+   43 16850 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:5080
+    0     0 ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:5080
+  988  198K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16392
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16389
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16385
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16393
+ 2026  405K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16388
+ 8817 1763K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16384
+12144 8684K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:5060
+ 4359  257K ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:5060
+ 9917 1983K ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16390
+    0     0 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16387
+    0     0 ACCEPT     tcp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           tcp dpt:22
+   38  4848 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16391
+    1   152 ACCEPT     udp  --  !docker0 docker0  0.0.0.0/0            172.17.0.6           udp dpt:16386
+    0     0 ACCEPT     all  --  *      lxcbr0  0.0.0.0/0            0.0.0.0/0
+    0     0 ACCEPT     all  --  lxcbr0 *       0.0.0.0/0            0.0.0.0/0
+ 431K  630M ACCEPT     all  --  *      docker0  0.0.0.0/0            0.0.0.0/0            ctstate RELATED,ESTABLISHED
+ 128K   19M ACCEPT     all  --  docker0 !docker0  0.0.0.0/0            0.0.0.0/0
+   16  2460 ACCEPT     all  --  docker0 docker0  0.0.0.0/0            0.0.0.0/0
+</code></pre>
+
+<p>Now we can go ahead with Freeswitch compilation. In my previous <a href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">blog</a>, i&#8217;ve mentioned how to compile and set up freeswitch. Once freeswitch is ready, we need to make a few changes. By default, Freeswitch uses STUN to route through NAT, but this doesn&#8217;t work with Docker. So we have to set the external IP manually. In the Freeswitch installed folder, edit <code>conf/autoload_configs/switch.conf.xml</code>. In this file we can set the External IP manually. Add the below lines to switch_conf.xml.</p>
+
+<pre><code>&lt;X-PRE-PROCESS cmd="set" data="external_sip_ip=&lt;YOUR_EXTERNAL_IP&gt;"/&gt;
+&lt;X-PRE-PROCESS cmd="set" data="external_rtp_ip=&lt;YOUR_EXTERNAL_IP&gt;"/&gt;
+</code></pre>
+
+<p>Also we need to modify the Default Sofia Profiles and need to set the <em>ext-rtp-ip</em> and <em>ext-sip-ip</em> to use our external IP added in the <code>switch_conf.xml</code> file while establishing connections. Add the below lines to the <code>conf/sip_profiles/internal.xml</code> and <code>conf/sip_profiles/external.xml</code></p>
+
+<pre><code>&lt;param name="ext-rtp-ip" value="$${external_rtp_ip}"/&gt;
+&lt;param name="ext-sip-ip" value="$${external_sip_ip}"/&gt;
+</code></pre>
+
+<p>Now we need to set teh RTP ip range to the range which we have forwarded while creting the container. So we need to edit <code>conf/autoload_configs/switch.conf.xml</code></p>
+
+<pre><code>&lt;param name="rtp-start-port" value="16384"/&gt;
+&lt;param name="rtp-end-port" value="16394"/&gt;
+</code></pre>
+
+<p>Once the changes are made, we can start the FreeSwitch service. Now to make sure that the External IP is working properly, we can check the sofia profile status using fs_cli. below is a sample output of the sofia profile status.</p>
+
+<pre><code>freeswitch@internal&gt; sofia status profile internal
+=================================================================================================
+Name                internal
+Domain Name         N/A
+Auto-NAT            false
+DBName              sofia_reg_internal
+Pres Hosts          172.17.0.6,172.17.0.6
+Dialplan            XML
+Context             public
+Challenge Realm     auto_from
+RTP-IP              172.17.0.6
+Ext-RTP-IP          &lt;my_external_ip&gt;
+SIP-IP              172.17.0.6
+Ext-SIP-IP          &lt;my_external_ip&gt;
+URL                 sip:mod_sofia@&lt;my_external_ip&gt;:5060
+BIND-URL            sip:mod_sofia@&lt;my_external_ip&gt;:5060;maddr=172.17.0.6;transport=udp,tcp
+HOLD-MUSIC          local_stream://moh
+OUTBOUND-PROXY      N/A
+CODECS IN           OPUS,G722,PCMU,PCMA,GSM
+CODECS OUT          OPUS,G722,PCMU,PCMA,GSM
+TEL-EVENT           101
+DTMF-MODE           rfc2833
+CNG                 13
+SESSION-TO          0
+MAX-DIALOG          0
+NOMEDIA             false
+LATE-NEG            true
+PROXY-MEDIA         false
+ZRTP-PASSTHRU       true
+AGGRESSIVENAT       false
+CALLS-IN            0
+FAILED-CALLS-IN     0
+CALLS-OUT           0
+FAILED-CALLS-OUT    0
+REGISTRATIONS       1
+</code></pre>
+
+<p>Now freeswitch ahs started successfully. We can test some basic calls using softphones like Xlite, Telephone etc. By default, there are some default extensions and user&#8217;s available, so we can use the same for testing the calls. But i really wanted to try trunkning also and wanted to see the quality of the voice. So i created <a href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/">SIP trunking in Freeswitch using Plivo</a>. And i tested a couple of calls to US and India DID&#8217;s and no issues were detected in the quality. But again i need to test the laod of the server&#8217;s when it startes handling concurrent calls and also the voice quality. But i decied to d oit as a Phase II. But as of now, Docker FreeSwitch is working perfectly like a physical machine with out issues.</p>
+
+<p>So now we have a working FreeSwitch container, now here comes the main advantage of the Docker. We can create a new image with all these changes, so that nex time i dont need to work from scratch. I can use this saved image and a readymade Docker Freeswitch container can be launched in seconds. Since we are in interactive mode, we should not quit the session before it&#8217;s saved or else all the things will be lost,becoz dokcer will destroy the same. So open up a new shell on the docker host and use the commit option. But to use the commit command, we need to know the container id, so here docker ps command comes handy.</p>
+
+<pre><code>$ docker ps
+
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS           NAMES
+
+e7f3c02346d4        a4196763d248        /bin/bash           32 hours ago        Up 32 hours         0.0.0.0:2223-&gt;22/tcp, 0.0.0.0:5060-&gt;5060/tcp, 0.0.0.0:5060-&gt;5060/udp, 0.0.0.0:5080-&gt;5080/tcp, 0.0.0.0:5080-&gt;5080/udp, 0.0.0.0:16384-&gt;16384/udp, 0.0.0.0:16385-&gt;16385/udp, 0.0.0.0:16386-&gt;16386/udp, 0.0.0.0:16387-&gt;16387/udp, 0.0.0.0:16388-&gt;16388/udp, 0.0.0.0:16389-&gt;16389/udp, 0.0.0.0:16390-&gt;16390/udp, 0.0.0.0:16391-&gt;16391/udp, 0.0.0.0:16392-&gt;16392/udp, 0.0.0.0:16393-&gt;16393/udp   silly_turing
+</code></pre>
+
+<p>In my case &#8220;e7f3c02346d4&#8221; is the container ID. So i can use the same for commit. I won&#8217;t be commiting to the base Ubuntu image, as i can use the same for other purposes, so here i&#8217;ll commiting to a new image say &#8220;ubntu-fs-docker&#8221;</p>
+
+<pre><code>$ docker commit -m "&lt;commit message&gt;" e7f3c02346d4 ubntu-fs-docker
+</code></pre>
+
+<p>Now we can use this &#8220;ubntu-fs-docker&#8221; image to launch a ready made FreeSwitch server&#8217;s.</p>
+
+<p>Docker is a very juvenile project about more than a year old. But the use cases are expanding heavily in the Modern IT world. Docker is fueling up a new generation of scalable servers. Wishing all the best for Docker and kudos to <a href="https://twitter.com/solomonstre">Solomon Hykes</a> and the DotCloud team for opensourcing such a powerfull project</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2014/05/19/uchiwa-an-awesome-dashboard-for-sensu/">UCHIWA - an Awesome Dashboard for Sensu</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-19T06:42:00+00:00" pubdate data-updated="true">May 19<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/devops/'>DevOps</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>, <a class='category' href='/blog/categories/sensu-dashboard/'>sensu-dashboard</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s been more than a year since i&#8217;ve started playing with <code>Sensu</code>. It was one of coolest monitoring projects that i&#8217;ve ever worked with. Perfect for <em>Cloud</em> infrastructure and backed by a cool community. Though Sensu is still in <em>Juvenile</em> (v 0.12) state, its mature enough to tackle majority of the monitoring issues. Recently i started migrating all our monitoring from traditional Nagios to Sensu and the pretty cool thing with sensu is, we can directly use the Nagios plugins with Sensu. That&#8217;s an easy task for migration. We don&#8217;t have to rebuild all the check&#8217;s to make with Sensu. But most of the people outside was pointing to the sensu&#8217;s default dashboard. Though the dashboard doesn&#8217;t looks pretty fancy, it can do all the functions. But having a good dashboard which can display the current status is always a time saver.</p>
+
+<p>So i was being searching for a good dashboard and the first choice on the google search was <a href="https://github.com/sensu/sensu-admin.git">Sensu-Admin</a>. A Rails project, which needs a backend DB. But still i was not satisfied with it, and i started looking out for something different. The second choice was <a href="https://github.com/cloudant/sabisu">sabisu</a>. Sabisu uses Cloudant&#8217;s hosted Couchdb with Lucene. We just need to store all the events in a Redis List and a custom script which reads the data from the Redis List and pushes it to the Cloudant&#8217;s CouchDB. So we basically need a Cloudant account and the Webapp makes Lucene queries to the Cloudant DB and displays the results on the Sabisu dashboard. Though i tried to rebuild the same setup locally, like running a CouchDB+Lucene locally and sending the same data to the local couchdb. With some codehack&#8217;s i was able to make the webapp talk to my local CouchDB and display the results on the dashboard.</p>
+
+<p>But then, I found a super cool dashboard project called <a href="https://github.com/palourde/uchiwa">UCHIWA</a> which was started in Github a few days back by <a href="https://github.com/palourde">Simon Plourde</a>. <a href="https://github.com/palourde/uchiwa">Uchiwa</a> is simple dashboard built with <em>NodeJS</em> and uses <em>SocketIO</em> for real time updates. The screenshot&#8217;s looks super cool and i decided to give it a try. It has only one dependency, NodeJS, no backend DB&#8217;s required as it talks to the Sensu&#8217;s API in realtime.</p>
+
+<h2>Setting Up NodeJS</h2>
+
+<p>For Ubuntu, we can use the chris-lea&#8217;s PPA.</p>
+
+<pre><code>apt-get install python-software-properties        # required for "apt-add-repository" binary
+
+apt-add-repository ppa:chris-lea/node.js
+
+apt-get update
+
+apt-get install nodejs
+</code></pre>
+
+<p>now we have the latest NodeJS on our system, we can start setting up Uchiwa.</p>
+
+<h2>Setting Up Uchiwa Dashboard</h2>
+
+<p><code>Uchiwa</code>&#8217;s source is available in Github.</p>
+
+<pre><code>git clone https://github.com/palourde/uchiwa.git
+</code></pre>
+
+<p>Once  cloned, the repository contains the &#8220;package.json&#8221; file which contains the list of necessary dependencies. We can use &#8220;npm&#8221; (node package manager) to install all these.</p>
+
+<pre><code>cd uchiwa
+
+npm install
+</code></pre>
+
+<p>Now we need to create a config file for the app. There is a sample config file available in the repo. So we need to mention the Sensu&#8217;s API IP and Port number and also the auth credentials if any. Plus auth credentials for accessing Uchiwa Dashboard page.</p>
+
+<p>once all these are set, we are done. We just need to start the service.</p>
+
+<pre><code>node app.js 
+</code></pre>
+
+<p>We can access the page via <em>http://localhost:3000/</em>,  or we can proxy pass from the webserver. Instructions for <em>Nginx</em> is available on the Readme of the project. Now we need to keep this app running all the time. So it&#8217;s better to create a init/upstart process for the same, so that the process will start automatically when the system reboots. There is a cool Node project called <a href="https://github.com/nodejitsu/forever">forever</a> which is a  simple CLI tool for ensuring that a given script runs continuously.</p>
+
+<p>I&#8217;ve created an upstart script for Uchiwa, bu putting a conf file &#8220;uchiwa.conf&#8221; in the &#8220;/etc/init&#8221; directory. Below is the content for the conf file. Once the file is in place, we have to do a reload of the upstart configuration. <code>initctl reload-configuration</code> will do the trick.</p>
+
+<pre><code>description "uchiwa - dashboard for sensu"
+env APP_PATH = "/usr/local/uchiwa/"
+
+start on startup
+stop on shutdown
+
+script
+  cd $APP_PATH
+  exec forever start app.js
+end script
+</code></pre>
+
+<p>Uchiwa looks pretty cool and neat and it has the stash support also. There are couple of addons required like &#8220;Downtime&#8221;, but Uchiwa is a pretty new project and i&#8217;m sure that this project is gonna grow soon. It has already received 99 stars on the Github. Kudos to <a href="https://github.com/palourde">Simon Plourde</a> for Open Sourcing this awesome project.</p>
+
+<p><img src="/images/uchiwa1.png"></p>
+
+<p><img src="/images/uchiwa2.png"></p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2014/05/05/extending-elk-stack-to-voip-infrastructure/">Extending ELK Stack to VOIP Infrastructure</a></h1>
     
     
@@ -1240,215 +1578,6 @@ end
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - a Live Tweet Grabber</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-09-22T17:30:00+00:00" pubdate data-updated="true">Sep 22<span>nd</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/redis/'>Redis</a>, <a class='category' href='/blog/categories/ruby/'>Ruby</a>, <a class='category' href='/blog/categories/sinatra/'>Sinatra</a>, <a class='category' href='/blog/categories/tweetgrabber/'>TweetGrabber</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>Twitter</code> has become one of the powerfull social networking site. And people do share a lot of good info&#8217;s here. Even people reports outages of various sites and services in Twitter. Many of the tech companies do have a valid accounts to keep track of user&#8217;s comments on their  services/products and they even interacts with user&#8217;s. Website&#8217;s like &#8220;downrightnow.com&#8221;, uses Twitter as an information source to identify the outage of many famous websites and services. Even in our personal site&#8217;s we use Javascripts to  display our tweets and other statuses. But since the Twitter API version 1.1, which needs ouath, many of the jquery plugins became obsolete. This time i got a requirement to built a system that keeps track of tweets based on custom keywords. But i wanted to shaw all the tweets in a category basis, but on a sinlge page, with some scrolling effects, at the same time the sroller should keeps on updating with tweets on a regular interval basis. Which means i&#8217;m more concerned about the new trends going on in the Twitter.</p>
-
-<p>Since i&#8217;m a <em>Rubyist</em>, i decided to build a Ruby app with <strong>Sinatra</strong> web Frontend, one my favourite web frameworks. I&#8217;m hard lover of Redis, faster since it runs on ram, and i dont want to keep my old tweets. So, My app is pretty simple, there will a <strong>Feeder</strong> which will talk to Twitter&#8217;s API and get the Tweet&#8217;s these tweet&#8217;s will be then stored in Redis, The Sinatra Fronend will fetch the tweets, and will display it in a scrolling fashion on the front end. Since i&#8217;m a CLI junkie, i&#8217;m not familiar with HTMLs and UI&#8217;s, so i decided to go with <em>Twitter Bootstrap</em> to build the HTML pages.</p>
-
-<p>There is a Ruby gem called &#8221;<strong>TweetStream</strong>&#8221; which works very well with Twitter API v1.1. So i&#8217;m going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
-
-<p><img src="/images/tweetgrabber.png"></p>
-
-<p>Let&#8217;s see each components in detail.</p>
-
-<h3>Feeder</h3>
-
-
-<p><code>Feeder</code> is a ruby script which constantly talks to Twitter API and grabs the latest streaming tweets based on the search keywords. Add all the grabbed tweets are then stored into the Redis database. Since i&#8217;ve to display teets corresponding to each keyword in separate scrolling fashions, i&#8217;m using separate redis database for each. So the Feeder has multiple ruby methods, where each method will be used  for each keyword and writes into the corresponding Redis DB. Below is one of the Ruby Method in the Feeder script.</p>
-
-<pre><code>                        #######  FEEDER ####### 
-
-TweetStream.configure do |config|
-  config.consumer_key       = 'xxxxxxxxxxxxxx'          =&gt; All these cosnumerkey,secret and oauth tokens have to be generated from
-  config.consumer_secret    = 'xxxxxxxxxxxxxx'             the Twitter's API site, dev.twitter.com
-  config.oauth_token        = 'xxxxxxxxxxxxxx'
-  config.oauth_token_secret = 'xxxxxxxxxxxxxx'
-  config.auth_method        = :oauth
-end
-
-def tweet_general
-  TweetStream::Client.new.track('opensource') do |status|   =&gt;  Thiss Tweatstream client will keep tracking the keyword "opensource"
-    if ( status.lang == 'en' )
-      push(
-                'id' =&gt; status[:id],
-               'text' =&gt; status.text,
-               'username' =&gt; status.user.screen_name,
-               'userid' =&gt; status.user[:id],
-               'name' =&gt; status.user.name,
-               'profile_image_url' =&gt; status.user.profile_image_url,
-               'received_at' =&gt; Time.new.to_i,
-               'user_link' =&gt; "http://twitter.com/"
-             )
-        end
-  end
-end
-def push(data)
-      @db = Redis.new
-      @db.lpush('tweets_general', data.to_json)         =&gt; LPUSHing Tweets into the RedisDB
-    end
-</code></pre>
-
-<h3>Redis DB</h3>
-
-
-<p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
-
-<p><img src="/images/redis-list.png"></p>
-
-<p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
-
-<h3>Sinatra Frontend</h3>
-
-
-<p>I&#8217;m using <strong>SINATRA</strong> for building the frontend. SInce i&#8217;m not much familiar with HTML&#8217;s and UI&#8217;s, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i&#8217;ve created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
-
-<p><img src="/images/layout.png"></p>
-
-<p>As of now the app is working fine. But i&#8217;m planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I&#8217;m going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/09/19/couchdb-nosql-db-with-a-powerfull-rest-api/">CouchDB - a NoSQL DB With a Powerfull Rest API</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-09-19T21:37:00+00:00" pubdate data-updated="true">Sep 19<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/couchdb/'>CouchDB</a>, <a class='category' href='/blog/categories/nosql/'>NOSQL</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p><code>CouchDB</code> is an open source <em>NoSQL</em> database, which comes with a powerfull <strong>Rest API</strong>. It stores data in <em>JSON format</em>. uses <em>Javascripts</em> as its query language using <em>MapReduce</em>. JSON data&#8217;s are very easy to understand and can be parsed very easily. This time i got a requirement to build a commandline utility to display results for an internal monitoring tool. The tool is a bit old, and it does not have any api. And finding latest the result is consuming more time using the front end. But one advantage was the frontend can display results in HTML and XML. So curl was able to query the server using the url and it can display the xml output. The url is unique for each, as it composed of few details like Location, SerialNo, Domain, OS etc, which is unique for each hosts. So i decided to have a local database which contains all these unique host details. For this purpose, i dont need any relational databases, and NoSQL databases are sufficient. So i decided to use CouchDB, because it comes with a wonderfull rest api.</p>
-
-<p>Since i&#8217;m a <em>RUBY</em> lover, i decided to use this couchdb ruby <a href="http://wiki.apache.org/couchdb/Getting_started_with_Ruby">wrapper</a>. SInce my requirement with CouchDB was pretty simple, this wrapper itself was sufficient for me. This wrapper can be used to perform any operations like, reading,writing,deleting Documents as well as Databases. This wrapper basically uses the ruby http library to talk to the CouchDB&#8217;s rest api.  By default couchdb is available in most of the Linux respositories. for windows and mac, the files are available in the CouchDB website itself.</p>
-
-<p>for example, for ubuntu/debian, below command will install couchdb server.</p>
-
-<pre><code>sudo apt-get install couchdb -y
-</code></pre>
-
-<p>By default, the couchDB package comes with a web frontend called &#8220;Futon&#8221; which can be accessed via browsers ugin the below url,</p>
-
-<pre><code>http://localhost:5984/_utils/
-</code></pre>
-
-<p>Below is the screenshot of the Futon frontend.</p>
-
-<p><img src="/images/futon.png"></p>
-
-<p>We can perform all the operations through this web interface also. So i created a database, and created a document for each host with required fields. Now these documents can be accessed via the rest api in JSON format. so that my ruby script can fetch all the necessary data and can compose the exact url for fetching the check results for corresponding hosts.</p>
-
-<p>Below is a sample read operation that we can perform through our ruby scripts. But before using the operation, we need to include the wrapper into our script. For that we need to add &#8216;require ./couch.rb&#8217;, we can use both relative or absolute path. once the wrapper is included,we can start performing operations with the CouchDB.</p>
-
-<pre><code>server = Couch::Server.new("localhost", "5984")
-res = server.get("/foo/document_id")
-json = res.body
-puts json
-</code></pre>
-
-<p>The operation will read the document and will convert it into JSON using the json ruby library. Now i can use the JSON data to collect the required fields so that my script can form the exact fetch url for each host and can perform the result fetch.  There is couchdb <a href="https://github.com/phifty/couchdb">gem</a> for ruby, which can perform more operations.</p>
-
-<p>Apart from this, CouchDB has another important feature &#8221;<strong>MAPREDUCE</strong>&#8221;, yes it can perform <strong>MapReduce</strong>, i&#8217;m trying to find if mapreduce can help me, so that i can extend my app to do more things. Once if i get any weird idea with MapReduce i will udapte this blog with that also.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1476,6 +1605,14 @@ puts json
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
         </li>
       
@@ -1485,14 +1622,6 @@ puts json
       
         <li>
           <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/08/31/upgrading-marthon-for-mesos-native-docker-support/">Upgrading Marthon for Mesos Native Docker Support</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/08/25/marathon-event-bus/">Marathon Event Bus</a>
         </li>
       
     </ul>

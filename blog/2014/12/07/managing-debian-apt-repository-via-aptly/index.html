@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Managing Debian APT repository via Aptly - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="In my previous blog, i&#8217;ve explained how to build a Debian pacakge from source. In this blog i&#8217;m to explain how to create and manage our &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Managing Debian APT repository via Aptly" />
+  <meta name="og:description" content="In my previous blog, i&#8217;ve explained how to build a Debian pacakge from source. In this blog i&#8217;m to explain how to create and manage our &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">
+  
+  <meta name="subject" content="apt-repoaptlydebianpacakging"/>
+  <meta name="category" content="apt-repoaptlydebianpacakging"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Managing Debian APT Repository via Aptly</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-12-07T07:04:00+00:00" pubdate data-updated="true">Dec 7<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/apt-repo/'>apt-repo</a>, <a class='category' href='/blog/categories/aptly/'>aptly</a>, <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/pacakging/'>pacakging</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous <a href="https://beingasysadmin.wordpress.com/2014/12/03/building-a-debian-package/">blog</a>, i&#8217;ve explained how to build a Debian pacakge from source. In this blog i&#8217;m to explain how to create and manage our own apt repository. Enter <a href="aptly.info">aptly</a>,is a swiss army knife for Debian repository management: it allows us to mirror remote repositories, manage local package repositories, take snapshots, pull new versions of packages along with dependencies, publish as Debian repository. Aptly can upload the repo to Amazon S3, but we need to install APT S3 <a href="https://github.com/castlabs/apt-s3">support</a>, in order to use it from S3.</p>
+
+<p>First, let&#8217;s install aptly on our build server. A more detailed documentation on installation is available in the <a href="http://www.aptly.info/download/">website</a></p>
+
+<pre><code>$ echo "deb http://repo.aptly.info/ squeeze main" &gt; /etc/apt/sources.list
+
+$ gpg --keyserver keys.gnupg.net --recv-keys 2A194991
+
+$ gpg -a --export 2A194991 | sudo apt-key add -
+
+$ apt-get update &amp;&amp; apt-get install aptly
+</code></pre>
+
+<p>Let&#8217;s create a repo,</p>
+
+<pre><code>$ aptly repo create -distribution=wheezy -component=main my-repo    # where my-repo is the name of the repository
+</code></pre>
+
+<p>Once the repo is created, we can start adding our newly created packages to our new repo.</p>
+
+<pre><code>$ aptly repo add &lt;repo name&gt; &lt;your debian file&gt;    # in my case aptly repo add myrepo openvpn_2.3.6_amd64.deb
+</code></pre>
+
+<p>The above command will add the new package to the repo. Now in order to make this repo usable, we need to publish this repo. A valid GPG key is required for publishing the repo. So let&#8217;s create the gpg key for aptly.</p>
+
+<pre><code>$ gpg --gen-key
+
+$ gpg --export --armor &lt;email-id-used-fo-gpg-key-creation&gt; &gt; myrepo-pubkey.asc   # creates a pubkey that distributed
+
+$ gpg --send-key KEYNAME     # This command can be used if we want to send the key to a public server, we can also pass --keyserver &lt;server-url&gt;, if we want to specifiy a specific keyserver
+</code></pre>
+
+<p>Once we have our GPG key, we can publish our repo. By default aptly can publish the repo to S3 or it can publish it locally and we can use any webserver to servce this repo.</p>
+
+<pre><code>$ aptly publish --distribution="wheezy" repo my-repo
+</code></pre>
+
+<p>Once published, we can point the webserver to &#8220;~/.aptly/&#8221;, where our repo files will be created. Aptly also comes with an embedded webserver which can be invoked by running <code>aptly serve</code>. Aptly really makes the repo management so easy. We can actually integrate this into our jenkins job so that each time when we build a package, we can directly add and upload the same to our repository.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-12-07T07:04:00+00:00" pubdate data-updated="true">Dec 7<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/apt-repo/'>apt-repo</a>, <a class='category' href='/blog/categories/aptly/'>aptly</a>, <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/pacakging/'>pacakging</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/12/03/building-debian-packages/" title="Previous Post: Building Debian packages">&laquo; Building Debian packages</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

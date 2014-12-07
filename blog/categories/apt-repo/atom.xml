@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: apt-repo | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/apt-repo/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2014-12-07T07:46:41+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak M Das]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Managing Debian APT repository via Aptly]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly/"/>
+    <updated>2014-12-07T07:04:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly</id>
+    <content type="html"><![CDATA[<p>In my previous <a href="https://beingasysadmin.wordpress.com/2014/12/03/building-a-debian-package/">blog</a>, i've explained how to build a Debian pacakge from source. In this blog i'm to explain how to create and manage our own apt repository. Enter <a href="aptly.info">aptly</a>,is a swiss army knife for Debian repository management: it allows us to mirror remote repositories, manage local package repositories, take snapshots, pull new versions of packages along with dependencies, publish as Debian repository. Aptly can upload the repo to Amazon S3, but we need to install APT S3 <a href="https://github.com/castlabs/apt-s3">support</a>, in order to use it from S3.</p>
+
+<p>First, let's install aptly on our build server. A more detailed documentation on installation is available in the <a href="http://www.aptly.info/download/">website</a></p>
+
+<pre><code>$ echo "deb http://repo.aptly.info/ squeeze main" &gt; /etc/apt/sources.list
+
+$ gpg --keyserver keys.gnupg.net --recv-keys 2A194991
+
+$ gpg -a --export 2A194991 | sudo apt-key add -
+
+$ apt-get update &amp;&amp; apt-get install aptly
+</code></pre>
+
+<p>Let's create a repo,</p>
+
+<pre><code>$ aptly repo create -distribution=wheezy -component=main my-repo    # where my-repo is the name of the repository
+</code></pre>
+
+<p>Once the repo is created, we can start adding our newly created packages to our new repo.</p>
+
+<pre><code>$ aptly repo add &lt;repo name&gt; &lt;your debian file&gt;    # in my case aptly repo add myrepo openvpn_2.3.6_amd64.deb
+</code></pre>
+
+<p>The above command will add the new package to the repo. Now in order to make this repo usable, we need to publish this repo. A valid GPG key is required for publishing the repo. So let's create the gpg key for aptly.</p>
+
+<pre><code>$ gpg --gen-key
+
+$ gpg --export --armor &lt;email-id-used-fo-gpg-key-creation&gt; &gt; myrepo-pubkey.asc   # creates a pubkey that distributed
+
+$ gpg --send-key KEYNAME     # This command can be used if we want to send the key to a public server, we can also pass --keyserver &lt;server-url&gt;, if we want to specifiy a specific keyserver
+</code></pre>
+
+<p>Once we have our GPG key, we can publish our repo. By default aptly can publish the repo to S3 or it can publish it locally and we can use any webserver to servce this repo.</p>
+
+<pre><code>$ aptly publish --distribution="wheezy" repo my-repo
+</code></pre>
+
+<p>Once published, we can point the webserver to "~/.aptly/", where our repo files will be created. Aptly also comes with an embedded webserver which can be invoked by running <code>aptly serve</code>. Aptly really makes the repo management so easy. We can actually integrate this into our jenkins job so that each time when we build a package, we can directly add and upload the same to our repository.</p>
+]]></content>
+  </entry>
+  
+</feed>

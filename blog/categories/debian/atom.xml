@@ -4,7 +4,7 @@
   <title><![CDATA[Category: debian | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/debian/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2014-10-23T03:01:52+00:00</updated>
+  <updated>2014-12-07T07:46:41+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,134 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Managing Debian APT repository via Aptly]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly/"/>
+    <updated>2014-12-07T07:04:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/12/07/managing-debian-apt-repository-via-aptly</id>
+    <content type="html"><![CDATA[<p>In my previous <a href="https://beingasysadmin.wordpress.com/2014/12/03/building-a-debian-package/">blog</a>, i've explained how to build a Debian pacakge from source. In this blog i'm to explain how to create and manage our own apt repository. Enter <a href="aptly.info">aptly</a>,is a swiss army knife for Debian repository management: it allows us to mirror remote repositories, manage local package repositories, take snapshots, pull new versions of packages along with dependencies, publish as Debian repository. Aptly can upload the repo to Amazon S3, but we need to install APT S3 <a href="https://github.com/castlabs/apt-s3">support</a>, in order to use it from S3.</p>
+
+<p>First, let's install aptly on our build server. A more detailed documentation on installation is available in the <a href="http://www.aptly.info/download/">website</a></p>
+
+<pre><code>$ echo "deb http://repo.aptly.info/ squeeze main" &gt; /etc/apt/sources.list
+
+$ gpg --keyserver keys.gnupg.net --recv-keys 2A194991
+
+$ gpg -a --export 2A194991 | sudo apt-key add -
+
+$ apt-get update &amp;&amp; apt-get install aptly
+</code></pre>
+
+<p>Let's create a repo,</p>
+
+<pre><code>$ aptly repo create -distribution=wheezy -component=main my-repo    # where my-repo is the name of the repository
+</code></pre>
+
+<p>Once the repo is created, we can start adding our newly created packages to our new repo.</p>
+
+<pre><code>$ aptly repo add &lt;repo name&gt; &lt;your debian file&gt;    # in my case aptly repo add myrepo openvpn_2.3.6_amd64.deb
+</code></pre>
+
+<p>The above command will add the new package to the repo. Now in order to make this repo usable, we need to publish this repo. A valid GPG key is required for publishing the repo. So let's create the gpg key for aptly.</p>
+
+<pre><code>$ gpg --gen-key
+
+$ gpg --export --armor &lt;email-id-used-fo-gpg-key-creation&gt; &gt; myrepo-pubkey.asc   # creates a pubkey that distributed
+
+$ gpg --send-key KEYNAME     # This command can be used if we want to send the key to a public server, we can also pass --keyserver &lt;server-url&gt;, if we want to specifiy a specific keyserver
+</code></pre>
+
+<p>Once we have our GPG key, we can publish our repo. By default aptly can publish the repo to S3 or it can publish it locally and we can use any webserver to servce this repo.</p>
+
+<pre><code>$ aptly publish --distribution="wheezy" repo my-repo
+</code></pre>
+
+<p>Once published, we can point the webserver to "~/.aptly/", where our repo files will be created. Aptly also comes with an embedded webserver which can be invoked by running <code>aptly serve</code>. Aptly really makes the repo management so easy. We can actually integrate this into our jenkins job so that each time when we build a package, we can directly add and upload the same to our repository.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Building Debian packages]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/12/03/building-debian-packages/"/>
+    <updated>2014-12-03T22:32:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/12/03/building-debian-packages</id>
+    <content type="html"><![CDATA[<p>Installing applications via packages saves us a lot of time. Especially being an OPS oriented guy, compiling applications from source is somtimes pain and time consuming. Especially the dependencies. But later, after the rise of config management system, people started creating corresponding automated scripts that will install necessary dependencies and the ususal <code>make &amp;&amp; make install</code>. But if you check applications like Freeswitch was taking 15+min to finish compiliations, which is defintely a bad idea when you want to deploy the a new patch on a cluster. In such cases packages are really a life saver. Build the packages once as per our requirement and deploy it throughout the infrastructure. Now with the tools like jenkins,TravisCI etc we can attain a good level of CI.</p>
+
+<p>In this blog, i'm going to explain on how to build a debian package from scratch. First let's install two main dependencies for a build machine</p>
+
+<pre><code>$ apt-get install devscripts build-essential
+</code></pre>
+
+<p>For the past few days i was playing with <em>OpenVPN</em> and <em>SoftEther</em>. I'm going to build a simple debian package for OpenVPN from source. The current stable version of OpenVPN is available 2.3.6. First let's get the OpenVPN source code.</p>
+
+<pre><code>$ wget http://swupdate.openvpn.org/community/releases/openvpn-2.3.6.tar.gz
+
+$ tar xvzf openvpn-2.3.6.tar.gz &amp;&amp; cd openvpn-2.3.6
+</code></pre>
+
+<p>Now for building a package, first we need to create a <code>debian</code> folder. And in this folder we are going to place all necessary files required for building a package.</p>
+
+<pre><code>$ mkdir debian
+</code></pre>
+
+<p>As per the Debian pacakging <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html">Documentation</a>, the mandatory files are <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#rules">rules</a> <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#control">control</a>, <a href="https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#changelog">changelog</a>. <code>Changlog</code> file content should match the exact syntax, otherwise packaging will fail at the initial stage itself. There are some more optional files that we can <a href="https://www.debian.org/doc/manuals/maint-guide/dother.en.html">use</a>. Below are the files present in my <code>debian</code> folder</p>
+
+<pre><code>changelog           =&gt; Changelog for my Package
+control             =&gt; Contains Details about the package including the dependencies
+dirs                =&gt; specifies any directories which we need but which are not created by the normal installation procedure, handled by 'dh_installdirs'
+openvpn.default     =&gt; this file will be copied to /etc/default/openvpn
+openvpn.init        =&gt; this file will be copied to /etc/init.d/openvpn, handled by 'dh_installinit'
+postinst.debhelper  =&gt; Any action that need to be performed once the package installation is completed, like creating a specific user, starting service etc
+postrm.debhelper        =&gt; Any action that need to be performed once the package removal is completed, like deleting a specific user
+prerm.debhelper     =&gt; Any action that need to be performed before the package removal is initiated, like stopping the service
+rules           =&gt; Contains rules for build procedure
+</code></pre>
+
+<p>In my case i wanted to install the openvpn on a custom location say '<strong>/opt/openvpn</strong>'. So if we are building from scratch manually, we can mention the prefix like '<strong>./configure --prefix=/opt/openvpn</strong>'. but in the build process, <code>dh_auto_configure</code> is running our '<strong>./configure</strong>' operation with dfault option ie, no custom prefix. So we need to overide this process if we want to have a custom prefix. Below is the content of my <code>rules</code> file.</p>
+
+<pre><code># rules file
+
+    #!/usr/bin/make -f
+    # vim: tabstop=4 softtabstop=4 noexpandtab fileencoding=utf-8
+
+    # Uncomment this to turn on verbose mode.
+    export DH_VERBOSE=1
+
+    DEB_DIR=$(CURDIR)/debian/openvpn
+
+    %:
+        dh $@
+    override_dh_auto_configure:                      # override of configure
+        ./configure --prefix=/opt/openvpn
+</code></pre>
+
+<p>Once we have all the necessary files in place, we can start the build process. Make sure that all the dependency packages mentioned in the <code>control</code> file is installed on the build server.</p>
+
+<pre><code>    $ debuild -us -uc
+</code></pre>
+
+<p>If the build command is completed successfully, we will see the deb package as well as the source package just above our openvpn source folderm which is the default path where <code>dh_builddeb</code> places the files. We can overide the same too.</p>
+
+<pre><code>#!/usr/bin/make -f
+# vim: tabstop=4 softtabstop=4 noexpandtab fileencoding=utf-8
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+
+DEB_DIR=$(CURDIR)/debian/openvpn
+
+%:
+    dh $@
+override_dh_auto_configure:
+    ./configure --prefix=/opt/openvpn
+override_dh_builddeb:
+    dh_builddeb --destdir=./deb-pkg/
+</code></pre>
+
+<p>So now we have the Debian package. We can test installing it manually via '<strong>dpkg -i</strong>'. This was just a go thorugh on how to build a simple debian package. In my next blog, i'll be discussing about how to create and manage a private apt repository using a awsme tool called <a href="http://www.aptly.info/">aptly</a></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Virtualization using Linux Containers]]></title>
@@ -171,44 +299,6 @@ $ cp config/database.yml.example config/database.yml
 <p> So now the service will listening on the port <em>631</em> on the ip which we defined, by default <strong>127.0.0.1</strong>. We can also enable authentication for snmp service, so that the snmp clients which passes the authentication will be able to get the result from the snmp service.</p>
 
 <p>Once the snmp service has started on the remote server, we can test the snmp onnectivity from our icinga server using the nagios' <code>check_snmp plugin</code>. Once we are able to get results from the snmp service, we can deploy tese snmp services into our icinga host configurations to get the results from the remote server's using the <strong><em>check_snmp command</em></strong>.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Monitoring server's using Icinga]]></title>
-    <link href="http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga/"/>
-    <updated>2013-02-25T21:44:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2013/02/25/monitoring-servers-using-icinga</id>
-    <content type="html"><![CDATA[<p>Last week we had severe outage in our US vps. The <em>load</em> was getting too high in the server, since it's a hosting server, and so many of our clients are hosting their DNS, website and mail server in it. So i decided to implement a monitoring system. And i decided it to extend it to all of our client server's so that we can have a fully fledged monitoring system in our company. I'm a great fan of Sensu and i play with it regularly, but this time i decided to setup <a href="http://icinga.org">Icinga</a> monitoring system, which can be used any System admin very easily. In this post i will be explaining on how to setup the <strong><em>icinga</em></strong> with it's newest web interface called icinga-web. This setup works perfectly in <em>Debian</em> based OS. In my next post, i will be explaining on how to setup <em>SNMP</em> to work with icinga.</p>
-
-<p>By default Ubuntu and Debian repositories has icinga packages.</p>
-
-<pre><code>$ apt-get install icinga icinga-cgi icinga-common icinga-core icinga-idoutils icinga-web icinga-web-pnp mysql-server
-</code></pre>
-
-<p>Once the installation is completed, by default icinga has already created a config file for the local host, which can be found in <code>/etc/icinga/objects/</code>. Now we can access the default icinga web interface with <code>http://yoursystemip/icinga</code>. The default user will be <strong><em>icingaadmin</em></strong> and password will be the default password which we have setup during the installation. Now we can create the config files for other hosts and we should restart the icinga service. This will add the host's to our default web interface. All the check commands are defined in the <code>/etc/nagios-plugins/config/</code> folder.</p>
-
-<p>Now we need to set a contact so that icinga can send alerts to the specified email id. In the <code>/etc/icinga/objects/</code> there is a file called <strong><em>contacts_icinga.cfg</em></strong>, where we have to define the contact info.</p>
-
-<pre><code>define contact{
-    contact_name                    your_contact_name
-    alias                           alias
-    service_notification_period     24x7
-    host_notification_period        24x7
-    service_notification_options    w,u,c,r
-    host_notification_options       d,r
-    service_notification_commands   notify-service-by-email
-    host_notification_commands      notify-host-by-email
-    email                           your_contact_email_id
-    }
-</code></pre>
-
-<p> The <strong><em>notify-service-by-email</em></strong> and <strong><em>notify-host-by-email</em></strong> commands are defined in the <code>/etc/icinga/commands.cfg</code> file. We can make changes to the format of the email alert by modifying this file. the "icinga-web" package will setup the basic config for the new icinga-web interface. Before starting the new interface we need to check a few settings for the new interface. First is the Database for the new interface. Ensure that the DB icinga-web and a user called icinga-web is created in the mysql. Now we need ensure that the database settings are correctly mentioned in the icinga-web settings. The settings are available in <code>/etc/icinga-web/conf.d/</code>. Now ensure that the database,user, and password are correctly mentioned in the <code>databases.xml</code> file. Now we need to ensure that the broker modules are enabled in the icinga.cfg file. comment out the below line in the icinga.cfg file to enable the idmod to enable the idomod broker module.</p>
-
-<pre><code>broker_module=/usr/lib/icinga/idomod.so config_file=/etc/icinga/idomod.cfg
-</code></pre>
-
-<p>Also increase the log level to debug in both icinga as well as idomod, which helps to identify error if any. Now restart the icing and idomod services. Now go to the new interface by going to the following url, <code>http://ip/icinga-web</code>. the default user name is "root" and the passwod will be the one which we have given during installation</p>
 ]]></content>
   </entry>
   
