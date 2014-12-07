@@ -97,6 +97,195 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2014/01/12/phone-call-notification-for-sensu-using-plivo/">Phone Call Notification for Sensu Using Plivo</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-01-12T19:02:00+00:00" pubdate data-updated="true">Jan 12<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/monitoring-/'>Monitoring,</a>, <a class='category' href='/blog/categories/plivo/'>Plivo</a>, <a class='category' href='/blog/categories/sensu-/'>Sensu,</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>It&#8217;s almost 2 weeks since i&#8217;ve joined <a href="http://plivo.com/">Plivo&#8217;s</a> DevOps family. I was spending a lot of time on understanding their API&#8217;s as i&#8217;m new to telephony. Plivo&#8217;s <a href="http://plivo.com/docs/api/">API</a> made telephony so easy that even a person with basic programming language can built powerfull telephony apps to suit to their infrastructure. So when i started playing around with the API, i decided to take it to a different level. I&#8217;m strong lover of Sensu Monitoring tool, so i decided to integrate <em>Plivo</em> with <em>Sensu</em> to built a new Notification system using the Phone call. Many people rely on Pagerduty for the same feature. But that part is completly managed by PagerDuty, where in for the alerts which we sent to PagerDuty, they will notify us via phone call to the phone numbers mentioned on Pager Duty. So i decided to built a similar Handler to Sensu, so that we can have a similar feature on Sensu. In this blog i will explain how i achieved the same with Plivo Framework.</p>
+
+<p><code>Plivo</code> provides Application Programming Interfaces (APIs) to make and receive calls, send SMS, make a conference call, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. Developers can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
+
+<p>Here the Sensu will be initiating outbound calls using Plivo&#8217;s <a href="http://plivo.com/docs/api/">Call</a> API, to the required numbers and will read out the Alert using Plivo&#8217;s Text to Speech Engine. First we need an account on Plivo Cloud, we can go to <a href="https://manage.plivo.com/accounts/register/">SignUP</a> page, and need to create an account. By using the default, we can make test calls. But for longer usage, i will suggest to buy some credits for using the service extensively. Once we login with credentials, at the dashboard we can see <strong><em>Plivo AuthID</em></strong> and <strong><em>Plivo AuthToken</em></strong>, which is required to access Plivo&#8217;s API. Now for making out bound calls, we need to use the <a href="http://plivo.com/docs/api/call/">Call</a> API. We also need to provide an &#8221;<strong>answer_url</strong>&#8221; which contains XML instructions to direct the progress of the call. Plivo will fetch the &#8221;<strong>answer_url</strong>&#8221; and executes te XML instructions. So here i will be using <em>Sinatra</em> to create a web app that will returns the XML.  The main challenge is the text to be mentioned in the XML need to retrieved from the alert. So we cannot predefine the text as well as the request url, because it will be in dynamic in nature.</p>
+
+<p><code>Solution</code> :- Here i&#8217;m going to use a publically accessible <em>Redis</em> server which is protected with a password. When Sensu handler receives the alert, it will create a hash from the alert received with a random UUID as the name of the hash. And the same UUID will be used as the request path for the answer_url. And when sinatra recieves a request, by default the requested path wont be existing in the sinatra&#8217;s config file, as it&#8217;s a dynamically generated. So by default Sinatra will return a 404 response. But in Sinatra, there is an option called &#8221;<strong><em>not_found</em></strong>&#8221;, where we can customize the response instead of returning 404 directly. So i will be using the &#8220;not_found&#8221; option and instead of directly returing a 404, i will make sinatra to talk to my redis server. Since the UUID can be fetched from the request URL, and the same is used in the redis as the name of the Hash, Sinatra can get the details of the alert from the Redis. These details are then used to create the XML and will be returned as the response to Plivo. It will be better to go through Plivo&#8217;s API documentation to understand more about the XML responses and outbound calls.</p>
+
+<p>For those who don&#8217;t have a dedicated server to host the Sinatra app and Redis server, <a href="https://devcenter.heroku.com/articles/getting-started-with-ruby">heroku</a> can be used to host the Sinatra app. We can also use the redis addon availabe at the Heroku for our usage.</p>
+
+<h2>Sinatra App</h2>
+
+<p>Below is the code for the Sinatra app. The &#8221;<strong><em>not_found</em></strong>&#8221; option is the one which performs the connection with the Redis.</p>
+
+<pre><code>require 'plivo'
+require 'sinatra'
+require 'redis'
+require 'rest_client'
+
+get '/' do
+  play_loop = 1
+  lang = "en-US"
+  voice = "WOMAN"
+  text = "Congratulations! You just made a text to speech app on Plivo cloud!"
+  @path = request.path
+  puts @path
+  speak_params = {
+                     'loop' =&gt; play_loop,
+                     'language' =&gt; lang,
+                     'voice' =&gt; voice,
+                     }
+
+  plivo = Plivo::Speak.new(text, speak_params)
+
+  response = Plivo::Response.new()
+  response.add(p)
+  return response.to_xml
+end
+
+not_found do
+  @path = request.path
+  keyword = @path[1..-1]
+  response = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+  data_red = response.get("#{keyword}")
+  if data_red == nil
+         return "404 Not Found"
+  else
+         data = JSON.parse(response.get("#{keyword}"))
+         text = data["text"]
+         play_loop = 1
+         lang = "en-US"
+         voice = "WOMAN"
+         speak_params = {
+                        'loop' =&gt; play_loop,
+                        'language' =&gt; lang,
+                        'voice' =&gt; voice,
+                        }
+
+         plivo = Plivo::Speak.new(text, speak_params)
+
+         response = Plivo::Response.new()
+         response.add(p)
+         return r.to_xml
+   end
+end
+</code></pre>
+
+<p>The above app will redirect all the non found requests and make a requests to the Redis server using the request.path as the name of the hash. If there is a valid hash table, it will generate a Plivo XML else it will return &#8220;404 Not Found&#8221;.</p>
+
+<h2>Plivo Handler</h2>
+
+<p>Below is the Plivo Handler code. this is the Initial code, need to be tweaked to suit to the Sensu&#8217;s coding standard. Also the settings option need to be added so that all the parameters can be provided in the JSON file of the Handler. But as of now, this handler has been tested with Sensu and it is working perfectly fine.</p>
+
+<pre><code>require 'rubygems'
+require 'sensu-handler'
+require 'timeout'
+require 'securerandom'
+require 'plivo'
+require 'redis'
+require 'timeout'
+
+
+class PLIVO &lt; Sensu::Handler
+
+  def short_name
+    @event['client']['name'] + '/' + @event['check']['name']
+  end
+
+  def action_to_string
+    @event['action'].eql?('resolve') ? "RESOLVED" : "ALERT"
+  end
+
+  def handle
+    plivo_auth_id = "XXXXXXXXXXXXXXXX"          # =&gt; available at the plivo dashboard
+    plivo_auth_token = "XXXXXXXXXXXXXXXX"       # =&gt; available at the plivo dashboard
+    body = &lt;&lt;-BODY.gsub(/^ {14}/, '')
+            #{@event['check']['output']}
+            Host: #{@event['client']['name']}
+           BODY
+    uuid = SecureRandom.hex
+    r = Redis.new(:host =&gt; "&lt;redis_host_name&gt;", :port =&gt; &lt;redis_port&gt;, :password =&gt; "&lt;redis_pass&gt;")
+    temp = {
+            'text' =&gt; "#{body}"
+            }
+    plivo_number = "&lt;YOUR PLIVO NUMBER"
+    to_number = "&lt;DESTINATION NUMBER&gt;"
+    answer_url = "&lt;YOUR HEROKU APP URL&gt;/#{uuid}"
+    call_params = {
+                     'from' =&gt; plivo_number,
+                     'to' =&gt; to_number,
+                     'answer_url' =&gt; answer_url,
+                     'answer_method' =&gt; 'GET'
+                     }
+         r.set "#{uuid}", temp.to_json
+         r.expire "#{uuid}", &lt;EXPIRY TTL&gt;
+         sleep 5
+     begin
+       timeout 10 do
+         puts "Connecting to Plivo Cloud.."
+         plivo = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
+     details = plivo.make_call(call_params)
+       end
+       rescue Timeout::Error
+       puts "timed out while attempting to contact Plivo Cloud"
+         end
+  end
+end
+</code></pre>
+
+<p>The above handler will make an outbound call to the Destination number and plivo&#8217;s text to speech engine will read out the Alert summary on the call. Now If you want to call multiple user&#8217;s, simply create an array or hash with the contact numbers and iterate over it.</p>
+
+<p>This handler will give us the same feature of Phone Call notification similar to Pager Duty. We just need to pay for the phone call usage. Dedicated to all those who wants an affordable yet a good notification system with Sensu. I will be merging out my code soon to the  sensu-community repository.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/09/22/tweetgrabber-a-live-tweet-grabber/">TweetGrabber - a Live Tweet Grabber</a></h1>
     
     
@@ -1315,144 +1504,6 @@ production:
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting Up Check&#8217;s and Handler&#8217;s</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-04-25T12:26:00+00:00" pubdate data-updated="true">Apr 25<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i&#8217;ve explained on how to setup Sensu Server and Client. Now i&#8217;m going to explain how to setup Check&#8217;s and Handler&#8217;s in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
-
-<h4>Setting up Check&#8217;s</h4>
-
-<p>On the Sensu <em>Client Node</em>,</p>
-
-<p>First clone the plugins repository on the client node. Now install the &#8221;<strong>sensu-plugin</strong>&#8221; gem on the client node. And then copy the required plugins to <code>/etc/sensu/plugins/</code> folder.</p>
-
-<p>On the Sensu <em>Server</em>,</p>
-
-<p>We need to define the check first. Create a json config file for the check in <code>/etc/sensu/conf.d</code>. Following is a sample check config,</p>
-
-<pre><code>     {
-    "checks": {
-         "snmp_check": {
-         "handlers": ["default"],
-         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
-         "interval": 30,
-         "subscribers": [ "snmp" ]
-          }
-      }
-   }
-</code></pre>
-
-<p>The above check will be applied to all clients subscribed to &#8221;<em>snmp</em>&#8221; exchange. Based on the interval, Server will publish this check request, which will reach all the clients subscribed to the &#8221;<em>snmp</em>&#8221; exchange using an arbitrary queue. The client will run the command mentioned in the command part, and then it will publish the result back to th server through <em>Result queue</em>. The <a href="https://github.com/deepakmdass88/my-sensu-plugins.git">check_snmp</a> is a small plugin written by me. If we check the sensu-server log, we can see the result coming from the client machine. Below one is a similar log output in my sensu-server log.</p>
-
-<pre><code>{"timestamp":1366968018},"check":{"handlers":["default","mailer"],"command":"/etc/sensu/plugins/check-snmp.rb -w 1 -c 3","interval":100,"subscribers":["snmp"],"name":"snmp_check","issued":1366968407,"executed":1366968028,"output":"CheckSNMP WARNING: Warning state detected\n","status":1,"duration":0.526,"history":["0","0","1"]},"occurrences":1,"action":"create"},"handler":{"type":"pipe","command":"true","name":"default"}}
-</code></pre>
-
-<p>The above log line shows us what are handler&#8217;s enabled for this check, what is the executed command, subcribers, name of the check, timestamp at the time when the command was issued, timestamp of the time when the server has received the result, Output of the check command etc. If there is any while executing th check command, we can see the errors popping in the log&#8217;s soon after this line in the server log.</p>
-
-<h4>Setting up Handler&#8217;s</h4>
-
-<p>Sensu has got a very good collection Handler&#8217;s, available at the sensu-community-plugin repo in github. For example there is a hanlder called &#8221;<em>show</em>&#8221;, available at the debug section in Handler&#8217;s, which will display a more debug report about the Event as well as the Sensu server&#8217;s settings. This is the <a href="/images/show-handler.png">output</a> which i got after applying &#8221;<em>show</em>&#8221; handler in my serverlog. But it&#8217;s not possible to go check the log&#8217;s continously, so there another plugin called &#8220;mailer&#8221;, which can send email alerts like how nagios does.</p>
-
-<p>So first get the &#8220;mailer&#8221; plugin files from the sensu-community-plugin repo in github.</p>
-
-<pre><code>wget -O /etc/sensu/handlers/mailer.rb https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.rb
-wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.json
-</code></pre>
-
-<p>Now edit the mailer.json, and change the settings to fit to our environment. We need to define a new pipe handler for this new handler. So create a file <code>/etc/sensu/conf.d/handler_mailer.json</code>, and add the below lines to it.</p>
-
-<pre><code>        {
-    "handlers": {
-        "mailer": {
-        "type": "pipe",
-        "command": "/etc/sensu/handlers/mailer.rb"
-        }
-          }
-      }
-</code></pre>
-
-<p>Now go to the one of the check config files, where we want to apply this new &#8220;mailer&#8221; handler.</p>
-
-<pre><code>           {
-    "checks": {
-         "snmp_check": {
-         "handlers": ["default", "mailer"],         
-         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
-         "interval": 30,
-         "subscribers": [ "snmp" ]
-          }
-      }
-   }
-</code></pre>
-
-<p>Now restart the sensu-server to make the new changes to come into effect. If everything goes fine, when the sensu detects a state change it will execute this mailer handler, we can also see the below lines in server log.</p>
-
-<pre><code>"action":"create"},"handler":{"type":"pipe","command":"/etc/sensu/handlers/mailer.rb","name":"mailer"
-</code></pre>
-
-<p>Sensu is executing the mailer script, and if there is any problem, we will see the corresponding error following the above line, or we will receive the email alert to email id mentioned in the &#8220;mailer.json&#8221; file. But in my case, i was getting an error, when the sensu invoked the &#8220;mailer&#8221; handler.</p>
-
-<pre><code>{"timestamp":"2013-04-25T15:03:32.002132+0530","level":"info","message":"/etc/sensu/handlers/mailer.rb:28:in `handle': undefined method `[]' for nil:NilClass (NoMethodError)"}
-{"timestamp":"2013-04-25T15:03:32.002308+0530","level":"info","message":"\tfrom /var/lib/gems/1.9.1/gems/sensu-plugin-0.1.7/lib/sensu-handler.rb:41:in `block in &lt;class:Handler&gt;'"}
-</code></pre>
-
-<p>After playing for some time, i came to know that, it was not parsing the options from the mailer.json file, so i manually added the smtp and email settings directly in <em>mailer.rb</em> file. Then it started working fine. I&#8217;m writing a small script which will be using the basic &#8216;net/smtp&#8217; library to send out mails. There are many other cool Handler&#8217;s like sending matrices to Graphite, Logstash, Graylog, sending notifcations to irc,xmpp,campfire etc. Compare to traditional monitoring tools, Sensu is an Amazing tool, we can use any check script&#8217;s, whether it&#8217;s ruby or perl or bash, doesn&#8217;t matter. The one common thing which i heard about other people, was the lack of proper dashboard like the traditional monitoring tools. Though Sensu dashboard is a simple one, i&#8217;m sure it will improve a lot in future.</p>
-
-<p>Since I&#8217;m a CLI Junky, I dont care much about the dashboard thing, apart from that i have many good and interesting stuffs to hang around with Sensu. Cheers to <a href="https://twitter.com/portertech">portertech</a> and <a href="http://www.sonian.com/cloud-monitoring-sensu/">sonian</a> for open sourcing such an amazing tool.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1480,6 +1531,10 @@ wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-communi
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/12/07/automating-debian-package-management/">Automating Debian Package Management</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
         </li>
       
@@ -1493,10 +1548,6 @@ wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-communi
       
         <li>
           <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
         </li>
       
     </ul>

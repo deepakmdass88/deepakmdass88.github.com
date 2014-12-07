@@ -97,6 +97,144 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/25/sensu-setting-up-checks-and-handlers/">Sensu - Setting Up Check&#8217;s and Handler&#8217;s</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-25T12:26:00+00:00" pubdate data-updated="true">Apr 25<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/monitoring/'>Monitoring</a>, <a class='category' href='/blog/categories/sensu/'>Sensu</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.com/blog/2013/04/23/sensu-cloud-monitoring-tool/">post</a>, i&#8217;ve explained on how to setup Sensu Server and Client. Now i&#8217;m going to explain how to setup Check&#8217;s and Handler&#8217;s in Sensu. There is a very good collection of <a href="https://github.com/sensu/sensu-community-plugins">sensu-community-plugins</a>.</p>
+
+<h4>Setting up Check&#8217;s</h4>
+
+<p>On the Sensu <em>Client Node</em>,</p>
+
+<p>First clone the plugins repository on the client node. Now install the &#8221;<strong>sensu-plugin</strong>&#8221; gem on the client node. And then copy the required plugins to <code>/etc/sensu/plugins/</code> folder.</p>
+
+<p>On the Sensu <em>Server</em>,</p>
+
+<p>We need to define the check first. Create a json config file for the check in <code>/etc/sensu/conf.d</code>. Following is a sample check config,</p>
+
+<pre><code>     {
+    "checks": {
+         "snmp_check": {
+         "handlers": ["default"],
+         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
+         "interval": 30,
+         "subscribers": [ "snmp" ]
+          }
+      }
+   }
+</code></pre>
+
+<p>The above check will be applied to all clients subscribed to &#8221;<em>snmp</em>&#8221; exchange. Based on the interval, Server will publish this check request, which will reach all the clients subscribed to the &#8221;<em>snmp</em>&#8221; exchange using an arbitrary queue. The client will run the command mentioned in the command part, and then it will publish the result back to th server through <em>Result queue</em>. The <a href="https://github.com/deepakmdass88/my-sensu-plugins.git">check_snmp</a> is a small plugin written by me. If we check the sensu-server log, we can see the result coming from the client machine. Below one is a similar log output in my sensu-server log.</p>
+
+<pre><code>{"timestamp":1366968018},"check":{"handlers":["default","mailer"],"command":"/etc/sensu/plugins/check-snmp.rb -w 1 -c 3","interval":100,"subscribers":["snmp"],"name":"snmp_check","issued":1366968407,"executed":1366968028,"output":"CheckSNMP WARNING: Warning state detected\n","status":1,"duration":0.526,"history":["0","0","1"]},"occurrences":1,"action":"create"},"handler":{"type":"pipe","command":"true","name":"default"}}
+</code></pre>
+
+<p>The above log line shows us what are handler&#8217;s enabled for this check, what is the executed command, subcribers, name of the check, timestamp at the time when the command was issued, timestamp of the time when the server has received the result, Output of the check command etc. If there is any while executing th check command, we can see the errors popping in the log&#8217;s soon after this line in the server log.</p>
+
+<h4>Setting up Handler&#8217;s</h4>
+
+<p>Sensu has got a very good collection Handler&#8217;s, available at the sensu-community-plugin repo in github. For example there is a hanlder called &#8221;<em>show</em>&#8221;, available at the debug section in Handler&#8217;s, which will display a more debug report about the Event as well as the Sensu server&#8217;s settings. This is the <a href="/images/show-handler.png">output</a> which i got after applying &#8221;<em>show</em>&#8221; handler in my serverlog. But it&#8217;s not possible to go check the log&#8217;s continously, so there another plugin called &#8220;mailer&#8221;, which can send email alerts like how nagios does.</p>
+
+<p>So first get the &#8220;mailer&#8221; plugin files from the sensu-community-plugin repo in github.</p>
+
+<pre><code>wget -O /etc/sensu/handlers/mailer.rb https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.rb
+wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-community-plugins/master/handlers/notification/mailer.json
+</code></pre>
+
+<p>Now edit the mailer.json, and change the settings to fit to our environment. We need to define a new pipe handler for this new handler. So create a file <code>/etc/sensu/conf.d/handler_mailer.json</code>, and add the below lines to it.</p>
+
+<pre><code>        {
+    "handlers": {
+        "mailer": {
+        "type": "pipe",
+        "command": "/etc/sensu/handlers/mailer.rb"
+        }
+          }
+      }
+</code></pre>
+
+<p>Now go to the one of the check config files, where we want to apply this new &#8220;mailer&#8221; handler.</p>
+
+<pre><code>           {
+    "checks": {
+         "snmp_check": {
+         "handlers": ["default", "mailer"],         
+         "command": "/etc/sensu/plugins/check-snmp.rb -w 10 -c 20",
+         "interval": 30,
+         "subscribers": [ "snmp" ]
+          }
+      }
+   }
+</code></pre>
+
+<p>Now restart the sensu-server to make the new changes to come into effect. If everything goes fine, when the sensu detects a state change it will execute this mailer handler, we can also see the below lines in server log.</p>
+
+<pre><code>"action":"create"},"handler":{"type":"pipe","command":"/etc/sensu/handlers/mailer.rb","name":"mailer"
+</code></pre>
+
+<p>Sensu is executing the mailer script, and if there is any problem, we will see the corresponding error following the above line, or we will receive the email alert to email id mentioned in the &#8220;mailer.json&#8221; file. But in my case, i was getting an error, when the sensu invoked the &#8220;mailer&#8221; handler.</p>
+
+<pre><code>{"timestamp":"2013-04-25T15:03:32.002132+0530","level":"info","message":"/etc/sensu/handlers/mailer.rb:28:in `handle': undefined method `[]' for nil:NilClass (NoMethodError)"}
+{"timestamp":"2013-04-25T15:03:32.002308+0530","level":"info","message":"\tfrom /var/lib/gems/1.9.1/gems/sensu-plugin-0.1.7/lib/sensu-handler.rb:41:in `block in &lt;class:Handler&gt;'"}
+</code></pre>
+
+<p>After playing for some time, i came to know that, it was not parsing the options from the mailer.json file, so i manually added the smtp and email settings directly in <em>mailer.rb</em> file. Then it started working fine. I&#8217;m writing a small script which will be using the basic &#8216;net/smtp&#8217; library to send out mails. There are many other cool Handler&#8217;s like sending matrices to Graphite, Logstash, Graylog, sending notifcations to irc,xmpp,campfire etc. Compare to traditional monitoring tools, Sensu is an Amazing tool, we can use any check script&#8217;s, whether it&#8217;s ruby or perl or bash, doesn&#8217;t matter. The one common thing which i heard about other people, was the lack of proper dashboard like the traditional monitoring tools. Though Sensu dashboard is a simple one, i&#8217;m sure it will improve a lot in future.</p>
+
+<p>Since I&#8217;m a CLI Junky, I dont care much about the dashboard thing, apart from that i have many good and interesting stuffs to hang around with Sensu. Cheers to <a href="https://twitter.com/portertech">portertech</a> and <a href="http://www.sonian.com/cloud-monitoring-sensu/">sonian</a> for open sourcing such an amazing tool.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/23/sensu-cloud-monitoring-tool/">Sensu - Cloud Monitoring Tool</a></h1>
     
     
@@ -1172,248 +1310,6 @@ posted in
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/01/26/building-mailserver-with-postfix/">Building Mailserver With Postfix</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-01-26T14:28:00+00:00" pubdate data-updated="true">Jan 26<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/dovecot/'>Dovecot</a>, <a class='category' href='/blog/categories/mailserver/'>Mailserver</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>It&#8217;s been a week since i started playing around with <code>Postfix</code>. Though we are qmail lovers, a few days back one of my friend asked me to help him to build a Mail server. But he wanted to use Postfix as the MTA. I decided to integrate <em>LDAP</em>  also, so that he can have a centralized user management. So in this blog i will be explaining on how to set up postfix to use LDAP for user lookup as well as using <strong><em>Dovecot SASL</em></strong> for SMTP auth and <strong><em>Dovecot&#8217;s lda</em></strong> for delivering the mails to the user&#8217;s Mailboxes. I&#8217;m using Debian 6.4 as the base os. I&#8217;ve also installed <em>SLAPD</em>, and i&#8217;ve a few test user&#8217;s in it. My LDAP setup has two OU&#8217;s, People and Groups respectively.</p>
-
-<p>First we will setup <em>Dovecot</em>. The Debian Squeeze repository has Dovecot 1.2, so i will be installing those.</p>
-
-<pre><code>$ apt-get install dovecot-common dovecot-pop3d dovecot-imapd
-</code></pre>
-
-<p>Once dovecot is installed, we need to enable dovecot&#8217;s LDA and the dovecot&#8217;s SASL auth. Modify the dovecot.conf file as below. Since i&#8217;m using a virtual user <strong><em>vmail</em></strong>, i need to define the <em>mail_uid and mail_gid</em> as the vmail&#8217;s corresponding uid and gid. Also <em>login_user</em> must be <strong><em>postfix</em></strong></p>
-
-<p>In the <em>lda</em> section,</p>
-
-<pre><code>protocol lda {
- postmaster_address = postmaster@&lt;domain_name&gt;
- mail_plugin_dir = /usr/lib/dovecot/modules/lda
- deliver_log_format = msgid=%m: %$
- sendmail_path = /usr/sbin/sendmail
- rejection_subject = Rejected: %s
- auth_socket_path = /var/run/dovecot/auth-master
- log_path = /var/log/dovecot-deliver.log
- info_log_path = /var/log/dovecot-deliver.log
-}
-</code></pre>
-
-<p>In the <em>auth</em> section,</p>
-
-<pre><code>auth default {
- mechanisms = plain
-
-  passdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  userdb ldap {
-        args = /etc/dovecot/dovecot-ldap.conf
-  }
-
-  socket listen {
-         master {  
-    path = /var/run/dovecot/auth-master
-        mode = 0666
-        # Default user/group is the one who started dovecot-auth (root)
-        user = vmail
-        group = vmail   
-        }
-
-     client {
-        path = /var/spool/postfix/private/auth
-        mode = 0660
-        user = postfix
-        group = postfix
-        }
-</code></pre>
-
-<p>Below is the content of my <em>dovecot-ldap.conf</em></p>
-
-<pre><code>hosts = localhost
-dn =  &lt;ldap_bind_dn&gt;
-dnpass = &lt;ldap_bind_pwd&gt;
-sasl_bind = no
-auth_bind = yes
-ldap_version = 3
-base = &lt;ldap_base_dn&gt;
-auth_bind = yes
-pass_attrs = uid=user
-pass_filter = (&amp;(objectClass=posixAccount)(uid=%u))
-user_attrs = homeDirectory=home,mailQuotaSize=quota=dirsize:storage
-user_filter = (&amp;(objectClass=posixAccount)(|(mail=%u)(mailAlternateAddress=%u)(uid=%u)))
-</code></pre>
-
-<p>So now Dovecot is ready, we need to go ahead with Postfix installation. We need to install the below packages.</p>
-
-<pre><code>$ apt-get install postfix postfix-ldap
-</code></pre>
-
-<p>Once the packages are installed, we need to configure the main config file of postfix ie, <strong>main.cf</strong>. Below is the my configuration,</p>
-
-<pre><code>myhostname = vagratn-postifx-box
-smtpd_banner = &lt;smtp_banner&gt;
-biff = no
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/server.pem
-smtpd_tls_key_file=/etc/ssl/private/server.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-myorigin = /etc/mailname
-mydestination = localhost
-relayhost =
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = all
-home_mailbox = Maildir/
-virtual_mailbox_maps = ldap:/etc/postfix/ldap_virtual_users.cf          #This ldap lookup will return user's MAilbox as the result from LDAPv
-virtual_alias_maps = ldap:/etc/postfix/ldap_virtual_mailalt.cf      #This ldap lookup will return uid from LDAP
-$alias_maps = hash:/etc/aliases,ldap:/etc/postfix/ldap_virtual_mailalt.cf
-local_recipient_maps = $alias_maps
-smtpd_sender_login_maps = ldap:/etc/postfix/ldap_senders.cf     #This ldap lookup will return uid attribute from LDAP
-smtpd_sasl_type = dovecot
-smtpd_sasl_path = private/auth
-smtpd_sasl_auth_enable = yes
-mailbox_transport = dovecot
-dovecot_destination_recipient_limit = 1
-virtual_mailbox_domains = &lt;add virtual domains here&gt;
-virtual_transport = dovecot
-</code></pre>
-
-<p>We can also mention the SMTP sender and recipient restrictions in the above file,</p>
-
-<pre><code>smtpd_client_restrictions=
-        permit_mynetworks,
-
-smtpd_recipient_restrictions=
-        permit_mynetworks,
-        permit_sasl_authenticated,
-        reject_unverified_recipient,
-        reject_invalid_hostname,
-        reject_non_fqdn_hostname,
-        reject_non_fqdn_sender,
-        reject_non_fqdn_recipient,
-        reject_unknown_sender_domain,
-        reject_unknown_recipient_domain,
-        reject_unauth_pipelining,
-        permit_auth_destination,
-        reject_unauth_destination,
-
-smtpd_sender_restrictions=
-        reject_unknown_sender_domain,
-        reject_unlisted_sender,
-        reject_authenticated_sender_login_mismatch,
-</code></pre>
-
-<p>Below are the contents of the various LDAP lookup file&#8217;s contents. We can verify this lookup&#8217;s using postmap command. &#8221;<strong><em>postmap -q <query> ldap:/<lookupfile></em></strong>&#8221;</p>
-
-<pre><code>########ldap_virtual_mailalt.cf########
-
-    server_host = ldap://localhost
-    version = 3
-    search_base = &lt;ldap_base_dn&gt;
-    bind_dn = &lt;ldap_bind_dn&gt;
-    bind_pw = &lt;ldap_bind_password&gt;
-    bind = yes
-    debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid 
-
-
-########ldap_virtual_users.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-    query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))
-    result_attribute = uid
-    result_format = %s/Maildir/
-
-
-########ldap_senders.cf########
-
-    server_host = ldap://localhost
-        version = 3
-        search_base = &lt;ldap_base_dn&gt;
-        bind_dn = &lt;ldap_bind_dn&gt;
-        bind_pw = &lt;ldap_bind_password&gt;
-        bind = yes
-        debug_level = 3
-        query_filter = (&amp;(|(mail=%s)(mailAlternateAddress=%s)))            
-    result_attribute = uid
-</code></pre>
-
-<p>Now we need to allow dovecot for delivery, so we need to add the following entry to <strong>master.cf</strong></p>
-
-<pre><code>dovecot   unix  -       n       n       -       -       pipe
-    flags=DRhu user=vmail:vmail argv=/usr/lib/dovecot/deliver -f ${sender} -d ${recipient}
-</code></pre>
-
-<p>I&#8217;m using recipient email id completely as the delivery option, because, in the multi domain setup, ifthere exist two different user&#8217;s with same name say &#8220;abc&#8221;, LDAP dn is always unique, so we cannot have same user name for two different user&#8217;s, in such cases, we uses the full email id as the username for the second user, so in such scenario, we cannot use the user parameter as delivery option, because the it dovecot will remove the @domain part and takes the rest as the user, so if we use full email id, it will not deliver to the actual user.</p>
-
-<p>This setup has worked perfectly with Debian Squeeze and as well as Debian Vagrant Boxes. I&#8217;m writing a puppet module which will automate LDAP,Postfix and Dovecot installation and configuration and will have a ready to use mail server. Soon i will upload it into my <a href="http://github.com/deepakmdass88">github</a> account.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1441,6 +1337,10 @@ smtpd_sender_restrictions=
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2014/12/07/automating-debian-package-management/">Automating Debian Package Management</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
         </li>
       
@@ -1454,10 +1354,6 @@ smtpd_sender_restrictions=
       
         <li>
           <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/08/31/mesos-with-native-docker-support/">Mesos with Native Docker Support</a>
         </li>
       
     </ul>

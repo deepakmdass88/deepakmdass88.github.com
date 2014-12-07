@@ -1,0 +1,315 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Automating Debian Package Management - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="With the rise of CI tools like Jenkins/Gitlab and the rise of Config management tools, Continous integration became so flexible. Now if we check, &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2014/12/07/automating-debian-package-management/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Automating Debian Package Management" />
+  <meta name="og:description" content="With the rise of CI tools like Jenkins/Gitlab and the rise of Config management tools, Continous integration became so flexible. Now if we check, &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2014/12/07/automating-debian-package-management/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2014/12/07/automating-debian-package-management/">
+  
+  <meta name="subject" content="Debianaptaptlydebian-packagingjenkins"/>
+  <meta name="category" content="Debianaptaptlydebian-packagingjenkins"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Automating Debian Package Management</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-12-07T08:00:00+00:00" pubdate data-updated="true">Dec 7<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/apt/'>apt</a>, <a class='category' href='/blog/categories/aptly/'>aptly</a>, <a class='category' href='/blog/categories/debian-packaging/'>debian-packaging</a>, <a class='category' href='/blog/categories/jenkins/'>jenkins</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>With the rise of CI tools like Jenkins/Gitlab and the rise of Config management tools, Continous integration became so flexible. Now if we check, most of the teams are using Git for Version control for their projects either via Github or Gitlab etc&#8230; and uses CI tools like Jenkins/Travis etc  to build and test the packages automatically whenever any change is pushed to the repo. An d finally once hte build is a success the packages are pushed to repo so that config management systems like Salt/Puppet/Ansible can go ahead and perform the upgrade. In my previos blogs, i&#8217;ve explained on how to build a Debian package and how to create and manage APT repo&#8217;s via aptly. In this i&#8217;m going to automate the entire process.</p>
+
+<p>So the flow is like, We have a github repo, and once a changed is pushed to the repo, github will send a hook to our Jenkins server which inturn triggers the Jenkins package build. Once the package has been succesfuly built, jenkins will automatically add the new packages to our repo and publish the same to our APT repo via <code>aptly</code></p>
+
+<h4>Installing Jenkins</h4>
+
+<p>First let&#8217;s setup a Jenkins build server.</p>
+
+<pre><code>$ wget -q -O - https://jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add -
+
+$ echo "deb http://pkg.jenkins-ci.org/debian binary/" &gt; /etc/apt/sources.list.d/jenkins.list
+
+$ apt-get update &amp;&amp; apt-get install jenkins
+
+$ /etc/init.d/jenkins restart
+</code></pre>
+
+<p>Once this Jenkins service is started we can access it via &#8221;<em>http://jenkins-server-ip:8080</em>&#8221;. By default there is no authentication, so accessing the URL will open up the Jenkins UI.</p>
+
+<h4>Creating a Build Job in Jenkins</h4>
+
+<p>In order to use a Git repo, we have to instsall the Git plugin first. Go to &#8221;<em>Manage Jenkins</em>&#8221; - > &#8221;<em>Manage Plugins</em>&#8221; - > &#8221;<em>Available</em>&#8221; and search for &#8221;<em>GIT plugin</em>&#8221; and install it. Once the Git plugin has been installed we can create a new build job.</p>
+
+<p>Click on &#8221;<em>New Item</em>&#8221; on the Home Page and Select &#8221;<em>Freestyle Project</em>&#8221; and Click on &#8220;OK&#8221;. On the Next page, we need to configure all the necessary steps for build job. Fill in the necessary details like Project Name, Description etc. Under &#8220;Source Code Management&#8221;, select <code>Git</code> and enter the Repo URL. Make sure that the jenkins user has access to the repo. We can also use Deploy keys, but i&#8217;ve generated a separate ssh key for Jenkins user and the same has been added to Github. Under &#8221;<em>Build Triggers</em>&#8221; select &#8216;Build when a change is pushed to GitHub&#8217; so that Jenkins will start the build job everytime when a change has been pushed to repo.</p>
+
+<p><img src="/images/aptly1.png"></p>
+
+<p><img src="/images/aptly2.png"></p>
+
+<p>Under the <code>Build</code> section, Click on &#8221;<em>Add build step</em>&#8221; and select &#8217;<em>Execute shell</em>&#8217; and let&#8217;s add our package build script which is stage 1.</p>
+
+<pre><code>set -e
+set -x
+set -u
+debuild -us -uc
+</code></pre>
+
+<p>Stage 2 is adding the newly build pacakge to our apt repo and publish the udpate to our repo so that our APT will server the new package</p>
+
+<pre><code>aptly repo add myapt ../openvpn*.deb
+/usr/bin/env script -qfc "aptly publish -passphrase=&lt;GPG passphrase&gt; update myapt"
+</code></pre>
+
+<p><img src="/images/aptly3.png"></p>
+
+<p>If you see my above command, i&#8217;ve used the <code>script</code> command. This is because, i was getting the error <code>aptly stderr: gpg: cannot open tty /dev/tty': No such device or address</code> whenever i try to update a repo. This is <a href="https://github.com/smira/aptly/issues/144">bug</a> in aptly. The fix has been placed on the Master branch but its not yet released. The <code>script</code> command is a temporary work around for this bug.</p>
+
+<p>Now we have a Build job ready. We can manually trigger a build to test if the Job is working fine. If the build is successfull, we are done with our build server. Now the final step is Configuring Github to send a trigger whenever any change is pushed to Github.</p>
+
+<h4>Configuring Github Triggers</h4>
+
+<p>Go the Github repo and Click on the Repo settings. Open &#8221;<em>Webhooks and Services</em>&#8221; and select &#8221;<em>Add Service</em>&#8221; and select &#8221;<em>GitHub plugin</em>&#8220;.Now it will ask for Jenkin&#8217;s Hook URL, which is &#8221;<em>http://<Name of Jenkins server>:8080/github-webhook/</em>&#8221; and add the service. Once the service is set, we can click on &#8220;Test service&#8221; to check if the webhook is working fine.</p>
+
+<p><img src="/images/aptly4.png"></p>
+
+<p>Once the test hook is created, go to the Jenkins job page and select &#8221;<em>GitHub Hook Log</em>&#8221;. The test hook should get displayed there. If not there is something wrong on the config.</p>
+
+<p><img src="/images/aptly5.png"></p>
+
+<p>Now we have a fully automated build and release management. Config management tools like Salt/Ansible etc.. can go ahead and start the deployment process.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-12-07T08:00:00+00:00" pubdate data-updated="true">Dec 7<span>th</span>, 2014</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/apt/'>apt</a>, <a class='category' href='/blog/categories/aptly/'>aptly</a>, <a class='category' href='/blog/categories/debian-packaging/'>debian-packaging</a>, <a class='category' href='/blog/categories/jenkins/'>jenkins</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/" title="Previous Post: Managing Debian APT repository via Aptly">&laquo; Managing Debian APT repository via Aptly</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2014/12/07/automating-debian-package-management/">Automating Debian Package Management</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2014 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

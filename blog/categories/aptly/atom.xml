@@ -4,7 +4,7 @@
   <title><![CDATA[Category: aptly | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/aptly/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2014-12-07T07:46:41+00:00</updated>
+  <updated>2014-12-07T09:21:50+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
     <name><![CDATA[Deepak M Das]]></name>
@@ -12,6 +12,74 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Automating Debian Package Management]]></title>
+    <link href="http://beingasysadmin.com/blog/2014/12/07/automating-debian-package-management/"/>
+    <updated>2014-12-07T08:00:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2014/12/07/automating-debian-package-management</id>
+    <content type="html"><![CDATA[<p>With the rise of CI tools like Jenkins/Gitlab and the rise of Config management tools, Continous integration became so flexible. Now if we check, most of the teams are using Git for Version control for their projects either via Github or Gitlab etc... and uses CI tools like Jenkins/Travis etc  to build and test the packages automatically whenever any change is pushed to the repo. An d finally once hte build is a success the packages are pushed to repo so that config management systems like Salt/Puppet/Ansible can go ahead and perform the upgrade. In my previos blogs, i've explained on how to build a Debian package and how to create and manage APT repo's via aptly. In this i'm going to automate the entire process.</p>
+
+<p>So the flow is like, We have a github repo, and once a changed is pushed to the repo, github will send a hook to our Jenkins server which inturn triggers the Jenkins package build. Once the package has been succesfuly built, jenkins will automatically add the new packages to our repo and publish the same to our APT repo via <code>aptly</code></p>
+
+<h4>Installing Jenkins</h4>
+
+<p>First let's setup a Jenkins build server.</p>
+
+<pre><code>$ wget -q -O - https://jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add -
+
+$ echo "deb http://pkg.jenkins-ci.org/debian binary/" &gt; /etc/apt/sources.list.d/jenkins.list
+
+$ apt-get update &amp;&amp; apt-get install jenkins
+
+$ /etc/init.d/jenkins restart
+</code></pre>
+
+<p>Once this Jenkins service is started we can access it via "<em>http://jenkins-server-ip:8080</em>". By default there is no authentication, so accessing the URL will open up the Jenkins UI.</p>
+
+<h4>Creating a Build Job in Jenkins</h4>
+
+<p>In order to use a Git repo, we have to instsall the Git plugin first. Go to "<em>Manage Jenkins</em>" - > "<em>Manage Plugins</em>" - > "<em>Available</em>" and search for "<em>GIT plugin</em>" and install it. Once the Git plugin has been installed we can create a new build job.</p>
+
+<p>Click on "<em>New Item</em>" on the Home Page and Select "<em>Freestyle Project</em>" and Click on "OK". On the Next page, we need to configure all the necessary steps for build job. Fill in the necessary details like Project Name, Description etc. Under "Source Code Management", select <code>Git</code> and enter the Repo URL. Make sure that the jenkins user has access to the repo. We can also use Deploy keys, but i've generated a separate ssh key for Jenkins user and the same has been added to Github. Under "<em>Build Triggers</em>" select 'Build when a change is pushed to GitHub' so that Jenkins will start the build job everytime when a change has been pushed to repo.</p>
+
+<p><img src="/images/aptly1.png"></p>
+
+<p><img src="/images/aptly2.png"></p>
+
+<p>Under the <code>Build</code> section, Click on "<em>Add build step</em>" and select '<em>Execute shell</em>' and let's add our package build script which is stage 1.</p>
+
+<pre><code>set -e
+set -x
+set -u
+debuild -us -uc
+</code></pre>
+
+<p>Stage 2 is adding the newly build pacakge to our apt repo and publish the udpate to our repo so that our APT will server the new package</p>
+
+<pre><code>aptly repo add myapt ../openvpn*.deb
+/usr/bin/env script -qfc "aptly publish -passphrase=&lt;GPG passphrase&gt; update myapt"
+</code></pre>
+
+<p><img src="/images/aptly3.png"></p>
+
+<p>If you see my above command, i've used the <code>script</code> command. This is because, i was getting the error <code>aptly stderr: gpg: cannot open tty /dev/tty': No such device or address</code> whenever i try to update a repo. This is <a href="https://github.com/smira/aptly/issues/144">bug</a> in aptly. The fix has been placed on the Master branch but its not yet released. The <code>script</code> command is a temporary work around for this bug.</p>
+
+<p>Now we have a Build job ready. We can manually trigger a build to test if the Job is working fine. If the build is successfull, we are done with our build server. Now the final step is Configuring Github to send a trigger whenever any change is pushed to Github.</p>
+
+<h4>Configuring Github Triggers</h4>
+
+<p>Go the Github repo and Click on the Repo settings. Open "<em>Webhooks and Services</em>" and select "<em>Add Service</em>" and select "<em>GitHub plugin</em>".Now it will ask for Jenkin's Hook URL, which is "<em>http://<Name of Jenkins server>:8080/github-webhook/</em>" and add the service. Once the service is set, we can click on "Test service" to check if the webhook is working fine.</p>
+
+<p><img src="/images/aptly4.png"></p>
+
+<p>Once the test hook is created, go to the Jenkins job page and select "<em>GitHub Hook Log</em>". The test hook should get displayed there. If not there is something wrong on the config.</p>
+
+<p><img src="/images/aptly5.png"></p>
+
+<p>Now we have a fully automated build and release management. Config management tools like Salt/Ansible etc.. can go ahead and start the deployment process.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Managing Debian APT repository via Aptly]]></title>
