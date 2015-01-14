@@ -97,6 +97,199 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2014/07/24/load-test-on-docker-freeswitch/">Load Test on Docker Freeswitch</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-07-24T11:45:00+00:00" pubdate data-updated="true">Jul 24<span>th</span>, 2014</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>docker</a>, <a class='category' href='/blog/categories/freeswitch/'>freeswitch</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><code>Docker</code> is a very powerfull tool for managing Linux containers. In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/16/dockerizing-freeswitch-docker-enters-telephony-world/">blog</a> i&#8217;ve explaind on how to setup a Docker Freeswitch. Docker is very mature now, version 1.0 has already been released. Docker is now supported by all major cloud vendors. Docker was showing promising results when i was performing my initial testing. So this time i decided to perform a heavy load test on the Freeswitch container to ensure that Docker can really enter Telephony. Like any normal sys admin, i was googling for Freeswitch load test, and most of the results were pointing to Sipp, an Open Source test tool / traffic generator for the SIP protocol. For me Sipp didnt helped me as it started throwing errors beyond 320 simultaneous calls. The UDP connections were timing out. I tried increasing the timeout, which didn&#8217;t helped much.</p>
+
+<p>So next choice is to use a Freeswitch itself, to generate calls. Using the FreeSwitch&#8217;s <em>originate</em> command to generate simultaneous calls and hit the Docker Freeswitch container. I also decided to collect all system metrics, so that i knows how the machine behaves under various load tests conditions. For this i deciced to use <em>CollectD</em> and <em>Graphite</em> combo. Collectd 5+ has an inbuild graphite plugin which can send the collectd metrics to a graphite server.</p>
+
+<p>I&#8217;ve already setup an Ubuntu-Freeswitch Docker <a href="https://registry.hub.docker.com/u/deepakmdass88/fs-ubuntu/">image</a>. First we need to pull the images from the Docker hub.</p>
+
+<pre><code>$ docker pull deepakmdass88/fs-ubuntu
+</code></pre>
+
+<p>Now i&#8217;m going to start the Docker FreeSwitch container in foreground.</p>
+
+<pre><code>$ docker run --rm --privilieged -i -t -p 5060:5060/tcp -p 5060:5060/udp -p 16384:16384/udp -p 16385:16385/udp -p 16386:16386/udp -p 16387:16387/udp -p 16388:16388/udp -p 16389:16389/udp -p 16390:16390/udp -p 16391:16391/udp -p 16392:16392/udp -p 16393:16393/udp -p 5080:5080/tcp -p 5080:5080/udp deepakmdass88/fs-ubuntu /bin/bash
+</code></pre>
+
+<p>The <code>privilieged</code> option was enabled because, the FreeSwitch init script sets some custom <strong>ulimit</strong> values, so the container has to be given special privileges. Corresponding SIP and RTP ports are forwarded from the host to the container.</p>
+
+<p>Now before starting the Freeswitch service, we can set up the CollectD agent. By default, the Ubuntu repostiry contains CollectD versio 4.10, but the Graphite plugin is available from version 5.0+ onwards. So we can use somne PPA which has the corresponding version available.</p>
+
+<pre><code>$ apt-get install python-software-properties
+
+$ add-apt-repository ppa:joey-imbasciano/collectd5
+
+$ apt-get update &amp;&amp; apt-get install collectd
+</code></pre>
+
+<p>Now in the <code>/etc/collectd.conf</code>, uncomment <em>LoadPlugin write_graphite</em>. Also, in the same file and uncomment the plugin definition and fill in the server details.</p>
+
+<pre><code>&lt;Plugin write_graphite&gt;
+  &lt;Carbon&gt;
+        Host "dockergraphite.example.com"
+        Port "2003"
+        Protocol "tcp"
+        LogSendErrors true
+        Prefix "collectd."
+        StoreRates true
+        AlwaysAppendDS false
+        EscapeCharacter "_"
+  &lt;/Carbon&gt;
+&lt;/Plugin&gt;
+</code></pre>
+
+<p>I&#8217;ve enabled a custom <a href="https://github.com/ReadyTalk/freeswitch-collectd-plugin">freeswitch</a> plugin, which will extract the current ongoing calls count from freeswitch and sends it to the graphite server. Once the config changes are done we can restart the CollectD service. Now we can check our graphite UI to see if the default metrics like memory, load, cpu etc. are reaching the graphite server. Once CollectD-Graphite setup is ready, we can go ahead with our load test. So, once the call has reached the server, we need some <em>Dialplan</em> to continue the calls. So the simplest method is to create an infinite loop of playing some file, or some conference. Below are some dialplans that i&#8217;ve created in the <code>public.xml</code></p>
+
+<pre><code># Infinite Play Loop
+
+ &lt;extension name="111222333"&gt;
+       &lt;condition field="destination_number" expression="^111222333$"&gt;
+         &lt;action application="answer"/&gt;
+         &lt;action application="playback" data="sounds/music/8000/got.wav"/&gt;
+         &lt;action application="transfer" data="111222333 XML public"/&gt;
+       &lt;/condition&gt;
+    &lt;/extension&gt;
+
+# Test conference
+
+  &lt;extension name="docker-fs-test-conf"&gt;
+    &lt;condition field="destination_number" expression="^112233"&gt;
+      &lt;action application="answer"/&gt;
+      &lt;action application="sleep" data="500"/&gt;
+      &lt;action application="conference" data="docker-test@public"/&gt;
+    &lt;/condition&gt;
+  &lt;/extension&gt;
+
+
+# Default IVR menu
+
+    &lt;extension name="ivr_demo"&gt;
+      &lt;condition field="destination_number" expression="^5000$"&gt;
+        &lt;action application="answer"/&gt;
+        &lt;action application="sleep" data="2000"/&gt;
+        &lt;action application="ivr" data="demo_ivr"/&gt;
+      &lt;/condition&gt;
+    &lt;/extension&gt;
+</code></pre>
+
+<p>Now, we have the dialplans ready, next is authentication. By default there are two ways, Digest auth and IP Whitelist. Here i&#8217;m going to use IP whitelist, so we need to whitelist our IP in the acl.conf file.</p>
+
+<pre><code> &lt;list name="domains" default="deny"&gt;
+      &lt;!-- domain= is special it scans the domain from the directory to build the ACL --&gt;
+      &lt;node type="allow" domain="$${domain}"/&gt;
+      &lt;node type="allow" cidr="xxx.xxx.xxx.xxx/32"/&gt;                 # IP of FS from which we are going to send the calls
+      &lt;!-- use cidr= if you wish to allow ip ranges to this domains acl. --&gt;
+      &lt;!-- &lt;node type="allow" cidr="192.168.0.0/24"/&gt; --&gt;
+ &lt;/list&gt;
+</code></pre>
+
+<p>Now we can start the Freeswitch service.</p>
+
+<pre><code>$ /etc/init.d/freeswitch start
+</code></pre>
+
+<p>We can check the freeswich service using the fs_cli command.</p>
+
+<pre><code>$ /usr/local/freeswitch/bin/fs_cli -x "show status"
+
+UP 0 years, 0 days, 6 hours, 34 minutes, 59 seconds, 648 milliseconds, 56 microseconds
+FreeSWITCH (Version 1.5.13b git 39200cd 2014-07-02 21:55:21Z 64bit) is ready
+1068 session(s) since startup
+0 session(s) - peak 299, last 5min 0
+0 session(s) per Sec out of max 30, peak 29, last 5min 0
+1000 session(s) max
+min idle cpu 0.00/100.00
+Current Stack Size/Max 240K/8192K
+</code></pre>
+
+<p>Now freeswitch is ready to accept the connection. We can start sending the calls from our Load test freeswitch. Below is the script that was used to originate the calls from the load test Freeswitch machine. This will create simultaneous calls towards the Docker FS.</p>
+
+<pre><code>IP_URI="sip:111222333@&lt;docker-fs-ip&gt;:5060"
+MAX_CALLS=$1
+
+while [ 1 ]; do
+
+set -i req
+req=$(/usr/local/freeswitch/bin/fs_cli -q -b -x "show channels count" | awk '{print $1}')
+if [ $req -lt $MAX_CALLS ]; then
+    /usr/local/freeswitch/bin/fs_cli -q -b -x "bgapi originate sofia/external/$SIP_URI loadtest"
+else
+    echo "sleep a bit ..."
+    sleep 10s
+
+fi
+</code></pre>
+
+<p>While bulk calls are being made from the Load test freeswitch machines, to test the Quality in real time, it&#8217;s better to dial to the extension directly from a Sip Phone/Client and ensure that voice quality is good. Below is my Graphite dashboard for the load test.</p>
+
+<p>Default Graphite UI</p>
+
+<p><img src="/images/Docker-FS-Loadtest.png"></p>
+
+<p><a href="https://github.com/urbanairship/tessera">Tessera</a> UI</p>
+
+<p><img src="/images/tessera-graphite.png"></p>
+
+<p>The FS was stable till 500 simultaneous calls, after that there was a sudden drop in calls and also the voice quality started dropping and in a minute the Freeswitch crashed due to Segmentation fault. I&#8217;m  going to analyze the core dump file to understand more about the crash. The other smaller drops that we see in the graph was caused by the Load test Freeswitch machine, as the load was getting high when the number of calls was increased. But 500 simultaneous calls are pretty decent and the there was no issue in voice quality till the number of calls crossed 500. Though it&#8217;s very difficult to make a final confirmation, i decided to go ahead with phase 2 load test.</p>
+
+<p>In the phase 2 test, i&#8217;m planning to use multiple FS load test machines to generate large simultaneous calls + running 2 separate FS containers on the same host and split the incoming calls to both these containers. Once the phase 2 test is completed, ill share the test results in an another blog post. Docker is still under heavy development, and i&#8217;m sure Docker will be entering Telephony soon.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">Managing Docker Clusters Using Mesos and Marathon</a></h1>
     
     
@@ -1485,123 +1678,6 @@ $  make all cd-sounds-install cd-moh-install    # optional, run this if you want
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/01/23/make-text-to-speech-calls-from-hip-chat/">Make Text to Speech Calls From Hip Chat</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-01-23T16:18:00+00:00" pubdate data-updated="true">Jan 23<span>rd</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/hipchat/'>hipchat</a>, <a class='category' href='/blog/categories/hipchatbot/'>hipchatbot</a>, <a class='category' href='/blog/categories/plivo/'>plivo</a>, <a class='category' href='/blog/categories/rubot/'>rubot</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>I&#8217;ve been using <code>HipChat</code> for the last one month. Before that it was IRC always. But when i joined <em>Plivo&#8217;s</em> <strong>DevOps</strong> family, i&#8217;ve got a lot of places to integrate plivo to automate a lot of stuffs. This i was planning to do some thing with Hipchat. There are a couple of HipChat bot&#8217;s available, i decided to use &#8217;<strong>robut</strong>&#8217;, as it is simple, written in Ruby and easy to write plugins also. Robut need only one &#8220;Chatfile&#8221; as its config file. All the Hip Chat account and room details are mentioned in this file. The Plugins are enabled in this file.</p>
-
-<p>First we need to clone the repository.</p>
-
-<pre><code>$ git clone https://github.com/justinweiss/robut.git
-</code></pre>
-
-<p>Now i need &#8217;<strong>redis</strong>&#8217; and &#8217;<strong>plivo</strong>&#8217; gems for my new plugin. So need to add the same in the Gemfile. Once the gems are added in to the Gemfile, we need to do a &#8221;<strong>bundle install</strong>&#8221; to install all the necessary gems. The path for the <code>Chatfile</code> can be mentioned in  &#8221;<strong>bin/robut</strong>&#8221; file. Now before starting <strong>robut</strong> we need to add the basic HipChat settings ie, <em>jabberid, nick, password and room</em>. Now wen eed to create a plugin to use with robut. The default plugins are available in &#8221;<em>lib/robut/plugin/</em>&#8221; folder. Below is the plugin which i created for making  Text To Speech calls.</p>
-
-<pre><code>require 'json'
-require 'timeout'
-require 'securerandom'
-require 'plivo'
-require 'redis'
-
-class Robut::Plugin::Call
-  include Robut::Plugin
-
-  def usage
-    "#{at_nick} call &lt;number&gt; &lt;message&gt; "
-  end
-
-  def handle(time, sender_nick, message)
-    new_msg = message.split(' ')
-    if sent_to_me?(message) &amp;&amp; new_msg[1] == 'call'
-    num = new_msg[2]
-    textt = message.split(' ').drop(3).join(' ')
-      begin
-    reply("Calling #{num}")
-    plivo_auth_id = "XXXXXXXXXXXXXXXXX"
-    plivo_auth_token = "XXXXXXXXXXXXXXXXX"
-    uuid = SecureRandom.hex
-        r = Redis.new(:host =&gt; "redis_host", :port =&gt; redis_port, :password =&gt; "redis_port")
-        temp = {
-               'text' =&gt; "#{textt}"
-               }
-    plivo_number = "plivo_number"
-        to_number = "#{num}"
-        answer_url = "http://polar-everglades-1062.herokuapp.com/#{uuid}"
-
-        call_params = {
-                      'from' =&gt; plivo_number,
-                      'to' =&gt; to_number,
-                      'answer_url' =&gt; answer_url,
-                      'answer_method' =&gt; 'GET'
-                      }
-        r.set "#{uuid}", temp.to_json
-        r.expire "#{uuid}", 3000
-        sleep 5
-        puts "Initiating plivo call"
-    p = Plivo::RestAPI.new(plivo_auth_id, plivo_auth_token)
-        details = p.make_call(call_params)
-    reply("Summary #{details}")
-      rescue
-        reply("Can't calculate that.")
-      end
-    end
-  end
-end
-</code></pre>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1629,6 +1705,10 @@ end
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting up Docker Private Registry</a>
+        </li>
+      
+        <li>
           <a href="/blog/2014/12/07/automating-debian-package-management/">Automating Debian Package Management</a>
         </li>
       
@@ -1642,10 +1722,6 @@ end
       
         <li>
           <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/10/14/monitoring-redis-using-collectd-and-elk/">Monitoring Redis using CollectD and ELK</a>
         </li>
       
     </ul>
@@ -1681,7 +1757,7 @@ end
   <div class="container">
     <p class="pull-left">
   <a href="/">Welcome to My Nerd World</a>
-  - Copyright &copy; 2014 - Deepak M Das
+  - Copyright &copy; 2015 - Deepak M Das
 </p>
 <p class="pull-right">
   Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.

@@ -1,0 +1,680 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Setting up Docker Private Registry - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak M Das">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="Last year Containers based technology showed up big boom. A lot of OpenSource projects and startups wrapped over Docker. Now Docker became a &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2015/01/06/setting-up-docker-private-registry/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Setting up Docker Private Registry" />
+  <meta name="og:description" content="Last year Containers based technology showed up big boom. A lot of OpenSource projects and startups wrapped over Docker. Now Docker became a &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2015/01/06/setting-up-docker-private-registry/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2015/01/06/setting-up-docker-private-registry/">
+  
+  <meta name="subject" content="Dockerdocker-registryprivate-registryregistry"/>
+  <meta name="category" content="Dockerdocker-registryprivate-registryregistry"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Setting Up Docker Private Registry</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-01-06T20:13:00+00:00" pubdate data-updated="true">Jan 6<span>th</span>, 2015</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/docker-registry/'>docker-registry</a>, <a class='category' href='/blog/categories/private-registry/'>private-registry</a>, <a class='category' href='/blog/categories/registry/'>registry</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Last year Containers based technology showed up big boom. A lot of OpenSource projects and startups wrapped over Docker. Now Docker became a favourite tool for both Dev and Ops guys. I&#8217;m a big fan of Docker and i do all my hacks on containers. This time i decided to play with Docker private registry, so that i sync all my docker clients with a central registry. In this test setup i&#8217;m using Ubuntu 12.04 server with Nginx as a reverse proxy. With the Nginx proxy i can easily enforce basic auth and can protect my private docker registry from unauthorized access.</p>
+
+<h4>Installing Docker Registry</h4>
+
+<p>   Download the latest release of Docker Registry from the Docker&#8217;s <a href="https://github.com/docker/docker-registry/releases">github</a> repo</p>
+
+<pre><code>$ wget https://github.com/docker/docker-registry/archive/0.9.0.tar.gz -O /usr/local/src/0.9.0.tar.gz
+
+$ tar xvzf 0.9.0.tar.gz &amp;&amp; mv docker-registry-0.9.0 docker-registry
+
+
+Let's install the dependencies,
+
+$ apt-get update &amp;&amp; apt-get install swig python-pip python-dev libssl-dev liblzma-dev libevent1-dev patch
+
+
+Once the dependencies are installed, lets go ahead and install the docker-registry app
+
+$ cat /usr/local/src/docker-registry/config/boto.cfg &gt; /etc/boto.cfg
+
+$ pip install /usr/local/src/docker-registry/depends/docker-registry-core/
+
+$ pip install file:///usr/local/src/docker-registry
+
+$ patch $(python -c 'import boto; import os; print os.path.dirname(boto.__file__)')/connection.py &lt; /usr/local/src/docker-registry/contrib/boto_header_patch.diff
+
+$ cp /usr/local/src/docker-registry/config/config_sample.yml /usr/local/src/docker-registry/config/config.yml 
+
+
+We can edit the `config.yml` file, if we want to change the local storage path (default =&gt; /tmp/registry) and also we can use redis as a local cache + sqlite based search backend. The repo already contains a sample init [init](https://raw.githubusercontent.com/docker/docker-registry/master/contrib/docker-registry_debian.sh) script that can be used directly.
+
+$ cp -rvf /usr/local/src/docker-registry/contrib/docker-registry_debian.sh /etc/init.d/docker-registry
+
+Also let's setup a default file, `/etc/default/docker-registry`, so that init script can read the necessary env variables. Below is the content of my default file.
+
+DOCKER_REGISTRY_HOME=/usr/local/src/docker-registry
+DOCKER_REGISTRY_CONFIG=/usr/local/src/docker-registry/config/config.yml
+SETTINGS_FLAVOR=dev
+GUNICORN_OPTS=[--preload]
+LOGLEVEL=debug
+
+Let's start the registry service,
+
+$ /etc/init.d/docker-registry start
+</code></pre>
+
+<h4>Setting up Docker Client</h4>
+
+<p>   Now we have a private Docker registry running, Now let&#8217;s setup an Nginx proxy, so that we dont have to expose the registry directly to outside world.</p>
+
+<pre><code>$ apt-get install nginx nginx-extras
+</code></pre>
+
+<p>   The docker-registry repo also contains basic nginx config that can be used directly.</p>
+
+<pre><code>$ cat /usr/local/src/docker-registry/contrib/nginx/nginx.conf &gt; /etc/nginx/sites-enabled/default
+
+$ cp /usr/local/src/docker-registry/contrib/nginx/docker-registry.conf /etc/nginx/
+</code></pre>
+
+<p>   Also create a basic auth file that contains the username password. We can use <code>htpasswd</code> to generate the password. The filename mentioned the nginx config is <code>docker-registry.htpasswd</code></p>
+
+<pre><code>$ echo "dockeradmin:$apr1$.BzsRrxN$fng.12mJL/TJenKjkZSMS0" &gt;&gt; /etc/nginx/docker-registry.htpasswd  # replace the username and password with the one generated by htpasswd
+</code></pre>
+
+<p>   Now let&#8217;s generate a self signed SSL certificate that can be used with nginx. There are websites like <a href="https://www.startssl.com/">StartSSL</a> which provides free 1 year SSL certificate.</p>
+
+<pre><code>$ mkdir /opt/certs &amp;&amp; cd /opt/certs
+
+$ openssl genrsa -out devdockerCA.key 2048
+
+$ openssl req -x509 -new -nodes -key devdockerCA.key -days 10000 -out devdockerCA.crt
+
+$ openssl genrsa -out dev-docker-registry.com.key 2048
+
+$ openssl req -new -key dev-docker-registry.com.key -out dev-docker-registry.com.csr
+
+    Country Name (2 letter code) [AU]: US
+        State or Province Name (full name) [Some-State]: CA
+        Locality Name (eg, city) []: SF
+        Organization Name (eg, company) [Internet Widgits Pty Ltd]: Beingasysadmin
+        Organizational Unit Name (eg, section) []: tech
+        Common Name (e.g. server FQDN or YOUR name) []: docker.example.com
+        Email Address []: docker@example.com
+
+        Please enter the following 'extra' attributes
+        to be sent with your certificate request
+        A challenge password []:                          # leave the password blank
+        An optional company name []:
+
+$ openssl x509 -req -in dev-docker-registry.com.csr -CA devdockerCA.crt -CAkey devdockerCA.key -CAcreateserial -out dev-docker-registry.com.crt -days 10000
+</code></pre>
+
+<p>   Copy the certificates to the SSL path mentioned the nginx config,</p>
+
+<pre><code>$ cp dev-docker-registry.com.crt /etc/ssl/certs/docker-registry
+
+$ cp dev-docker-registry.com.key /etc/ssl/private/docker-registry
+</code></pre>
+
+<p>   Now let&#8217;s restart the <code>nginx</code> process to reflect the changes</p>
+
+<pre><code>$ service nginx restart
+</code></pre>
+
+<p>   Now once the nginx is up, we can check the connectivity between docker client and registry server. Since registry is using a self signed certificate, we need to whitelist the CA on the Docker client machine.</p>
+
+<pre><code>$ cd /opt/certs
+
+$ mkdir /usr/local/share/ca-certificates/docker-dev-cert
+
+$ cp devdockerCA.crt /usr/local/share/ca-certificates/docker-dev-cert
+
+$ update-ca-certificates
+</code></pre>
+
+<p>   Note: If the CA is not added to trusted list, Docker client wont be able to authenticate against the registry server. Once the CA is added to trusted list, we can test the connectivity between Docker client and Registry server.</p>
+
+<pre><code>$ root@docker:~# docker login https://docker.example.com      # use the nginx basic auth creds here, email can be blank
+    Username: dockeradmin
+    Password:xxxxxxxx
+    Email:                          # This we can leave blank
+    Login Succeeded                                         # Successful login message
+</code></pre>
+
+<p>   Once the login is succeeded, lets add some base docker images to our Private registry.</p>
+
+<pre><code>$ docker pull ubuntu:12.04                             #  Pulling the latest image of Ubuntu 12.04
+    ubuntu:12.04: The image you are pulling has been verified
+    ed52aaa56e98: Pull complete
+    b875af6dcb23: Pull complete
+    41959ee20b93: Pull complete
+    f959d044ebdf: Pull complete
+    511136ea3c5a: Already exists
+    Status: Downloaded newer image for ubuntu:12.04
+
+
+$ docker images                             # Check the downloaded images
+    REPOSITORY                  TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    ubuntu                      12.04               f959d044ebdf        5 days ago          130.1 MB
+</code></pre>
+
+<p>   So, as per the Documentation, we need to create a tag for the image that we are going to push to our private registry. The tag must be of the syntax &#8221;<registry-server-fqdn>/<image-name>:<optional-tag>&#8221;</p>
+
+<pre><code>$ docker tag ubuntu:12.04 docker.example.com/ubuntu:12.04     # We need to create a tag of format "&lt;registry-server-fqdn&gt;/&lt;image-name&gt;:&lt;optional-tag&gt;"
+
+
+$ docker push docker.example.com/ubuntu:12.04                 # push the image to our new private registry
+    The push refers to a repository [docker.example.com/ubuntu] (len: 1)
+    Sending image list
+    Pushing repository docker.example.com/ubuntu (1 tags)
+    Image 511136ea3c5a already pushed, skipping
+    ed52aaa56e98: Image successfully pushed
+    b875af6dcb23: Image successfully pushed
+    41959ee20b93: Image successfully pushed
+    f959d044ebdf: Image successfully pushed
+    Pushing tag for rev [f959d044ebdf] on {https://docker.example.com/v1/repositories/ubuntu/tags/12.04}
+</code></pre>
+
+<p>   Let&#8217;s query the registry API for the pushed image</p>
+
+<pre><code>curl http://localhost:5000/v1/search
+    {"num_results": 2, "query": "", "results": [{"description": "", "name": "library/wheezy"}, {"description": "", "name": "library/ubuntu"}]}
+</code></pre>
+
+<p>   Currently both the Docker Client and Registry resides on the same machine, we can test push/pull image from a remote machine. The only dependency is we need to add the Self Signed CA to the trusted CA list, otherwise docker client will raise an SSL error while trying to login against the private registry.</p>
+
+<p>   Now let&#8217;s try pulling the images from the private registry.</p>
+
+<pre><code>$ docker pull docker.example.com/ubuntu:12.04
+    Pulling repository docker.example.com/ubuntu
+    f959d044ebdf: Download complete
+    511136ea3c5a: Download complete
+    ed52aaa56e98: Download complete
+    b875af6dcb23: Download complete
+    41959ee20b93: Download complete
+    Status: Downloaded newer image for docker.example.com/ubuntu:12.04
+
+$ docker images
+    REPOSITORY                  TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    debian                      wheezy              479215127fa7        5 days ago          84.99 MB
+    docker.example.com/wheezy   latest              479215127fa7        5 days ago          84.99 MB
+    docker.example.com/ubuntu   12.04               f959d044ebdf        5 days ago          130.1 MB
+</code></pre>
+
+<h4>Setting up S3 Backend for Docker Registry</h4>
+
+<p>   Docker registry by default supports S3 backend for storing the images. But if we are using S3, it&#8217;s better to cache the image locally so that we don&#8217;t have to fetch S3 all the time. Redis really comes to the rescue. We can set up Redis Server as an <a href="http://redis.io/topics/lru-cache">LRU Cache</a> and can define the settings in the <code>config.yml</code> of the registry or as an env variable.</p>
+
+<pre><code>$ apt-get install redis-server
+</code></pre>
+
+<p>   Once Redis server is installed, we need to define the <code>maxmemory</code> to be allocated for the cache and <code>maxmemory-policy</code> which tells Redis how to clean the old cache when the <code>maxmemory</code> limit is reached. Add below settings to the <code>redis.conf</code> file</p>
+
+<pre><code>maxmemory 2000mb              # i'm allocating 2GB of cache size
+
+maxmemory-policy volatile-lru     # removes the key with an expire set using an LRU algorithm
+</code></pre>
+
+<p>   Now let&#8217;s define the env variables so that docker-registry can use them while starting up. Add the below variables to the <code>/etc/default/docker-registry</code> file.</p>
+
+<pre><code>CACHE_REDIS_HOST=localhost
+CACHE_REDIS_PORT=6379
+CACHE_REDIS_DB=0
+
+CACHE_LRU_REDIS_HOST=localhost
+CACHE_LRU_REDIS_PORT=6379
+CACHE_LRU_REDIS_DB=0
+</code></pre>
+
+<p>   Let&#8217;s start the Docker Registry in foreground and see if it&#8217;s starting with Redis Cache.</p>
+
+<pre><code>root@docker:~# docker-registry
+
+   13/Jan/2015:19:07:42 +0000 INFO: Enabling storage cache on Redis
+   13/Jan/2015:19:07:42 +0000 INFO: Redis host: localhost:6379 (db0)
+   13/Jan/2015:19:07:42 +0000 INFO: Enabling lru cache on Redis
+       13/Jan/2015:19:07:42 +0000 INFO: Redis lru host: localhost:6379 (db0)
+       13/Jan/2015:19:07:42 +0000 INFO: Enabling storage cache on Redis
+</code></pre>
+
+<p>   The above logs shows us that registry has started with Redis cache. Now we need to setup the S3 backend storage. By default for <code>dev</code> env, defaul backend is file storage. We need to change it to S3 in the <code>config.yml</code></p>
+
+<pre><code>dev: &amp;dev
+    &lt;&lt;: *s3                            #by default this will be local, which is local file storage
+    loglevel: _env:LOGLEVEL:debug
+    debug: _env:DEBUG:true
+    search_backend: _env:SEARCH_BACKEND:sqlalchemy
+</code></pre>
+
+<p>   Now if we check the <code>config.yml</code>, in the S3 backend section, the mandatory variables are the ones mentioned below. The boto variables are needed only if we are using any non-Amazon S3-compliant object store.</p>
+
+<pre><code>AWS_REGION   =&gt; S3 region where the bucket is located
+AWS_BUCKET   =&gt; S3 bucket name
+STORAGE_PATH =&gt; the sub "folder" where image data will be stored
+AWS_ENCRYPT  =&gt; if true, the container will be encrypted on the server-side by S3 and will be stored in an encrypted form while at rest in S3. Default value is `True`
+AWS_SECURE   =&gt; true for HTTPS to S3
+AWS_KEY      =&gt; S3 Access key
+AWS_SECRET   =&gt; S3 secret key
+</code></pre>
+
+<p>   We can define the above variables in the <code>/etc/default/docker-registry</code> file. And we need to restart the registry process to make the changes effective.</p>
+
+<pre><code>$ docker-registry         
+
+    13/Jan/2015:23:40:39 +0000 INFO: Enabling storage cache on Redis
+    13/Jan/2015:23:40:39 +0000 INFO: Redis host: localhost:6379 (db0)
+    13/Jan/2015:23:40:39 +0000 INFO: Enabling lru cache on Redis
+    13/Jan/2015:23:40:39 +0000 INFO: Redis lru host: localhost:6379 (db0)
+    13/Jan/2015:23:40:39 +0000 INFO: Enabling storage cache on Redis
+    13/Jan/2015:23:40:39 +0000 INFO: Redis config: {'path': '/registry1', 'host': 'localhost', 'password': None, 'db': 0, 'port': 6379}
+    13/Jan/2015:23:40:39 +0000 DEBUG: Will return docker-registry.drivers.s3.Storage
+    13/Jan/2015:23:40:39 +0000 DEBUG: Using access key provided by client.
+    13/Jan/2015:23:40:39 +0000 DEBUG: Using secret key provided by client.
+    13/Jan/2015:23:40:39 +0000 DEBUG: path=/
+    13/Jan/2015:23:40:39 +0000 DEBUG: auth_path=/my-docker/
+    13/Jan/2015:23:40:39 +0000 DEBUG: Method: HEAD
+    13/Jan/2015:23:40:39 +0000 DEBUG: Path: /
+    13/Jan/2015:23:40:39 +0000 DEBUG: Data:
+    13/Jan/2015:23:40:39 +0000 DEBUG: Headers: {}
+    13/Jan/2015:23:40:39 +0000 DEBUG: Host: my-docker.s3-us-west-2.amazonaws.com
+    13/Jan/2015:23:40:39 +0000 DEBUG: Port: 443
+    13/Jan/2015:23:40:39 +0000 DEBUG: Params: {}
+    13/Jan/2015:23:40:39 +0000 DEBUG: establishing HTTPS connection: host=my-docker.s3-us-west-2.amazonaws.com, kwargs={'port': 443, 'timeout': 70}
+    13/Jan/2015:23:40:39 +0000 DEBUG: Token: None
+    13/Jan/2015:23:40:39 +0000 DEBUG: StringToSign:
+    HEAD
+
+
+    Tue, 13 Jan 2015 23:40:39 GMT
+    /my-docker/
+    13/Jan/2015:23:40:39 +0000 DEBUG: Signature:
+    AWS XXXXXXXXXXXXXXXXXXXX:********************
+    13/Jan/2015:23:40:39 +0000 DEBUG: Final headers: {'Date': 'Tue, 13 Jan 2015 23:40:39 GMT', 'Content-Length': '0', 'Authorization': u'AWS XXXXXXXXXXXXXXXXXXXX:********************', 'User-Agent': 'Boto/2.34.0 Python/2.7.3 Linux/3.8.0-44-generic'}
+    13/Jan/2015:23:40:39 +0000 DEBUG: Response headers: [('x-amz-id-2', '*************************************************'), ('server', 'AmazonS3'), ('transfer-encoding', 'chunked'), ('x-amz-request-id', 'XXXXXXXXXXXXXX'), ('date', 'Tue, 13 Jan 2015 23:40:40 GMT'), ('content-type', 'application/xml')]
+    13/Jan/2015:23:40:39 +0000 INFO: Boto based storage initialized
+    2015-01-13 23:40:39 [21909] [INFO] Starting gunicorn 19.1.0
+    2015-01-13 23:40:39 [21909] [INFO] Listening at: http://0.0.0.0:5000 (21909)
+    2015-01-13 23:40:39 [21909] [INFO] Using worker: gevent
+    2015-01-13 23:40:39 [21919] [INFO] Booting worker with pid: 21919
+    2015-01-13 23:40:39 [21920] [INFO] Booting worker with pid: 21920
+    2015-01-13 23:40:39 [21921] [INFO] Booting worker with pid: 21921
+    2015-01-13 23:40:39 [21922] [INFO] Booting worker with pid: 21922
+    2015-01-13 23:40:39 [21909] [INFO] 4 workers
+</code></pre>
+
+<p>   So now we have the Docker registry with S3 backend and Redis cache. Let&#8217;s push one of our local image see if registry can upload it to the S3 bucket.</p>
+
+<pre><code>$ docker push docker.example.com/mydocker/debian:wheezy
+
+    The push refers to a repository [docker.example.com/mydocker/debian] (len: 1)
+    Sending image list
+    Pushing repository docker.example.com/mydocker/debian (1 tags)
+    511136ea3c5a: Image successfully pushed
+    1aeada447715: Image successfully pushed
+    479215127fa7: Image successfully pushed
+    3192d5ea7137: Image successfully pushed
+    Pushing tag for rev [3192d5ea7137] on {https://docker.example.com/v1/repositories/mydocker/debian/tags/wheezy}
+</code></pre>
+
+<p>   Now let&#8217;s check debug logs to have a more glimpse on what&#8217;s happening in the background.</p>
+
+<pre><code># Sample output of S3 image upload
+
+    Tue, 13 Jan 2015 20:05:05 GMT
+    /my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/json
+    13/Jan/2015:20:05:05 +0000 DEBUG: Signature:
+    AWS XXXXXXXXXXXXXXXXXXXX:********************
+    13/Jan/2015:20:05:05 +0000 DEBUG: Final headers: {'Date': 'Tue, 13 Jan 2015 20:05:05 GMT', 'Content-Length': '0', 'Authorization': u'AWS   XXXXXXXXXXXXXXXXXXXX:********************', 'User-Agent': 'Boto/2.34.0 Python/2.7.3 Linux/3.8.0-44-generic'}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Response headers: [('x-amz-id-2', '*****************************************************'), ('server', 'AmazonS3'), ('transfer-encoding', 'chunked'), ('x-amz-request-id', 'XXXXXXXXXXXXX'), ('date', 'Tue, 13 Jan 2015 20:05:05 GMT'), ('content-type', 'application/xml')]
+    13/Jan/2015:20:05:05 +0000 DEBUG: path=/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_inprogress
+    13/Jan/2015:20:05:05 +0000 DEBUG: auth_path=/my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_inprogress
+    13/Jan/2015:20:05:05 +0000 DEBUG: Method: PUT
+    13/Jan/2015:20:05:05 +0000 DEBUG: Path: /registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_inprogress
+    13/Jan/2015:20:05:05 +0000 DEBUG: Data:
+    13/Jan/2015:20:05:05 +0000 DEBUG: Headers: {'Content-MD5': u'xxxxxxxxxxxxxxx', 'Content-Length': '4', 'Expect': '100-Continue', 'x-amz-server-side-encryption': 'AES256', 'Content-Type': 'application/octet-stream', 'User-Agent': 'Boto/2.34.0 Python/2.7.3 Linux/3.8.0-44-generic'}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Host: my-docker.s3-us-west-2.amazonaws.com
+    13/Jan/2015:20:05:05 +0000 DEBUG: Port: 443
+    13/Jan/2015:20:05:05 +0000 DEBUG: Params: {}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Token: None
+    13/Jan/2015:20:05:05 +0000 DEBUG: StringToSign:
+    PUT
+    xxxxxxxxxxxxxxx
+    application/octet-stream
+    Tue, 13 Jan 2015 20:05:05 GMT
+    x-amz-server-side-encryption:AES256
+    /my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_inprogress
+    13/Jan/2015:20:05:05 +0000 DEBUG: Signature:
+    AWS XXXXXXXXXXXXXXXXXXXX:********************
+    13/Jan/2015:20:05:05 +0000 DEBUG: Final headers: {'Content-MD5': 'xxxxxxxxxxxxx', 'Content-Length': '4', 'Expect': '100-Continue', 'Date': 'Tue,              13 Jan 2015 20:05:05 GMT', 'x-amz-server-side-encryption': 'AES256', 'Content-Type': 'application/octet-stream', 'Authorization': u'AWS XXXXXXXXXXXXXXXXXXXX:********************', 'User-Agent': 'Boto/2.34.0 Python/2.7.3 Linux/3.8.0-44-generic'}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Response headers: [('content-length', '0'), ('x-amz-id-2', '*************************************'), ('server', 'AmazonS3'), ('x-amz-request-id', 'xxxxxxxxxxxxxx'), ('etag', '"b326b5062b2f0e69046810717534cb09"'), ('date', 'Tue, 13 Jan 2015 20:05:06 GMT'), ('x-amz-server-side-encryption', 'AES256')]
+    13/Jan/2015:20:05:05 +0000 DEBUG: path=/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum
+    13/Jan/2015:20:05:05 +0000 DEBUG: auth_path=/my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum
+    13/Jan/2015:20:05:05 +0000 DEBUG: Method: HEAD
+    13/Jan/2015:20:05:05 +0000 DEBUG: Path: /registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum
+    13/Jan/2015:20:05:05 +0000 DEBUG: Data:
+    13/Jan/2015:20:05:05 +0000 DEBUG: Headers: {}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Host: my-docker.s3-us-west-2.amazonaws.com
+    13/Jan/2015:20:05:05 +0000 DEBUG: Port: 443
+    13/Jan/2015:20:05:05 +0000 DEBUG: Params: {}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Token: None
+    13/Jan/2015:20:05:05 +0000 DEBUG: StringToSign:
+    HEAD
+
+    Tue, 13 Jan 2015 20:05:05 GMT
+    /my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum
+    13/Jan/2015:20:05:05 +0000 DEBUG: Signature:
+    AWS XXXXXXXXXXXXXXXXXXXX:********************
+    13/Jan/2015:20:05:05 +0000 DEBUG: Final headers: {'Date': 'Tue, 13 Jan 2015 20:05:05 GMT', 'Content-Length': '0', 'Authorization': u'AWS   XXXXXXXXXXXXXXXXXXXX:********************', 'User-Agent': 'Boto/2.34.0 Python/2.7.3 Linux/3.8.0-44-generic'}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Response headers: [('x-amz-id-2', '***************************************************'), ('server', 'AmazonS3'), ('transfer-encoding', 'chunked'), ('x-amz-request-id', 'xxxxxxxxxxxxxxx'), ('date', 'Tue, 13 Jan 2015 20:05:05 GMT'), ('content-type', 'application/xml')]
+    13/Jan/2015:20:05:05 +0000 DEBUG: path=/
+    13/Jan/2015:20:05:05 +0000 DEBUG: auth_path=/my-docker/
+    13/Jan/2015:20:05:05 +0000 DEBUG: path=/?delimiter=/&amp;prefix=registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum/
+    13/Jan/2015:20:05:05 +0000 DEBUG: auth_path=/my-docker/? delimiter=/&amp;prefix=registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum/
+    13/Jan/2015:20:05:05 +0000 DEBUG: Method: GET
+    13/Jan/2015:20:05:05 +0000 DEBUG: Path: /?delimiter=/&amp;prefix=registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum/
+    13/Jan/2015:20:05:05 +0000 DEBUG: Data:
+    13/Jan/2015:20:05:05 +0000 DEBUG: Headers: {}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Host: my-docker.s3-us-west-2.amazonaws.com
+    13/Jan/2015:20:05:05 +0000 DEBUG: Port: 443
+    13/Jan/2015:20:05:05 +0000 DEBUG: Params: {}
+    13/Jan/2015:20:05:05 +0000 DEBUG: Token: None
+    13/Jan/2015:20:05:05 +0000 DEBUG: StringToSign:
+    13/Jan/2015:20:05:07 +0000 DEBUG: args = {'image_id': u'3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63'}
+    13/Jan/2015:20:05:07 +0000 DEBUG: path=/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/layer
+    13/Jan/2015:20:05:07 +0000 DEBUG: auth_path=/my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/layer
+    13/Jan/2015:20:05:07 +0000 DEBUG: Method: HEAD
+    13/Jan/2015:20:05:07 +0000 DEBUG: Path: /registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/layer
+    13/Jan/2015:20:05:07 +0000 DEBUG: Data:
+    13/Jan/2015:20:05:07 +0000 DEBUG: Headers: {}
+    13/Jan/2015:20:05:07 +0000 DEBUG: Host: my-docker.s3-us-west-2.amazonaws.com
+    13/Jan/2015:20:05:07 +0000 DEBUG: Port: 443
+    13/Jan/2015:20:05:07 +0000 DEBUG: Params: {}
+    13/Jan/2015:20:05:07 +0000 DEBUG: Token: None
+    13/Jan/2015:20:05:07 +0000 DEBUG: StringToSign:
+    HEAD
+
+    Tue, 13 Jan 2015 20:05:07 GMT
+    /my-docker/registry1/images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/layer
+    13/Jan/2015:20:05:07 +0000 DEBUG: Signature:
+    AWS XXXXXXXXXXXXXXXXXXXX:********************
+    13/Jan/2015:20:05:07 +0000 DEBUG: Final headers: {'Date': 'Tue, 13 Jan 2015 20:05:07 GMT', 'Content-Length': '0', 'Authorization': u'AWS   XXXXXXXXXXXXXXXXXXXX:********************', 'User-Agent': 'Boto/2.34.0 Python/2.7.3 Linux/3.8.0-44-generic'}   
+    13/Jan/2015:20:05:07 +0000 DEBUG: Token: None
+    13/Jan/2015:20:05:07 +0000 DEBUG: StringToSign:
+    HEAD
+</code></pre>
+
+<p>   Now let&#8217;s query the registry for the newly uploaded image</p>
+
+<pre><code>$ curl -k https://dockeradmin:xxxxxxx@docker.example.com/v1/repositories/mydocker/debian/tags/wheezy
+
+    "3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63"
+
+$ curl http://localhost:5000/v1/search
+    {"num_results": 1, "query": "", "results": [{"description": "", "name": "mydocker/debian"}]}
+</code></pre>
+
+<p>   Also let&#8217;s see if our Redis server is caching the image.</p>
+
+<pre><code>$ redis 127.0.0.1:6379&gt; keys *
+ 1) "cache_path:/tmp/registryrepositories/mydocker/debian/tag_wheezy"
+ 2) "cache_path:/registry1images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/ancestry"
+ 3) "cache_path:/registry1images/1aeada4477158496dc31ee5c6e7174240140d83fddf94bc57fc02bee1b04e44f/json"
+ 4) "cache_path:/registryimages/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/ancestry"
+ 5) "diff-worker"
+ 6) "cache_path:/registry1images/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/json"
+ 7) "cache_path:/registry1repositories/mydocker/debian/_index_images"
+ 8) "cache_path:/registryimages/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/_inprogress"
+ 9) "cache_path:/registry1images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/_checksum"
+10) "cache_path:/registry1repositories/mydocker/debian/tagwheezy_json"
+11) "cache_path:/registryimages/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/_checksum"
+12) "cache_path:/registry1images/479215127fa7b852902ed734f3a7ac69177c0d4d9446ad3a1648938230c3c8ab/ancestry"
+13) "cache_path:/registry1repositories/mydocker/debian/tag_wheezy"
+14) "cache_path:/registry1images/1aeada4477158496dc31ee5c6e7174240140d83fddf94bc57fc02bee1b04e44f/ancestry"
+15) "cache_path:/registry1images/3192d5ea7137e4f47f4624a5cc7786af2159a44f49511aeed28aa672416cec63/json"
+16) "cache_path:/registryrepositories/mydocker/debian/_index_images"
+17) "cache_path:/registryimages/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/json"
+18) "cache_path:/registry1images/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/ancestry"
+19) "cache_path:/registry1images/479215127fa7b852902ed734f3a7ac69177c0d4d9446ad3a1648938230c3c8ab/_checksum"
+20) "cache_path:/registry1images/1aeada4477158496dc31ee5c6e7174240140d83fddf94bc57fc02bee1b04e44f/_checksum"
+21) "cache_path:/registry1images/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/_checksum"
+22) "cache_path:/registry1images/479215127fa7b852902ed734f3a7ac69177c0d4d9446ad3a1648938230c3c8ab/json"
+</code></pre>
+
+<p>   Now for those who want to have a Continous Integration system, we can set up Jenkins to build the autmated images and upload to our Private registry and use Mesos/CoreOS to deploy the image through out our infrastructure in a fully automated fashion.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-01-06T20:13:00+00:00" pubdate data-updated="true">Jan 6<span>th</span>, 2015</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/docker-registry/'>docker-registry</a>, <a class='category' href='/blog/categories/private-registry/'>private-registry</a>, <a class='category' href='/blog/categories/registry/'>registry</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2014/12/07/automating-debian-package-management/" title="Previous Post: Automating Debian Package Management">&laquo; Automating Debian Package Management</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting up Docker Private Registry</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/07/automating-debian-package-management/">Automating Debian Package Management</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2015 - Deepak M Das
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>
