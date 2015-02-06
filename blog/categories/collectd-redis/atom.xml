@@ -4,10 +4,10 @@
   <title><![CDATA[Category: collectd-redis | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/collectd-redis/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -85,17 +85,17 @@ $ /etc/init.d/collectd start
 4) type_instance: "&lt;dbname&gt;-keys" AND host: "&lt;redis-host-fqdn&gt;"
 </code></pre>
 
-<p><img src="/images/Kibana_ES_Query.png"></p>
+<p>{% img /images/Kibana_ES_Query.png %}</p>
 
 <p>Now We have some sample queries, lets visualize them.</p>
 
-<p><img src="/images/ES_graph.png"></p>
+<p>{% img /images/ES_graph.png %}</p>
 
-<p><img src="/images/ES_graph2.png"></p>
+<p>{% img /images/ES_graph2.png %}</p>
 
 <p>Now create histograms in the same procedure by changing the Selected Queries.</p>
 
-<p><img src="/images/ES_graph3.png"></p>
+<p>{% img /images/ES_graph3.png %}</p>
 ]]></content>
   </entry>
   

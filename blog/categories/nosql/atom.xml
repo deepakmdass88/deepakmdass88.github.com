@@ -4,10 +4,10 @@
   <title><![CDATA[Category: NOSQL | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/nosql/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -34,7 +34,7 @@
 
 <p>Below is the screenshot of the Futon frontend.</p>
 
-<p><img src="/images/futon.png"></p>
+<p>{% img /images/futon.png %}</p>
 
 <p>We can perform all the operations through this web interface also. So i created a database, and created a document for each host with required fields. Now these documents can be accessed via the rest api in JSON format. so that my ruby script can fetch all the necessary data and can compose the exact url for fetching the check results for corresponding hosts.</p>
 

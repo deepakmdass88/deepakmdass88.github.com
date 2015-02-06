@@ -4,10 +4,10 @@
   <title><![CDATA[Category: EventMonitoring | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/eventmonitoring/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -38,15 +38,15 @@
 
 <p>The above filter will create a GeoJSON array "geoip.coordinates". This array can be used for creating the BetterMap in Kibana. Below are the settings for creating a BetterMap panel in the Kibana dashboard. While adding a new panel, select "bettermap" as the panel type, and the co-ordinate filed should be the one which contains the GeoJSON data. Make sure that the data is of the format [longitude,latitude], ie Longitude first and then followed by latitude.</p>
 
-<p><img src="/images/bettermap_config.png"></p>
+<p>{% img /images/bettermap_config.png %}</p>
 
-<p><img src="/images/bettermap.png"></p>
+<p>{% img /images/bettermap.png %}</p>
 
 <p>Moving ahead, i decided to collect the events happening on our various other server's. We were one of the earliest companies who started using SIP (Session Initiation Protocol). SIP employs design elements similar to the HTTP request/response transaction model. So similar to web traffic, i've decided to collect events related to 4XX, 5XX and 6XX error responses, as it is very important to us. Once the logs are shipped to logstash, i wrote another custom grok pattern, which extracts the Error Code and Error responses, including the server which returned the same. These data's can be used for future analysis also. So i decided to store these on ElasticSearch. So now we have the real time event data's stored, but how to visualize. Since i dont have to perform much mathematical analytics with data, i decided to to remove graphite. Kibana has a wonder full GUI for visualizing the data. So decided to go ahead with Kibana. One option is "histogram" panel time. Using histogram we can visualize the data via a regular bar graph, as well as using the area graph. There is another panel type called "terms" which can be used to display the agrregated events via pie chart, bar chart, or a table. And below is what i achieved with Kibana.</p>
 
-<p><img src="/images/SIP-kibana.png"></p>
+<p>{% img /images/SIP-kibana.png %}</p>
 
-<p><img src="/images/SIP-pie.png"></p>
+<p>{% img /images/SIP-pie.png %}</p>
 
 <p>This is just an inital setup. I'm going to add more events to this. As of now Kibana + Elasticsearch proves to be a promising combination for displaying all near real time events happening in my Infrastructure.</p>
 ]]></content>

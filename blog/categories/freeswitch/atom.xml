@@ -4,10 +4,10 @@
   <title><![CDATA[Category: freeswitch | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/freeswitch/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -145,11 +145,11 @@ fi
 
 <p>Default Graphite UI</p>
 
-<p><img src="/images/Docker-FS-Loadtest.png"></p>
+<p>{% img /images/Docker-FS-Loadtest.png %}</p>
 
 <p><a href="https://github.com/urbanairship/tessera">Tessera</a> UI</p>
 
-<p><img src="/images/tessera-graphite.png"></p>
+<p>{% img /images/tessera-graphite.png %}</p>
 
 <p>The FS was stable till 500 simultaneous calls, after that there was a sudden drop in calls and also the voice quality started dropping and in a minute the Freeswitch crashed due to Segmentation fault. I'm  going to analyze the core dump file to understand more about the crash. The other smaller drops that we see in the graph was caused by the Load test Freeswitch machine, as the load was getting high when the number of calls was increased. But 500 simultaneous calls are pretty decent and the there was no issue in voice quality till the number of calls crossed 500. Though it's very difficult to make a final confirmation, i decided to go ahead with phase 2 load test.</p>
 

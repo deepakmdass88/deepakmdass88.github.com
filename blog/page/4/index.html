@@ -7,7 +7,7 @@
 <head>
   <meta charset="utf-8">
   <title>Welcome to My Nerd World</title>
-  <meta name="author" content="Deepak M Das">
+  <meta name="author" content="Deepak Mohandas">
   <link rel="author" href="humans.txt">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
@@ -97,6 +97,127 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/04/30/dkim-signing-in-qmail/">DKIM Signing in QMAIL</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-04-30T11:19:00+00:00" pubdate data-updated="true">Apr 30<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/dkim/'>DKIM</a>, <a class='category' href='/blog/categories/debian/'>Debian</a>, <a class='category' href='/blog/categories/mailserver/'>MAilServer</a>, <a class='category' href='/blog/categories/qmail/'>QMAIL</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><em>DKIM</em> and <em>SPF</em> are becoming most commonly adopted methods for email validation. Even if we want to use the DMARC (<em>Domain-based Message Authentication, Reporting &amp; Conformance</em>), we need to configure  SPF and DKIM first. DMARC acts as a layer above the SPF and DKIM. DMARC allows the receiever&#8217;s mail server to check if the Email is aligned properly as per the DMARC policy, and it queries the sender&#8217;s DNS server for the DMARC action, ie, whether to reject or quarantine if alignment fails. The action will be mentioned in the TXT record on the Sender&#8217;s DNS server. There is a good collection of DMARC training videos available in <a href="http://www.maawg.org/activities/training/dmarc-video-1">MAAWG site</a>. We will get a clear idea on how DMARC works from those videos.</p>
+
+<p>In this post, i will explain on how to make Qmail to do DKIM sign on the outgoing mails. There is a <a href="http://www.brandonturner.net/blog/2009/03/dkim-and-domainkeys-for-qmail/">qmail-patch</a> method available, but since i&#8217;m using qmail-1.0.3 with custom patch, i was not able to use the DKIM patch along with my custom patch. So the next method is to use a wrapper around &#8220;qmail-remote&#8221;, since qmail-remote is responsible for delivering remote mails, a wrapper around it will help us to sign the email and then start the remote delivery. There are a few wrappers mentioned in this <a href="http://www.memoryhole.net/qmail/#dkim">site</a>. I&#8217;m going to use this <a href="http://www.memoryhole.net/qmail/qmail-remote.sh">qmail-remote</a> wrapper.</p>
+
+<h4>Initial Settings</h4>
+
+<p>First move the current &#8221;<em>qmail-remote</em>&#8221; binary to &#8221;<em>qmail-remote.orig</em>&#8221;. Now download the wrapper and move it to the <code>/var/qmail/bin/</code> file.</p>
+
+<pre><code>$ mv /var/qmail/bin/qmail-remote /var/qmail/bin/qmail-remote.orig
+
+$ wget -O /var/qmail/bin/qmail-remote "http://www.memoryhole.net/qmail/qmail-remote.sh"
+
+$ chmod 755 /var/qmail/bin/qmail-remote
+</code></pre>
+
+<p>This wrapper depends on two programs, 1) <strong><em>dktest</em></strong>, which comes with the <a href="http://domainkeys.sourceforge.net/">libdomainkeys</a>,  2)  <a href="http://www.memoryhole.net/qmail/dkimsign.pl">dkimsign.pl</a>, which is perl script for signing the emails. Both these files, must be available at the path mentioned in the &#8220;qmail-remote&#8221; wrapper file.</p>
+
+<p>Go through the &#8221;<em>dkimsign.pl</em>&#8221; script and install the Perl modules mentioned in it using cpan. There is no official debian package for libdomainkeys, so we need to compile it from the source.</p>
+
+<h4>setting up dktest</h4>
+
+<p>Download the latest source code from the sourceforge <a href="http://sourceforge.net/projects/domainkeys/">link</a>.</p>
+
+<pre><code>$ tar -xzf libdomainkeys-0.69.tar.gz
+
+$ cd libdomainkeys-0.69
+</code></pre>
+
+<p>Edit the Makefile and add &#8221;<em>-lresolv</em>&#8221; to the end of the &#8221;<em>LIBS</em>&#8221; line and run <code>make</code></p>
+
+<pre><code>$ install -m 644 libdomainkeys.a /usr/local/lib
+
+$ install -m 644 domainkeys.h dktrace.h /usr/local/include
+
+$ install -m 755 dknewkey /usr/bin
+
+$ install -m 755 dktest /usr/local/bin
+</code></pre>
+
+<h4>Generate Domain keys for the domains</h4>
+
+<p>Before we can sign an email, we must create at least one <em>public/private key pair</em>. I&#8217;m going to create a key pair for the domain &#8220;example.com&#8221;.</p>
+
+<pre><code>$ mkdir -p /etc/domainkeys/example.com
+
+$ cd /etc/domainkeys/example.com
+
+$ dknewkey default 1024 &gt; default.pub
+
+$ chown -R root:root /etc/domainkeys
+
+$ chmod 640 /etc/domainkeys/example.com/default
+
+$ chown root:qmail /etc/domainkeys/example.com/default
+</code></pre>
+
+<p>It is very important that the default file be readable only by root and the group which qmailr (the qmail-remote user) belongs to. Now add a <em>TXT</em> entry to the DNS for &#8221;<em>default._domainkey.example.com</em>&#8221; containing the quoted part in the <code>/etc/domainkeys/example.com/default.pub</code></p>
+
+<p>Once everything is added, restart the &#8220;qmail-send&#8221; and send a test mail to any non local domain. IF things goes fine, we can see a line like the below in &#8220;qmail-send&#8221; log.</p>
+
+<pre><code>$ @40000000517f518b1e1eb75c delivery 1: success: ktest_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/in_dkimsignpl_---_/tmp/dk2.sign.Gajw948FX1A1L0hugfQ/r74.125.25.27_accepted_message./Remote_host_said:_250_2.0.0_OK_1367298812_ps11si19566038pab.170_-_gsmtp/
+</code></pre>
+
+<p>Once the DKIM is working properly, add the SPF entries in our DNS, and we are ready to try out DMARC. DMARC is already in use by mail giants like Google,Yahoo,Paypal,Linkedin etc.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/04/28/sensu-admin-a-gui-for-sensu-api/">Sensu Admin - a GUI for Sensu API</a></h1>
     
     
@@ -106,7 +227,7 @@
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -189,7 +310,7 @@ production:
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -327,7 +448,7 @@ wget -O /etc/sensu/conf.d/mailer.json https://raw.github.com/sensu/sensu-communi
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -582,7 +703,7 @@ $ update-rc.d sensu-dashboard defaults
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -700,7 +821,7 @@ $ make &amp;&amp; make install
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -790,7 +911,7 @@ closing AMQP connection &lt;0.3533.0&gt; (127.0.0.1:38662 -&gt; 127.0.0.1:5672):
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -909,7 +1030,7 @@ $ dpkg-scanpackages . /dev/null | tee Packages | gzip -9 &gt; Packages.gz
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1013,7 +1134,7 @@ $ testuser@cloud: userPassword        # Note that the actual user name is testus
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1135,7 +1256,7 @@ post-up echo 1 &gt; /proc/sys/net/ipv4/ip_forward
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1235,77 +1356,6 @@ $ cp config/database.yml.example config/database.yml
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/02/26/using-snmp-with-icinga/">Using SNMP With Icinga</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-02-26T21:55:00+00:00" pubdate data-updated="true">Feb 26<span>th</span>, 2013</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/icinga/'>icinga</a>, <a class='category' href='/blog/categories/monitoring/'>monitoring</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>In my previous i explained how to set up the Icinga monitoring system on Debian based machine. In this i will be explaining on how to use SNMP with icinga. Using SNMP we can get various info from a remote machine which can be used to icinga.</p>
-
-<p>On the remote server we need to install the snmp server. In ordr to check whether the snmp is working fine, we can install the snmp client also on the same machine.</p>
-
-<pre><code>apt-get install snmp snmp-server
-</code></pre>
-
-<p>From Debian Wheezy onwards, the <strong><em>snmp-mibs</em></strong> package has been removed from the debian repositories. But we can download the debian file from the squeeze repo. Since it has only a few depenencies and they can be installed from the debian repositories, we can manually install the mibs package. But in Ubuntu mibs package is still available in their repositories.</p>
-
-<p>Once the package is installed we can run the <strong><em>download-mibs</em></strong> to install all the necessary mibs. Now once the snmpd package is installed, we need to comment the MIBS option in the <code>/etc/snmp/snmp.conf</code>. And define the basic settings like, location, contact etc in the <code>snmpd.conf</code> file. We can define the ip to which snmp should listen either in the snmpd.conf file or in the <code>/etc/default/snmp</code> file as an extra option. Once the settings are modified, we can start the snmpd service.</p>
-
-<p> So now the service will listening on the port <em>631</em> on the ip which we defined, by default <strong>127.0.0.1</strong>. We can also enable authentication for snmp service, so that the snmp clients which passes the authentication will be able to get the result from the snmp service.</p>
-
-<p>Once the snmp service has started on the remote server, we can test the snmp onnectivity from our icinga server using the nagios&#8217; <code>check_snmp plugin</code>. Once we are able to get results from the snmp service, we can deploy tese snmp services into our icinga host configurations to get the results from the remote server&#8217;s using the <strong><em>check_snmp command</em></strong>.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1333,6 +1383,10 @@ posted in
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2015/02/06/stepping-into-ansible/">Stepping into Ansible</a>
+        </li>
+      
+        <li>
           <a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting up Docker Private Registry</a>
         </li>
       
@@ -1346,10 +1400,6 @@ posted in
       
         <li>
           <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
         </li>
       
     </ul>
@@ -1385,7 +1435,7 @@ posted in
   <div class="container">
     <p class="pull-left">
   <a href="/">Welcome to My Nerd World</a>
-  - Copyright &copy; 2015 - Deepak M Das
+  - Copyright &copy; 2015 - Deepak Mohandas
 </p>
 <p class="pull-right">
   Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.

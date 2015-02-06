@@ -4,14 +4,106 @@
   <title><![CDATA[Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:04+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Stepping into Ansible]]></title>
+    <link href="http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible/"/>
+    <updated>2015-02-06T09:52:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible</id>
+    <content type="html"><![CDATA[<p>For the past 2 year&#8217;s, i played with config management tools like Puppet and Salt. But all these tools were mostly Client-Server Model, except Salt where it supports Push model also. But for the last 6 months, Ansible is gaining more popularity. Ansible is a Push model system which relies on SSH. So i before i adopt Ansible completely, i decided to have a try. I need to make sure that the Ansible supports all basic features what other competitors supports. Which is really helpful in migration also.</p>
+
+<h4>Installation</h4>
+
+<p>Ansible is pretty easy to install. We can install it from source or via package managers or even via PIP. We can use the official ubuntu ppa for installing Ansible on an Ubuntu machine.</p>
+
+<pre><code>apt-get install software-properties-common
+apt-add-repository ppa:ansible/ansible
+apt-get update
+apt-get install ansible
+</code></pre>
+
+<p>Since Ansible relies on SSH, things like Host Key verification errors will prevent the SSH connections resulting in failures. We can disable the Host Key Verfication check in the <code>ansible.cfg</code> file</p>
+
+<pre><code>host_key_checking = False      # add this option to the config file
+</code></pre>
+
+<p>or we can set an env variable <code>export ANSIBLE_HOST_KEY_CHECKING=False</code> for the current session. By default ansible uses the <code>hosts</code> file present in the ansible home directory. So we can define the static machines there. We can add either the IP or DNS resolvable FQDN. Once the IP/FQDN is added, we can test the connectivity via ping module. Make sure that the Ansible server&#8217;s SSH key is added to the <code>authorized_keys</code> on the remote machines.</p>
+
+<pre><code>ansible all -m ping
+
+# Sample output
+
+ansible-ubuntu | success &gt;&gt; {
+    "changed": false,
+    "ping": "pong"
+  }
+</code></pre>
+
+<h4>Managing Custom Facts</h4>
+
+<p>Config management tools like puppet/Salt supports custom facts to be defined on the remote machines. We can define the custom facts and the config management server can use these facts. Even though Ansible is an agentless server, we can define the custom facts on the remote systems. Whenever we query for facts, ansible connects to the remote machines and fetches the facts using its default library. But it also looks for custom facts in <code>/etc/ansible/facts.d/</code>. We need to put our custom facts file in this directory. The file has  to be of <code>.fact</code> extension,must be executable and should return a valid <em>JSON</em>. This is in the case of a script. If we just want to define some facts directly, we can simple create a file like below</p>
+
+<pre><code>[myfact]
+role=test
+profile=staging
+</code></pre>
+
+<p>The above fact file will add two fact variables called <em>role</em> and <em>profile</em> with the value as mentioned in the file. Now let&#8217;s use the system module and see if we are able to retrieve the new custom facts.</p>
+
+<pre><code>ansible &lt;remote_host_name&gt; -m setup
+</code></pre>
+
+<p>Below is the part of the output showing the custom facts</p>
+
+<pre><code>"ansible_local": {
+       "myfacts": {
+        "myfact": {
+           "profile": "staging",
+           "role": "test"
+           }
+       }
+    },
+</code></pre>
+
+<h4>Managing Dynamic Inventory</h4>
+
+<p>In the Cloud environment, it&#8217;s difficult to maintain a static inventory. Ansible does supports Dynamic inventory for vendors including AWS EC2. Ansible provides us an Inventory <a href="https://raw.github.com/ansible/ansible/devel/plugins/inventory/ec2.py">script</a>. We can also use this script directly and query EC2 to get the list of all instances. To successfully make an API call to AWS, we will need to configure Boto. The simplest is just to export two environment variables:</p>
+
+<pre><code>export AWS_ACCESS_KEY_ID='AK123'
+export AWS_SECRET_ACCESS_KEY='abc123'
+
+./ec2.py --list   # Displays the list of all instances
+</code></pre>
+
+<p>Now we have the inventory script ready. Let&#8217;s make some fact&#8217;s query to the ec2 instances. We can use many filters here like, Tags etc&#8230;</p>
+
+<pre><code>ansible tag_Name_test -i /etc/ansible/plugins/inventory/ec2.py -m ping # Querying all instances with tag "Name=test"
+</code></pre>
+
+<p>We can also use regex with these say like <code>tag_Name_test*</code>. For rackspace user&#8217;s there is an official module called <a href="http://docs.ansible.com/rax_module.html">rax</a> that works perfectly with ansible</p>
+
+<h4>Enrcypting YAML Data files</h4>
+
+<p>This is an important feature that most of the config management system lacks. In most of the current systems, we need to define the sensitive data like say ssh-keys, API&#8217;s AuthID/Token etc&#8230; in plain text which increases the security risk. Ansible Vault comes for rescue here. Vault feature can encrypt any structured data file used by Ansible. This can include &#8220;group_vars/&#8221; or &#8220;host_vars/&#8221; inventory variables, variables loaded by &#8220;include_vars&#8221; or &#8220;vars_files&#8221;, or variable files passed on the ansible-playbook command line with &#8220;-e @file.yml&#8221; or &#8220;-e @file.json&#8221;. Role variables and defaults are also included!. While invoking any playbook, we can pass the <code>--ask-vault-pass</code> along the vault password, so Ansible can can decrypt the file and use its contents while performing any execution.</p>
+
+<pre><code>ansible-vault encrypt foo.yml    # Encrypting a file
+
+ansible-vault edit foo.yml       # Editing encrpypted file
+
+ansible-vault decrypt foo.yml    # Decrypting a file
+</code></pre>
+
+<p>Ansible indeed is truly an awesome product. It does have many new features like vault compared to its competitors. It&#8217;s backed by an awesome community. So we can expect more exciting features in future.</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Setting up Docker Private Registry]]></title>
@@ -2287,106 +2379,6 @@ For example the below condition will route the failures to FreeSwitch Voice Mail
 </code></pre>
 
 <p>Kamailio has a lot of modules which really comes in handy. For example we can use LDAP module to use LDAP as a backend. There is a PRESENCE module which helps us to setup an Instant Messaging server using Kamailio. I&#8217;ll be writing a blog on how to use Kamailio as an IM server soon. One of the main advantage of Kamailio over OpenSIP is the WebSocket support. This just a basic configuration, but we can design much complex system using Kamailio. We can even remove the default route logics, and we can use our own routing logics. Kamailio doesnot depend on default routing logics, it blindly reads the route and executes it for each incoming connections.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[SIP Trunking with PLIVO and FreeSwitch]]></title>
-    <link href="http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch/"/>
-    <updated>2014-02-14T15:05:00+00:00</updated>
-    <id>http://beingasysadmin.com/blog/2014/02/14/sip-trunking-using-plivo-and-freeswitch</id>
-    <content type="html"><![CDATA[<p>It&#8217;s more than a month since i joined the DevOps family at <strong>Plivo</strong>, since i&#8217;m pretty new to the Telecom Technology, i was digging more around it. This time i decided to play around with <strong>FreeSwitch</strong>, a free and open source communications software for the creation of voice and messaging products. Thanks to <a href="http://www.linkedin.com/pub/anthony-minessale-ii/3a/403/942">Anthony Minessale</a> for designing and opensourcing such a powerfull powerfull application. FreeSwitch is well documented and there are pretty good blogs also available on how to setup a PBX using FreeSwitch. This time i&#8217;m going to explain on how to make a private Freeswitch server to use Plivo as a <em>SIP Trunking</em> service.</p>
-
-<p>A bit about <a href="plivo.com">Plivo</a>. Plivo is a cloud based API Platform for building <em>Voice</em> and <em>SMS</em> enabled Applications. Plivo provides <strong>Application Programming Interfaces</strong> (APIs) to <em>make and receive calls, send SMS, make a conference call</em>, and more. These APIs are used in conjunction with XML responses to control the flow of a call or a message. We can create Session Initiation Protocol (SIP) endpoints to perform the telephony operations and the APIs are platform independent and can be used in any programming environment such as PHP, Ruby, Python, etc. It also provides helper libraries for these programming languages.</p>
-
-<p>First we need a valid Plivo account. Once we have the Plivo account, we can log into the Plivo Cloud service. Now go to the &#8221;<strong>Endpoints</strong>&#8221; tab and create a SIP endpoint and attach a DirectDial app to it. Once this is done we can go ahead and start setting up the FreeSwitch instance.</p>
-
-<h3>Installing FreeSwitch</h3>
-
-<p>Clone the Official FreeSwitch Github and Repo and compile from the source.</p>
-
-<pre><code>$ git clone git://git.freeswitch.org/freeswitch.git &amp;&amp; cd freeswitch
-
-$ ./bootstrap.sh &amp;&amp; ./configure --prefix=/usr/local/freeswitch
-
-$ make &amp;&amp; make install
-
-$  make all cd-sounds-install cd-moh-install    # optional, run this if you want IVR and Music on Hold features
-</code></pre>
-
-<p>Now if we have more than one ip address on the machine, and if we want to bind to a particular ip, we need to modify two files &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external.xml</em>&#8221; and &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/internal.xml</em>&#8221;. In both the files, change the parameters &#8221;<strong>name=&#8221;rtp-ip&#8221;</strong>&#8221; and &#8221;<strong>param name=&#8221;sip-ip&#8221;</strong>&#8221; with the <em>bind ip</em> as the values.</p>
-
-<p>By default, Freeswitch will create a set of users, which includes numerical usernames ie, 1000-1019. So we can test the basic connectivity between user&#8217;s by making a call between two user accounts. We can register two of the accounts in two SoftPhones and we can make a test call and make sure that FreeSwitch is working fine. We can use the FS binary file to start FreeSwitch service in forground.</p>
-
-<pre><code>$ /usr/local/freeswitch/bin/freeswitch
-</code></pre>
-
-<h3>Configuring Gateway</h3>
-
-<p>Once the FreeSwitch is working fine, we can start configuring the SIP trunking via Plivo. So first we need to create an external gateway to connect to Plivo. I&#8217;m going to use the SIP endpoint created on the Plivo Cloud to initiate the connection. The SIP domain for Plivo is &#8221;<strong>phone.plivo.com</strong>&#8221;. We need to create a gateway config. Go to &#8221;<em>/usr/local/freeswitch/conf/sip_profiles/external/</em>&#8221;, here we can create an XML gateway config file. My config file name is <strong>plivo</strong>. Below is the content for the same.</p>
-
-<pre><code>&lt;include&gt;
-  &lt;gateway name="plivo"&gt;
-  &lt;param name="realm" value="phone.plivo.com" /&gt;
-  &lt;param name="username" value="test88140105181635" /&gt;
-  &lt;param name="password" value="secret" /&gt;
-  &lt;param name="register" value="false" /&gt;
-  &lt;param name="ping" value="5" /&gt;
-  &lt;param name="ping-max" value="3" /&gt;
-  &lt;param name="retry-seconds" value="5" /&gt;
-  &lt;param name="expire-seconds" value="60" /&gt;
-  &lt;variables&gt;
-        &lt;variable name="verbose_sdp" value="true"/&gt;
-  &lt;/variables&gt;
-  &lt;/gateway&gt;
-&lt;/include&gt;
-</code></pre>
-
-<p>There are a lot of other parameters which we can add it here, like caller id etc. Replace the username and password with the Plivo endpoint credentials. If we want to keep this endpoint registered, we can set the register param as true and we can set the expiry time at expire-seconds, so that the Fs will keep on registering the Endpoint with Plivo&#8217;s Registrar server. once the gateway file is created, we can either restart the service or we can run &#8220;reload mod_sofia&#8221; on the FScli. If the FreeSwitch service si started in foreground, we will get the FScli, so we can run the reload command directly on it.</p>
-
-<h3>Setting up Dialplan</h3>
-
-<p>Now we have the Gateway added. Now we need to the setup the Dial Plan to route the outgoing calls through Plivo. Go to &#8221;<em>/usr/local/freeswitch/conf/dialplan/</em>&#8221; folder and add an extension on the &#8221;<strong>public.xml</strong>&#8221; file. Below is a sample extension config.</p>
-
-<pre><code>&lt;extension name="Calls to Plivo"&gt;
-      &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
-        &lt;action application="transfer" data="$1 XML default"/&gt;
-      &lt;/condition&gt;
-&lt;/extension&gt;
-</code></pre>
-
-<p>So now all calls matching to the Regex will be transferred to the default dial plan. Now on the the default dial plan, i&#8217;m creating an exntension and will use the FreeSwitch&#8217;s &#8221;<em>bridge</em>&#8221; application to brdige the call with Plivo using the Plivo Gateway. So on the &#8221;<em>default.xml</em>&#8221; add the below extension.</p>
-
-<pre><code>   &lt;extension name="Dial through Plivo"&gt;
-         &lt;condition field="destination_number" expression="^(&lt;ur_regex_here&gt;)$"&gt;
-           &lt;action application="bridge" data="sofia/gateway/plivo/$1"/&gt;
-         &lt;/condition&gt;
-       &lt;/extension&gt;
-</code></pre>
-
-<p>Now we can restart the FS service or we can reload &#8220;mod_dialplan_xml&#8221; from the FScli. Once the changes are into effect, we can test whether the call is getting routed via Plivo. Configure a soft phone with a default FS user and make an outbound call which matches the regex that we have mentioned for routing to Plivo. Now if all works we should get a call on the destination number. We can check the FS logs at &#8221;<em>/usr/local/freeswitch/log/freeswitch.log</em>&#8221;.</p>
-
-<p>If the Regex is matched, we can see the below lines in the log.</p>
-
-<pre><code>1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 parsing [public-&gt;Calls from BoxB] continue=false
-1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 transfer(xxxxxxxxxxxx XML default)
-1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Regex (PASS) [Dial through Plivo] destination_number(xxxxxxxxxxxx) =~ /^(xxxxxxxxxxxx)$/ break=on-false
-1f249a72-9abf-4713-ba69-c2881111a0e8 Dialplan: sofia/internal/1001@192.168.56.11 Action bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)   
-1f249a72-9abf-4713-ba69-c2881111a0e8 EXECUTE sofia/internal/1001@192.168.56.11 bridge(sofia/external/plivo/xxxxxxxxxxxx@phone.plivo.com)
-1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4499 [zrtp_passthru] Setting a-leg inherit_codec=true
-1f249a72-9abf-4713-ba69-c2881111a0e8 2014-02-14 06:32:48.244757 [DEBUG] mod_sofia.c:4502 [zrtp_passthru] Setting b-leg absolute_codec_string=GSM@8000h@20i@13200b,PCMA@8000h@20i@64000b,PCMU@8000h@20i@64000b
-</code></pre>
-
-<p>We can also mention the CallerID on the Direct Dial app which we have mapped to the SIP endpoint. Now for Incoming calls, create a app that can forward the calls to one of the user&#8217;s present in the FreeSwitch, using the Plivo&#8217;s Dial XML. So the XML should look something like below. I will be writing a more detailed blog about Inbound calls once i&#8217;ve have tested it out completely.</p>
-
-<pre><code>&lt;Response&gt;
-  &lt;Dial&gt;
-    &lt;User&gt;FSuser@FSserverIP&lt;/User&gt;
-  &lt;/Dial&gt;
-&lt;/Response&gt;
-</code></pre>
-
-<p>But for security, we need to allow connections from Plivo server. So we need to allow those IP&#8217;s on the FS acl. We can allow the IP&#8217;s in the &#8221;<strong>acl.conf.xml</strong>&#8221; file at &#8221;<em>/usr/local/freeswitch/conf/autoload_configs</em>&#8221;. And make sure that the FS server is accessible via a public ip atleast for the Plivo server&#8217;s which will forward the calls.</p>
 ]]></content>
   </entry>
   

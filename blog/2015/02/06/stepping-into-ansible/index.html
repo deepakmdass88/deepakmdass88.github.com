@@ -1,0 +1,339 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Stepping into Ansible - Welcome to My Nerd World</title>
+  <meta name="author" content="Deepak Mohandas">
+  <link rel="author" href="humans.txt">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  
+    
+  
+  <meta name="description" content="For the past 2 year&#8217;s, i played with config management tools like Puppet and Salt. But all these tools were mostly Client-Server Model, except &hellip;">
+  
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible/">
+  <link href="/favicon.png" rel="icon">
+  <link href='http://fonts.googleapis.com/css?family=Cantarell' rel='stylesheet' type='text/css'>
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Welcome to My Nerd World" type="application/atom+xml">
+  <meta name="og:type" content="website" />
+  <meta name="og:site_name" content="Welcome to My Nerd World" />
+  <meta name="og:title" content="Stepping into Ansible" />
+  <meta name="og:description" content="For the past 2 year&#8217;s, i played with config management tools like Puppet and Salt. But all these tools were mostly Client-Server Model, except &hellip;" />
+  <meta name="og:url" content="http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible/"/>
+  <meta name="url" content="http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible/">
+  
+  <meta name="subject" content="ansibleansible-vault"/>
+  <meta name="category" content="ansibleansible-vault"/>
+  
+  <meta name="distribution" content="global">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar">
+  <div class="navbar-inner">
+    <a class="brand" href="/">Welcome to My Nerd World</a>
+    <ul class="nav">
+      <li><a href="/">Home</a></li>
+      <li><a href="/blog/archives">Archives</a></li>
+    </ul>
+    <ul class="nav" data-subscription="rss">
+      <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+      
+    </ul>
+      
+    <form class="navbar-form" action="http://google.com/search" method="get">
+      <fieldset role="search">
+        <input type="hidden" name="q" value="site:beingasysadmin.com" />
+        <input class="span2" type="text" name="q" results="0" placeholder="Search"/>
+      </fieldset>
+    </form>
+      
+    
+  </div>
+</div>
+</nav>
+  <div class="wrapper_single">
+    <div class="container">
+      <article class="span8 offset2" role="article">
+        <div class="article-format">
+
+  <header>
+    
+      <h1 class="entry-title">Stepping Into Ansible</h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-02-06T09:52:00+00:00" pubdate data-updated="true">Feb 6<span>th</span>, 2015</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/ansible/'>ansible</a>, <a class='category' href='/blog/categories/ansible-vault/'>ansible-vault</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>For the past 2 year&#8217;s, i played with config management tools like Puppet and Salt. But all these tools were mostly Client-Server Model, except Salt where it supports Push model also. But for the last 6 months, Ansible is gaining more popularity. Ansible is a Push model system which relies on SSH. So i before i adopt Ansible completely, i decided to have a try. I need to make sure that the Ansible supports all basic features what other competitors supports. Which is really helpful in migration also.</p>
+
+<h4>Installation</h4>
+
+<p>Ansible is pretty easy to install. We can install it from source or via package managers or even via PIP. We can use the official ubuntu ppa for installing Ansible on an Ubuntu machine.</p>
+
+<pre><code>apt-get install software-properties-common
+apt-add-repository ppa:ansible/ansible
+apt-get update
+apt-get install ansible
+</code></pre>
+
+<p>Since Ansible relies on SSH, things like Host Key verification errors will prevent the SSH connections resulting in failures. We can disable the Host Key Verfication check in the <code>ansible.cfg</code> file</p>
+
+<pre><code>host_key_checking = False      # add this option to the config file
+</code></pre>
+
+<p>or we can set an env variable <code>export ANSIBLE_HOST_KEY_CHECKING=False</code> for the current session. By default ansible uses the <code>hosts</code> file present in the ansible home directory. So we can define the static machines there. We can add either the IP or DNS resolvable FQDN. Once the IP/FQDN is added, we can test the connectivity via ping module. Make sure that the Ansible server&#8217;s SSH key is added to the <code>authorized_keys</code> on the remote machines.</p>
+
+<pre><code>ansible all -m ping
+
+# Sample output
+
+ansible-ubuntu | success &gt;&gt; {
+    "changed": false,
+    "ping": "pong"
+  }
+</code></pre>
+
+<h4>Managing Custom Facts</h4>
+
+<p>Config management tools like puppet/Salt supports custom facts to be defined on the remote machines. We can define the custom facts and the config management server can use these facts. Even though Ansible is an agentless server, we can define the custom facts on the remote systems. Whenever we query for facts, ansible connects to the remote machines and fetches the facts using its default library. But it also looks for custom facts in <code>/etc/ansible/facts.d/</code>. We need to put our custom facts file in this directory. The file has  to be of <code>.fact</code> extension,must be executable and should return a valid <em>JSON</em>. This is in the case of a script. If we just want to define some facts directly, we can simple create a file like below</p>
+
+<pre><code>[myfact]
+role=test
+profile=staging
+</code></pre>
+
+<p>The above fact file will add two fact variables called <em>role</em> and <em>profile</em> with the value as mentioned in the file. Now let&#8217;s use the system module and see if we are able to retrieve the new custom facts.</p>
+
+<pre><code>ansible &lt;remote_host_name&gt; -m setup
+</code></pre>
+
+<p>Below is the part of the output showing the custom facts</p>
+
+<pre><code>"ansible_local": {
+       "myfacts": {
+        "myfact": {
+           "profile": "staging",
+           "role": "test"
+           }
+       }
+    },
+</code></pre>
+
+<h4>Managing Dynamic Inventory</h4>
+
+<p>In the Cloud environment, it&#8217;s difficult to maintain a static inventory. Ansible does supports Dynamic inventory for vendors including AWS EC2. Ansible provides us an Inventory <a href="https://raw.github.com/ansible/ansible/devel/plugins/inventory/ec2.py">script</a>. We can also use this script directly and query EC2 to get the list of all instances. To successfully make an API call to AWS, we will need to configure Boto. The simplest is just to export two environment variables:</p>
+
+<pre><code>export AWS_ACCESS_KEY_ID='AK123'
+export AWS_SECRET_ACCESS_KEY='abc123'
+
+./ec2.py --list   # Displays the list of all instances
+</code></pre>
+
+<p>Now we have the inventory script ready. Let&#8217;s make some fact&#8217;s query to the ec2 instances. We can use many filters here like, Tags etc&#8230;</p>
+
+<pre><code>ansible tag_Name_test -i /etc/ansible/plugins/inventory/ec2.py -m ping # Querying all instances with tag "Name=test"
+</code></pre>
+
+<p>We can also use regex with these say like <code>tag_Name_test*</code>. For rackspace user&#8217;s there is an official module called <a href="http://docs.ansible.com/rax_module.html">rax</a> that works perfectly with ansible</p>
+
+<h4>Enrcypting YAML Data files</h4>
+
+<p>This is an important feature that most of the config management system lacks. In most of the current systems, we need to define the sensitive data like say ssh-keys, API&#8217;s AuthID/Token etc&#8230; in plain text which increases the security risk. Ansible Vault comes for rescue here. Vault feature can encrypt any structured data file used by Ansible. This can include &#8220;group_vars/&#8221; or &#8220;host_vars/&#8221; inventory variables, variables loaded by &#8220;include_vars&#8221; or &#8220;vars_files&#8221;, or variable files passed on the ansible-playbook command line with &#8220;-e @file.yml&#8221; or &#8220;-e @file.json&#8221;. Role variables and defaults are also included!. While invoking any playbook, we can pass the <code>--ask-vault-pass</code> along the vault password, so Ansible can can decrypt the file and use its contents while performing any execution.</p>
+
+<pre><code>ansible-vault encrypt foo.yml    # Encrypting a file
+
+ansible-vault edit foo.yml       # Editing encrpypted file
+
+ansible-vault decrypt foo.yml    # Decrypting a file
+</code></pre>
+
+<p>Ansible indeed is truly an awesome product. It does have many new features like vault compared to its competitors. It&#8217;s backed by an awesome community. So we can expect more exciting features in future.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
+  
+
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-02-06T09:52:00+00:00" pubdate data-updated="true">Feb 6<span>th</span>, 2015</time>
+      
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/ansible/'>ansible</a>, <a class='category' href='/blog/categories/ansible-vault/'>ansible-vault</a>
+  
+</span>
+
+
+    </p>
+    
+      <a class="pull-left" href="/blog/2015/01/06/setting-up-docker-private-registry/" title="Previous Post: Setting up Docker Private Registry">&laquo; Setting up Docker Private Registry</a>
+    
+    
+  </footer>
+
+</div>
+
+
+      </article>
+    </div>
+    <div class="container">	
+      
+    </div>
+  </div>
+  <div id="footer-widgets">
+  <div class="container">
+    <div class="row">
+  <div class="span3">
+    <h2>recent posts</h2>
+    <ul class="recent_posts">
+      
+        <li>
+          <a href="/blog/2015/02/06/stepping-into-ansible/">Stepping into Ansible</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting up Docker Private Registry</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/07/automating-debian-package-management/">Automating Debian Package Management</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/07/managing-debian-apt-repository-via-aptly/">Managing Debian APT repository via Aptly</a>
+        </li>
+      
+        <li>
+          <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
+        </li>
+      
+    </ul>
+    <h2><a href="/blog/archives">archives</a></h2>
+  </div>
+  <div class="span3">
+    <h2>instagram</h2>
+    <div class="instagram"></div>
+    <button id="instabutton" class="btn">more</button>
+  </div>
+  <div class="span4">
+    <h2>twitter</h2>
+    <a href="https://twitter.com/deepakmdass88" class="twitter-follow-button" data-show-count="true" data-lang="en">Follow @deepakmdass88</a>
+    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+    <div class="tweet">
+    </div>
+  </div>
+  <div class="span2">
+    <h2>found on</h2>
+    <a href="https://github.com/deepakmdass88/" rel="tooltip" title="Github"><img class="social_icon" title="Github" alt="github icon" src="/images/glyphicons_381_github.png"></a>
+    <a href="http://www.linkedin.com/pub/deepak-dass/44/54/602" rel="tooltip" title="Linkedin"><img class="social_icon" title="Linkedin" alt="Linkedin icon" src="/images/glyphicons_377_linked_in.png"></a>
+    <a href="http://twitter.com/deepakmdass88" rel="tooltip" title="Twitter"><img class="social_icon" title="Twitter" alt="Twitter icon" src="/images/glyphicons_391_twitter_t.png"></a>
+    <a href="https://plus.google.com/105770729176086017609/posts" rel="tooltip" title="Google Plus"><img class="social_icon" title="Google Plus" alt="Google Plus icon" src="/images/glyphicons_386_google_plus.png"></a>
+    <a href="http://ttp://www.quora.com/Deepak-M-Dass" rel="tooltip" title="Quora"><img class="social_icon" title="Quora" alt="Quora icon" src="/images/glyphicons_385_quora.png"></a>
+    <h2>contact at</h2>
+    <a href="mailto:deepakmdass88@gmail.com">deepakmdass88@gmail.com</a>
+  </div>
+</div>
+
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-left">
+  <a href="/">Welcome to My Nerd World</a>
+  - Copyright &copy; 2015 - Deepak Mohandas
+</p>
+<p class="pull-right">
+  Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.
+</p>
+
+  </div>
+</footer>
+
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js" type="text/javascript"></script>
+<script>window.jQuery || document.write('<script src="/javascripts/libs/jquery-1.7.2.min.js" type="text/javascript"><\/script>')</script>
+<script src="/javascripts/libs/bootstrap.min.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.tweet.js" type="text/javascript"></script>
+<script src="/javascripts/jquery.instagram.js" type="text/javascript"></script>
+<script src="/javascripts/custom.js" type="text/javascript"></script>
+
+
+
+
+
+</body>
+</html>

@@ -4,10 +4,10 @@
   <title><![CDATA[Category: TweetGrabber | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/tweetgrabber/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -24,7 +24,7 @@
 
 <p>There is a Ruby gem called "<strong>TweetStream</strong>" which works very well with Twitter API v1.1. So i'm going to use this gem to talk to Twitter. Below is the simple architecture diagram for my app.</p>
 
-<p><img src="/images/tweetgrabber.png"></p>
+<p>{% img /images/tweetgrabber.png %}</p>
 
 <p>Let's see each components in detail.</p>
 
@@ -70,7 +70,7 @@ def push(data)
 
 <p>In Redis, im going to use the <strong>LIST</strong> data type. LIST are simply list of strings, sorted by insertion order. It is possible to add elements to a Redis List pushing new elements on the head (on the left) or on the tail (on the right) of the list.</p>
 
-<p><img src="/images/redis-list.png"></p>
+<p>{% img /images/redis-list.png %}</p>
 
 <p>So the new tweets i will be pushing in from the head, and prevent the over population, i will be calling <em>LTRIM</em> operation preiodically to clear of the old tweets from the database. All these operations are done from the Feeder by corresponding ruby methods/functions.</p>
 
@@ -79,7 +79,7 @@ def push(data)
 
 <p>I'm using <strong>SINATRA</strong> for building the frontend. SInce i'm not much familiar with HTML's and UI's, i decided to use <em>Twitter Bootstrap</em> for building the layout. And for each category, i've created a collapsible table, so that we can expand and collapse the required tables. Now, the next task is scrolling the tweets, for that i found a jquery plugin called <a href="https://github.com/buildinternet/totem">Totem Ticker</a>.ANd i enabled, refreshing for the div element which contains this scroller, so that after each refresh, the variable which supplies tweets to the scroller, will get updated with the newer tweets from the corresponding Redis DB.</p>
 
-<p><img src="/images/layout.png"></p>
+<p>{% img /images/layout.png %}</p>
 
 <p>As of now the app is working fine. But i'm planning to extend this to add more features, like adding the keywords dynamically from the Web Frontend, and displaying only those tables with the keywords. I will be digging more take it more powerfull :-). I'm going to push the working code soon into my GitHub account, so that others can also paly around on this, and can extend it for their own requirements.</p>
 ]]></content>

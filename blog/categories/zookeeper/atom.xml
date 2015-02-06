@@ -4,10 +4,10 @@
   <title><![CDATA[Category: Zookeeper | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/zookeeper/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -138,7 +138,7 @@ $ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubu
 
 <p>This will launch a single container. We can check the status of the container via the Marathon UI as well as via RestAPI also. Now comes the critical part for Production, What happens when the master fails. Mesos Documentation says, if the current master fails, in a Multi master Mesos Cluster, Zookeeper will elect a new Master, in our case the second Mesos master service. And Mesos Claims that the running services will not get crashed and the status will be taken by the newly promoted master. In our case, we have a Docker container running as a long running service.</p>
 
-<p><img src="https://beingasysadmin.files.wordpress.com/2014/06/marathon-1.png?w=6400"></p>
+<p>{% img https://beingasysadmin.files.wordpress.com/2014/06/marathon-1.png?w=6400 %}</p>
 
 <p>First i'll stop one of the Mesos master service,</p>
 

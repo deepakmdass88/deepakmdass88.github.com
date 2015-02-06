@@ -7,7 +7,7 @@
 <head>
   <meta charset="utf-8">
   <title>Welcome to My Nerd World</title>
-  <meta name="author" content="Deepak M Das">
+  <meta name="author" content="Deepak Mohandas">
   <link rel="author" href="humans.txt">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
@@ -97,6 +97,77 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2013/02/26/using-snmp-with-icinga/">Using SNMP With Icinga</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-02-26T21:55:00+00:00" pubdate data-updated="true">Feb 26<span>th</span>, 2013</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/debian/'>debian</a>, <a class='category' href='/blog/categories/icinga/'>icinga</a>, <a class='category' href='/blog/categories/monitoring/'>monitoring</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In my previous i explained how to set up the Icinga monitoring system on Debian based machine. In this i will be explaining on how to use SNMP with icinga. Using SNMP we can get various info from a remote machine which can be used to icinga.</p>
+
+<p>On the remote server we need to install the snmp server. In ordr to check whether the snmp is working fine, we can install the snmp client also on the same machine.</p>
+
+<pre><code>apt-get install snmp snmp-server
+</code></pre>
+
+<p>From Debian Wheezy onwards, the <strong><em>snmp-mibs</em></strong> package has been removed from the debian repositories. But we can download the debian file from the squeeze repo. Since it has only a few depenencies and they can be installed from the debian repositories, we can manually install the mibs package. But in Ubuntu mibs package is still available in their repositories.</p>
+
+<p>Once the package is installed we can run the <strong><em>download-mibs</em></strong> to install all the necessary mibs. Now once the snmpd package is installed, we need to comment the MIBS option in the <code>/etc/snmp/snmp.conf</code>. And define the basic settings like, location, contact etc in the <code>snmpd.conf</code> file. We can define the ip to which snmp should listen either in the snmpd.conf file or in the <code>/etc/default/snmp</code> file as an extra option. Once the settings are modified, we can start the snmpd service.</p>
+
+<p> So now the service will listening on the port <em>631</em> on the ip which we defined, by default <strong>127.0.0.1</strong>. We can also enable authentication for snmp service, so that the snmp clients which passes the authentication will be able to get the result from the snmp service.</p>
+
+<p>Once the snmp service has started on the remote server, we can test the snmp onnectivity from our icinga server using the nagios&#8217; <code>check_snmp plugin</code>. Once we are able to get results from the snmp service, we can deploy tese snmp services into our icinga host configurations to get the results from the remote server&#8217;s using the <strong><em>check_snmp command</em></strong>.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2013/02/25/monitoring-servers-using-icinga/">Monitoring Server&#8217;s Using Icinga</a></h1>
     
     
@@ -106,7 +177,7 @@
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -193,7 +264,7 @@ posted in
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -435,7 +506,7 @@ smtpd_sender_restrictions=
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -536,7 +607,7 @@ sudo apt-get install linux-headers-$(uname -r) build-essential    # for sudo use
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -623,7 +694,7 @@ user_attrs = homeDirectory=home,uidNumber=uid,gidNumber=gid,mailQuotaSize=quota=
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -767,7 +838,7 @@ $ mco rpc rpcutil ping --dm=mc -v
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -856,7 +927,7 @@ end
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -975,7 +1046,7 @@ return [[riakObject.key, (m ? m.length : 0 )]];
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1066,7 +1137,7 @@ posted in
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1166,6 +1237,10 @@ posted in
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2015/02/06/stepping-into-ansible/">Stepping into Ansible</a>
+        </li>
+      
+        <li>
           <a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting up Docker Private Registry</a>
         </li>
       
@@ -1179,10 +1254,6 @@ posted in
       
         <li>
           <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
         </li>
       
     </ul>
@@ -1218,7 +1289,7 @@ posted in
   <div class="container">
     <p class="pull-left">
   <a href="/">Welcome to My Nerd World</a>
-  - Copyright &copy; 2015 - Deepak M Das
+  - Copyright &copy; 2015 - Deepak Mohandas
 </p>
 <p class="pull-right">
   Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.

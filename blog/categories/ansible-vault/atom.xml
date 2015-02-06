@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: ansible-vault | Welcome to My Nerd World]]></title>
+  <link href="http://beingasysadmin.com/blog/categories/ansible-vault/atom.xml" rel="self"/>
+  <link href="http://beingasysadmin.com/"/>
+  <updated>2015-02-06T10:23:38+00:00</updated>
+  <id>http://beingasysadmin.com/</id>
+  <author>
+    <name><![CDATA[Deepak Mohandas]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Stepping into Ansible]]></title>
+    <link href="http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible/"/>
+    <updated>2015-02-06T09:52:00+00:00</updated>
+    <id>http://beingasysadmin.com/blog/2015/02/06/stepping-into-ansible</id>
+    <content type="html"><![CDATA[<p>For the past 2 year's, i played with config management tools like Puppet and Salt. But all these tools were mostly Client-Server Model, except Salt where it supports Push model also. But for the last 6 months, Ansible is gaining more popularity. Ansible is a Push model system which relies on SSH. So i before i adopt Ansible completely, i decided to have a try. I need to make sure that the Ansible supports all basic features what other competitors supports. Which is really helpful in migration also.</p>
+
+<h4>Installation</h4>
+
+<p>Ansible is pretty easy to install. We can install it from source or via package managers or even via PIP. We can use the official ubuntu ppa for installing Ansible on an Ubuntu machine.</p>
+
+<pre><code>apt-get install software-properties-common
+apt-add-repository ppa:ansible/ansible
+apt-get update
+apt-get install ansible
+</code></pre>
+
+<p>Since Ansible relies on SSH, things like Host Key verification errors will prevent the SSH connections resulting in failures. We can disable the Host Key Verfication check in the <code>ansible.cfg</code> file</p>
+
+<pre><code>host_key_checking = False      # add this option to the config file
+</code></pre>
+
+<p>or we can set an env variable <code>export ANSIBLE_HOST_KEY_CHECKING=False</code> for the current session. By default ansible uses the <code>hosts</code> file present in the ansible home directory. So we can define the static machines there. We can add either the IP or DNS resolvable FQDN. Once the IP/FQDN is added, we can test the connectivity via ping module. Make sure that the Ansible server's SSH key is added to the <code>authorized_keys</code> on the remote machines.</p>
+
+<pre><code>ansible all -m ping
+
+# Sample output
+
+ansible-ubuntu | success &gt;&gt; {
+    "changed": false,
+    "ping": "pong"
+  }
+</code></pre>
+
+<h4>Managing Custom Facts</h4>
+
+<p>Config management tools like puppet/Salt supports custom facts to be defined on the remote machines. We can define the custom facts and the config management server can use these facts. Even though Ansible is an agentless server, we can define the custom facts on the remote systems. Whenever we query for facts, ansible connects to the remote machines and fetches the facts using its default library. But it also looks for custom facts in <code>/etc/ansible/facts.d/</code>. We need to put our custom facts file in this directory. The file has  to be of <code>.fact</code> extension,must be executable and should return a valid <em>JSON</em>. This is in the case of a script. If we just want to define some facts directly, we can simple create a file like below</p>
+
+<pre><code>[myfact]
+role=test
+profile=staging
+</code></pre>
+
+<p>The above fact file will add two fact variables called <em>role</em> and <em>profile</em> with the value as mentioned in the file. Now let's use the system module and see if we are able to retrieve the new custom facts.</p>
+
+<pre><code>ansible &lt;remote_host_name&gt; -m setup
+</code></pre>
+
+<p>Below is the part of the output showing the custom facts</p>
+
+<pre><code>"ansible_local": {
+       "myfacts": {
+        "myfact": {
+           "profile": "staging",
+           "role": "test"
+           }
+       }
+    },
+</code></pre>
+
+<h4>Managing Dynamic Inventory</h4>
+
+<p>In the Cloud environment, it's difficult to maintain a static inventory. Ansible does supports Dynamic inventory for vendors including AWS EC2. Ansible provides us an Inventory <a href="https://raw.github.com/ansible/ansible/devel/plugins/inventory/ec2.py">script</a>. We can also use this script directly and query EC2 to get the list of all instances. To successfully make an API call to AWS, we will need to configure Boto. The simplest is just to export two environment variables:</p>
+
+<pre><code>export AWS_ACCESS_KEY_ID='AK123'
+export AWS_SECRET_ACCESS_KEY='abc123'
+
+./ec2.py --list   # Displays the list of all instances
+</code></pre>
+
+<p>Now we have the inventory script ready. Let's make some fact's query to the ec2 instances. We can use many filters here like, Tags etc...</p>
+
+<pre><code>ansible tag_Name_test -i /etc/ansible/plugins/inventory/ec2.py -m ping # Querying all instances with tag "Name=test"
+</code></pre>
+
+<p>We can also use regex with these say like <code>tag_Name_test*</code>. For rackspace user's there is an official module called <a href="http://docs.ansible.com/rax_module.html">rax</a> that works perfectly with ansible</p>
+
+<h4>Enrcypting YAML Data files</h4>
+
+<p>This is an important feature that most of the config management system lacks. In most of the current systems, we need to define the sensitive data like say ssh-keys, API's AuthID/Token etc... in plain text which increases the security risk. Ansible Vault comes for rescue here. Vault feature can encrypt any structured data file used by Ansible. This can include "group_vars/" or "host_vars/" inventory variables, variables loaded by "include_vars" or "vars_files", or variable files passed on the ansible-playbook command line with "-e @file.yml" or "-e @file.json". Role variables and defaults are also included!. While invoking any playbook, we can pass the <code>--ask-vault-pass</code> along the vault password, so Ansible can can decrypt the file and use its contents while performing any execution.</p>
+
+<pre><code>ansible-vault encrypt foo.yml    # Encrypting a file
+
+ansible-vault edit foo.yml       # Editing encrpypted file
+
+ansible-vault decrypt foo.yml    # Decrypting a file
+</code></pre>
+
+<p>Ansible indeed is truly an awesome product. It does have many new features like vault compared to its competitors. It's backed by an awesome community. So we can expect more exciting features in future.</p>
+]]></content>
+  </entry>
+  
+</feed>

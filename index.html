@@ -7,7 +7,7 @@
 <head>
   <meta charset="utf-8">
   <title>Welcome to My Nerd World</title>
-  <meta name="author" content="Deepak M Das">
+  <meta name="author" content="Deepak Mohandas">
   <link rel="author" href="humans.txt">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
@@ -97,6 +97,147 @@
 
   <header>
     
+      <h1 class="entry-title"><a href="/blog/2015/02/06/stepping-into-ansible/">Stepping Into Ansible</a></h1>
+    
+    
+      <p class="meta">
+        
+  
+
+
+  
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
+  
+
+ - 
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-02-06T09:52:00+00:00" pubdate data-updated="true">Feb 6<span>th</span>, 2015</time> - 
+        
+
+posted in
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/ansible/'>ansible</a>, <a class='category' href='/blog/categories/ansible-vault/'>ansible-vault</a>
+  
+</span>
+
+
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>For the past 2 year&#8217;s, i played with config management tools like Puppet and Salt. But all these tools were mostly Client-Server Model, except Salt where it supports Push model also. But for the last 6 months, Ansible is gaining more popularity. Ansible is a Push model system which relies on SSH. So i before i adopt Ansible completely, i decided to have a try. I need to make sure that the Ansible supports all basic features what other competitors supports. Which is really helpful in migration also.</p>
+
+<h4>Installation</h4>
+
+<p>Ansible is pretty easy to install. We can install it from source or via package managers or even via PIP. We can use the official ubuntu ppa for installing Ansible on an Ubuntu machine.</p>
+
+<pre><code>apt-get install software-properties-common
+apt-add-repository ppa:ansible/ansible
+apt-get update
+apt-get install ansible
+</code></pre>
+
+<p>Since Ansible relies on SSH, things like Host Key verification errors will prevent the SSH connections resulting in failures. We can disable the Host Key Verfication check in the <code>ansible.cfg</code> file</p>
+
+<pre><code>host_key_checking = False      # add this option to the config file
+</code></pre>
+
+<p>or we can set an env variable <code>export ANSIBLE_HOST_KEY_CHECKING=False</code> for the current session. By default ansible uses the <code>hosts</code> file present in the ansible home directory. So we can define the static machines there. We can add either the IP or DNS resolvable FQDN. Once the IP/FQDN is added, we can test the connectivity via ping module. Make sure that the Ansible server&#8217;s SSH key is added to the <code>authorized_keys</code> on the remote machines.</p>
+
+<pre><code>ansible all -m ping
+
+# Sample output
+
+ansible-ubuntu | success &gt;&gt; {
+    "changed": false,
+    "ping": "pong"
+  }
+</code></pre>
+
+<h4>Managing Custom Facts</h4>
+
+<p>Config management tools like puppet/Salt supports custom facts to be defined on the remote machines. We can define the custom facts and the config management server can use these facts. Even though Ansible is an agentless server, we can define the custom facts on the remote systems. Whenever we query for facts, ansible connects to the remote machines and fetches the facts using its default library. But it also looks for custom facts in <code>/etc/ansible/facts.d/</code>. We need to put our custom facts file in this directory. The file has  to be of <code>.fact</code> extension,must be executable and should return a valid <em>JSON</em>. This is in the case of a script. If we just want to define some facts directly, we can simple create a file like below</p>
+
+<pre><code>[myfact]
+role=test
+profile=staging
+</code></pre>
+
+<p>The above fact file will add two fact variables called <em>role</em> and <em>profile</em> with the value as mentioned in the file. Now let&#8217;s use the system module and see if we are able to retrieve the new custom facts.</p>
+
+<pre><code>ansible &lt;remote_host_name&gt; -m setup
+</code></pre>
+
+<p>Below is the part of the output showing the custom facts</p>
+
+<pre><code>"ansible_local": {
+       "myfacts": {
+        "myfact": {
+           "profile": "staging",
+           "role": "test"
+           }
+       }
+    },
+</code></pre>
+
+<h4>Managing Dynamic Inventory</h4>
+
+<p>In the Cloud environment, it&#8217;s difficult to maintain a static inventory. Ansible does supports Dynamic inventory for vendors including AWS EC2. Ansible provides us an Inventory <a href="https://raw.github.com/ansible/ansible/devel/plugins/inventory/ec2.py">script</a>. We can also use this script directly and query EC2 to get the list of all instances. To successfully make an API call to AWS, we will need to configure Boto. The simplest is just to export two environment variables:</p>
+
+<pre><code>export AWS_ACCESS_KEY_ID='AK123'
+export AWS_SECRET_ACCESS_KEY='abc123'
+
+./ec2.py --list   # Displays the list of all instances
+</code></pre>
+
+<p>Now we have the inventory script ready. Let&#8217;s make some fact&#8217;s query to the ec2 instances. We can use many filters here like, Tags etc&#8230;</p>
+
+<pre><code>ansible tag_Name_test -i /etc/ansible/plugins/inventory/ec2.py -m ping # Querying all instances with tag "Name=test"
+</code></pre>
+
+<p>We can also use regex with these say like <code>tag_Name_test*</code>. For rackspace user&#8217;s there is an official module called <a href="http://docs.ansible.com/rax_module.html">rax</a> that works perfectly with ansible</p>
+
+<h4>Enrcypting YAML Data files</h4>
+
+<p>This is an important feature that most of the config management system lacks. In most of the current systems, we need to define the sensitive data like say ssh-keys, API&#8217;s AuthID/Token etc&#8230; in plain text which increases the security risk. Ansible Vault comes for rescue here. Vault feature can encrypt any structured data file used by Ansible. This can include &#8220;group_vars/&#8221; or &#8220;host_vars/&#8221; inventory variables, variables loaded by &#8220;include_vars&#8221; or &#8220;vars_files&#8221;, or variable files passed on the ansible-playbook command line with &#8220;-e @file.yml&#8221; or &#8220;-e @file.json&#8221;. Role variables and defaults are also included!. While invoking any playbook, we can pass the <code>--ask-vault-pass</code> along the vault password, so Ansible can can decrypt the file and use its contents while performing any execution.</p>
+
+<pre><code>ansible-vault encrypt foo.yml    # Encrypting a file
+
+ansible-vault edit foo.yml       # Editing encrpypted file
+
+ansible-vault decrypt foo.yml    # Decrypting a file
+</code></pre>
+
+<p>Ansible indeed is truly an awesome product. It does have many new features like vault compared to its competitors. It&#8217;s backed by an awesome community. So we can expect more exciting features in future.</p>
+</div>
+  
+  
+
+
+</div>
+
+      </article>
+    
+    
+      <article class="span4">
+        <div class="article-format">
+
+  <header>
+    
       <h1 class="entry-title"><a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting Up Docker Private Registry</a></h1>
     
     
@@ -106,7 +247,7 @@
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -588,7 +729,7 @@ $ curl http://localhost:5000/v1/search
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -705,7 +846,7 @@ debuild -us -uc
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -800,7 +941,7 @@ $ gpg --send-key KEYNAME     # This command can be used if we want to send the k
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -931,7 +1072,7 @@ override_dh_builddeb:
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1142,7 +1283,7 @@ Conte----  E-RTD1        994       126       0         0
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1277,7 +1418,7 @@ $ /etc/init.d/collectd start
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1400,7 +1541,7 @@ CONTAINER ID        IMAGE               COMMAND                CREATED          
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1543,7 +1684,7 @@ CONTAINER ID        IMAGE               COMMAND                CREATED          
 
 
   
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
+    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak Mohandas</span></a></span>
   
 
  - 
@@ -1658,209 +1799,6 @@ Content-Length: 427
 
       </article>
     
-    
-      <article class="span4">
-        <div class="article-format">
-
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2014/08/15/managing-docker-cluster-using-multiple-mesos-masters/">Managing Docker Cluster Using Multiple Mesos Masters</a></h1>
-    
-    
-      <p class="meta">
-        
-  
-
-
-  
-    <span class="byline author vcard">by <a href="https://plus.google.com/deepakmdass88?rel=author"><span class="fn">Deepak M Das</span></a></span>
-  
-
- - 
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2014-08-15T16:44:00+00:00" pubdate data-updated="true">Aug 15<span>th</span>, 2014</time> - 
-        
-
-posted in
-<span class="categories">
-  
-    <a class='category' href='/blog/categories/docker/'>Docker</a>, <a class='category' href='/blog/categories/marathon/'>Marathon</a>, <a class='category' href='/blog/categories/mesos/'>Mesos</a>, <a class='category' href='/blog/categories/zookeeper/'>Zookeeper</a>
-  
-</span>
-
-
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>In my previous <a href="http://beingasysadmin.wordpress.com/2014/06/27/managing-docker-clusters-using-mesos-and-marathon/">blog</a>, i&#8217;ve described how to manage Docker cluster using Mesos and Marathon. It was using a single Mesos Master. But for production, we cannot go with a single Mesos master, as it will result in a sinlge point of failure. Mesos supports Multi master via Zookeeper. So in this blog i&#8217;m going to explain how to setup a Multi Master Mesos Cluster using Zookeper for Automatic promotion of Mesos master when the current Active Mesos Master fails. This time i&#8217;m going to setup 3 Zookeeper services and 2 Mesos Master on a single Vagrant box.</p>
-
-<h1>Setting up ZooKeeper Cluster</h1>
-
-<p>First lets download the the latest stable Zookeeper source code.</p>
-
-<pre><code>$ wget http://mirrors.ukfast.co.uk/sites/ftp.apache.org/zookeeper/stable/zookeeper-3.4.6.tar.gz
-</code></pre>
-
-<p>Now extract the tar file and create 3 copies of the same, say zookeeper1, zookeeper2 and zookeeper3. Also Zookeeper needs Java on the machine, so let&#8217;s install java dependencies.</p>
-
-<pre><code>$ apt-get install openjdk-7-jdk openjdk-7-jre
-</code></pre>
-
-<p>Now inside, the extracted zookeeper source folder, we need to create a config file. So in our case, inside each Zookeeper folder, we need a <code>zoo.cfg</code> file.</p>
-
-<p>For zookeeper1 folder,</p>
-
-<pre><code># content of zoo.cfg
-tickTime=2000
-dataDir=/var/lib/zookeeper1/
-clientPort=2181
-initLimit=5
-syncLimit=2
-server.1=localhost:2888:3888
-server.2=localhost:2889:3889
-server.3=localhost:2890:3890
-</code></pre>
-
-<p>For zookeeper2 folder,</p>
-
-<pre><code># content of zoo.cfg
-tickTime=2000
-dataDir=/var/lib/zookeeper2/
-clientPort=2182
-initLimit=5
-syncLimit=2
-server.1=localhost:2888:3888
-server.2=localhost:2889:3889
-server.3=localhost:2890:3890
-</code></pre>
-
-<p>For zookeeper3 folder,</p>
-
-<pre><code>    # content of zoo.cfg
-tickTime=2000
-dataDir=/var/lib/zookeeper3/
-clientPort=2183
-initLimit=5
-syncLimit=2
-server.1=localhost:2888:3888
-server.2=localhost:2889:3889
-server.3=localhost:2890:3890
-</code></pre>
-
-<p>Here, since the 3 zookeeper services are running on the same host, i&#8217;ve assigned separate ports. If the zookeeper are running on separate instances, then we can have the same ports for all of the zookeeper nodes. There are two port numbers. The first followers use to connect to the leader, and the second is for leader election.</p>
-
-<p>Now we can start the Zookeeper in Foreground using the <code>./bin/zkServer.sh start-foreground</code> from each of the 3 zookeeper folders. <code>netstat -nltp | grep 288</code> will display the port of the zookeeper service which is the current master among the cluster. We can also check the connectivity using the zookeepr client binary available in the zookeeper source folder. Once zookeeper cluster is UP, we can go ahead setting up Mesos.</p>
-
-<h1>Setting up Multiple Mesos Masters</h1>
-
-<p>Mesossphere team has already built packages for Mesos,Marathon and Deimos. So one of my Mesos master will be from the package. But i also wanted to play with the Mesos Source, so i decided to build Mesos from the source. So my second Mesos Master will be from the scratch.</p>
-
-<p>First Master from the Mesosphere package.</p>
-
-<pre><code>$ apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
-
-$ DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-
-$ CODENAME=$(lsb_release -cs)
-
-# Add the repository
-$ echo "deb http://repos.mesosphere.io/${DISTRO} ${CODENAME} main" | sudo tee /etc/apt/sources.list.d/mesosphere.list
-
-$ apt-get -y update
-
-$ apt-get -y install mesos marathon deimos
-</code></pre>
-
-<p>Now we need to define the Zookeeper cluster details so that Mesos master and slave can connect. Edit <code>/etc/mesos/zk</code> and add <code>zk://localhost:2181,localhost:2182,localhost:2183/mesos</code>. More details about Zookeeper URL is available <a href="https://github.com/deepakmdass88/mesos-doc-test/blob/master/Using-ZooKeeper.textile">here</a>. Also More details about installing Mesos from Mesosphere&#8217;s Debian package is available in their <a href="http://mesosphere.io/docs/getting-started/debian-install/">website</a>.</p>
-
-<p>So now we have one master ready, we can start the Mesos Master, Mesos Slave and Marathon. ANd esnure that they can connect to our Zookeeper cluster properly. We can also see the connection status in the stdout of the zookeeper process as they are running in foreground.</p>
-
-<p>Now building the second Mesos master from scratch. First let&#8217;s download the Mesos Source Code.</p>
-
-<pre><code>$ wget http://archive.apache.org/dist/mesos/0.19.0/mesos-0.19.0.tar.gz
-
-$ tar xvzf mesos-0.19.0.tar.gz &amp;&amp; cd mesos-0.19.0
-
-$ ./bootstrap &amp;&amp; ./configure --prefix=/usr/local/mesos
-
-$ make &amp;&amp; make install
-</code></pre>
-
-<p>Once the Compilation is succeeded, we can start the new Mesos Master service. The default port 5050 is used by the existing master, so we need to run this new service on a different port.</p>
-
-<pre><code>$ /usr/local/mesos/sbin/mesos-master --zk=zk://localhost:2181,localhost:2182,localhost:2183/mesos --port=5054 --quorum=1 --registry=in_memory --work_dir=/var/lib/mesos/
-</code></pre>
-
-<p>Once the new Mesos Master is up, we can create a test container via Marathon Rest API. Create a simple json file called ubuntu.json</p>
-
-<pre><code>{
-    "container": {
-    "image": "docker:///libmesos/ubuntu",
-    "options" : []
-  },
-  "id": "ubuntu",
-  "instances": "1",
-  "cpus": ".3",
-  "mem": "200",
-  "uris": [ ],
-  "cmd": "while sleep 10; do date -u +%T; done"
-}
-
-
-$ curl -X POST -H "Content-Type: application/json" localhost:8080/v2/apps -d@ubuntu.json
-</code></pre>
-
-<p>This will launch a single container. We can check the status of the container via the Marathon UI as well as via RestAPI also. Now comes the critical part for Production, What happens when the master fails. Mesos Documentation says, if the current master fails, in a Multi master Mesos Cluster, Zookeeper will elect a new Master, in our case the second Mesos master service. And Mesos Claims that the running services will not get crashed and the status will be taken by the newly promoted master. In our case, we have a Docker container running as a long running service.</p>
-
-<p><img src="https://beingasysadmin.files.wordpress.com/2014/06/marathon-1.png?w=6400"></p>
-
-<p>First i&#8217;ll stop one of the Mesos master service,</p>
-
-<pre><code>$ service mesos-master stop
-</code></pre>
-
-<p>Now immidiately on the stdout of the Zookeeper, we can see the logs corresponding to the Election process. Below is the same,</p>
-
-<pre><code>I0814 19:41:07.889044  9093 contender.cpp:243] New candidate (id='7') has entered the contest for leadership
-2014-08-14 19:41:07,896:9088(0x7ff8e2ffd700):ZOO_INFO@check_events@1750: session establishment complete on server [127.0.0.1:2183], sessionId=0x347d606d0d90003, negotiated timeout=10000
-I0814 19:41:07.899509  9092 group.cpp:310] Group process ((10)@10.0.2.15:5054) connected to ZooKeeper
-I0814 19:41:07.900049  9092 group.cpp:784] Syncing group operations: queue size (joins, cancels, datas) = (0, 0, 0)
-I0814 19:41:07.900069  9092 group.cpp:382] Trying to create path '/mesos' in ZooKeeper
-I0814 19:41:07.915621  9092 detector.cpp:135] Detected a new leader: (id='6')
-I0814 19:41:07.915699  9092 group.cpp:655] Trying to get '/mesos/info_0000000006' in ZooKeeper
-I0814 19:41:07.920266  9094 network.hpp:423] ZooKeeper group memberships changed
-I0814 19:41:07.920910  9094 group.cpp:655] Trying to get '/mesos/log_replicas/0000000003' in ZooKeeper
-I0814 19:41:07.924144  9095 network.hpp:461] ZooKeeper group PIDs: { log-replica(1)@10.0.2.15:5054 }
-I0814 19:41:07.926575  9092 detector.cpp:377] A new leading master (UPID=master@10.0.2.15:5054) is detected
-I0814 19:41:07.926679  9092 master.cpp:957] The newly elected leader is master@10.0.2.15:5054 with id 20140814-194033-251789322-5050-8808
-</code></pre>
-
-<p>As per the above logs, the second Mesos Master running at port 5054 was promoted as New Mesos Master. This will be reflected to Marathon also. We can go to the Marthon UI and make sure that the Docker process that we have started using the old Mesos master is still running fine. We can even try making some scaling changes and can make sure that the new master can alter the process.</p>
-
-<p>In my testing, i&#8217;ve tried stoping each of the service and ensured that only one Mesos master is running and also tried scaling the Apps from one Master service to make sure that the new Master was able to keep track of all these changes. The results were quite promising. Mesos + Marrthon + Docker indeed is killer combo. We can really built a cross vendor independent cluster with scaling capabilites.</p>
-</div>
-  
-  
-
-
-</div>
-
-      </article>
-    
     </div>
       <div class="row">
         <ul class="pager">
@@ -1884,6 +1822,10 @@ I0814 19:41:07.926679  9092 master.cpp:957] The newly elected leader is master@1
     <ul class="recent_posts">
       
         <li>
+          <a href="/blog/2015/02/06/stepping-into-ansible/">Stepping into Ansible</a>
+        </li>
+      
+        <li>
           <a href="/blog/2015/01/06/setting-up-docker-private-registry/">Setting up Docker Private Registry</a>
         </li>
       
@@ -1897,10 +1839,6 @@ I0814 19:41:07.926679  9092 master.cpp:957] The newly elected leader is master@1
       
         <li>
           <a href="/blog/2014/12/03/building-debian-packages/">Building Debian packages</a>
-        </li>
-      
-        <li>
-          <a href="/blog/2014/10/23/sippy-cup-freeswitch-load-test-simplified/">sippy_cup - FreeSwitch Load Test Simplified</a>
         </li>
       
     </ul>
@@ -1936,7 +1874,7 @@ I0814 19:41:07.926679  9092 master.cpp:957] The newly elected leader is master@1
   <div class="container">
     <p class="pull-left">
   <a href="/">Welcome to My Nerd World</a>
-  - Copyright &copy; 2015 - Deepak M Das
+  - Copyright &copy; 2015 - Deepak Mohandas
 </p>
 <p class="pull-right">
   Powered by <a href="http://octopress.org/">Octopress</a>. Designed by <a href="http://www.AdrianArtiles.com">Adrian Artiles</a>.

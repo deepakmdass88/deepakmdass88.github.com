@@ -4,10 +4,10 @@
   <title><![CDATA[Category: apt | Welcome to My Nerd World]]></title>
   <link href="http://beingasysadmin.com/blog/categories/apt/atom.xml" rel="self"/>
   <link href="http://beingasysadmin.com/"/>
-  <updated>2015-01-14T01:35:14+00:00</updated>
+  <updated>2015-02-06T10:23:38+00:00</updated>
   <id>http://beingasysadmin.com/</id>
   <author>
-    <name><![CDATA[Deepak M Das]]></name>
+    <name><![CDATA[Deepak Mohandas]]></name>
     
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
@@ -43,9 +43,9 @@ $ /etc/init.d/jenkins restart
 
 <p>Click on "<em>New Item</em>" on the Home Page and Select "<em>Freestyle Project</em>" and Click on "OK". On the Next page, we need to configure all the necessary steps for build job. Fill in the necessary details like Project Name, Description etc. Under "Source Code Management", select <code>Git</code> and enter the Repo URL. Make sure that the jenkins user has access to the repo. We can also use Deploy keys, but i've generated a separate ssh key for Jenkins user and the same has been added to Github. Under "<em>Build Triggers</em>" select 'Build when a change is pushed to GitHub' so that Jenkins will start the build job everytime when a change has been pushed to repo.</p>
 
-<p><img src="/images/aptly1.png"></p>
+<p>{% img /images/aptly1.png %}</p>
 
-<p><img src="/images/aptly2.png"></p>
+<p>{% img /images/aptly2.png %}</p>
 
 <p>Under the <code>Build</code> section, Click on "<em>Add build step</em>" and select '<em>Execute shell</em>' and let's add our package build script which is stage 1.</p>
 
@@ -61,7 +61,7 @@ debuild -us -uc
 /usr/bin/env script -qfc "aptly publish -passphrase=&lt;GPG passphrase&gt; update myapt"
 </code></pre>
 
-<p><img src="/images/aptly3.png"></p>
+<p>{% img /images/aptly3.png %}</p>
 
 <p>If you see my above command, i've used the <code>script</code> command. This is because, i was getting the error <code>aptly stderr: gpg: cannot open tty /dev/tty': No such device or address</code> whenever i try to update a repo. This is <a href="https://github.com/smira/aptly/issues/144">bug</a> in aptly. The fix has been placed on the Master branch but its not yet released. The <code>script</code> command is a temporary work around for this bug.</p>
 
@@ -71,11 +71,11 @@ debuild -us -uc
 
 <p>Go the Github repo and Click on the Repo settings. Open "<em>Webhooks and Services</em>" and select "<em>Add Service</em>" and select "<em>GitHub plugin</em>".Now it will ask for Jenkin's Hook URL, which is "<em>http://<Name of Jenkins server>:8080/github-webhook/</em>" and add the service. Once the service is set, we can click on "Test service" to check if the webhook is working fine.</p>
 
-<p><img src="/images/aptly4.png"></p>
+<p>{% img /images/aptly4.png %}</p>
 
 <p>Once the test hook is created, go to the Jenkins job page and select "<em>GitHub Hook Log</em>". The test hook should get displayed there. If not there is something wrong on the config.</p>
 
-<p><img src="/images/aptly5.png"></p>
+<p>{% img /images/aptly5.png %}</p>
 
 <p>Now we have a fully automated build and release management. Config management tools like Salt/Ansible etc.. can go ahead and start the deployment process.</p>
 ]]></content>
